@@ -29,6 +29,36 @@ struct AssetDashboardView: View {
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
                         netWorthCard
+
+                        // 实物资产入口
+                        NavigationLink {
+                            PhysicalAssetView()
+                        } label: {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(.orange.opacity(0.15))
+                                        .frame(width: 40, height: 40)
+                                    Image(systemName: "iphone.and.arrow.forward")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.orange)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("实物资产")
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(.white)
+                                    Text("手机、电脑、汽车 — 看看每天花多少钱")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.4))
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.3))
+                            }
+                            .glassCard()
+                        }
+
                         if !assetItems.isEmpty || !liabilityItems.isEmpty { assetBreakdown }
                         if !assetItems.isEmpty { assetSection(title: "资产", items: assetItems, color: DesignSystem.incomeColor) }
                         if !liabilityItems.isEmpty { assetSection(title: "负债", items: liabilityItems, color: DesignSystem.expenseColor) }

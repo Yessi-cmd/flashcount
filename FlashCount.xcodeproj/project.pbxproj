@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		009547089DC9F725E34E80F1 /* Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B517332913BF860F9A5593AC /* Budget.swift */; };
 		06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA07EB27C4CAF30E53F187FB /* LedgerView.swift */; };
+		0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */; };
 		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
 		24353780EBC756092F19094F /* AddAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232747DAEE35358568E032BA /* AddAssetView.swift */; };
 		25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */; };
@@ -16,12 +17,14 @@
 		468F5C7AAACA9D84F9CA434E /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26155DCBB9FC382A8FD13EB /* Extensions.swift */; };
 		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
 		5BCF195DFAC052F3CA54DB38 /* BudgetAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EF0FA955BAD5A3CBA1C93A /* BudgetAnalyzer.swift */; };
+		6094FC83504BB4FA9671588E /* ReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0972EB8F9449843DF36B3F3F /* ReportService.swift */; };
 		639A3149DBA85CAF2F7D115B /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB35F573C6A9295B7B83781 /* DesignSystem.swift */; };
 		6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */; };
 		7A83F34058A971E78961B56A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 462A15F41FD0AD3DFEAAE8A0 /* SettingsView.swift */; };
 		7B2E32BCD75D603E808F3DF5 /* AddRecurringRuleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */; };
 		81259BFCDB2B0C78332A3F79 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860856BC3464413E6C70219D /* RecurringService.swift */; };
 		8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */; };
+		987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8F866E732FA0C08D5772C1 /* ReportView.swift */; };
 		A47229D7CE9842B5340A5C37 /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FB3EBD7F9EF6358F3D569A /* Asset.swift */; };
 		AB69F3E259FD621519793670 /* QuickAddIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C260BE6A36747442666B416 /* QuickAddIntent.swift */; };
 		B62A585D1F6C098499C018A5 /* FlashCountWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2079B0C610F7D16FB9237E9 /* FlashCountWidget.swift */; };
@@ -33,6 +36,7 @@
 		E5F01D6D9E75A893B253FD5F /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7836FC4CCC50F8A05E62E77C /* BudgetView.swift */; };
 		E7453E3C78C7446597DB37F8 /* RecurringRulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */; };
 		EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454084E97E2460EC422CA4D1 /* MainTabView.swift */; };
+		F1852C708BA1FFE0BE7CBFBB /* PhysicalAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = F492DE61D255D29FC54B8139 /* PhysicalAsset.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -60,6 +64,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0972EB8F9449843DF36B3F3F /* ReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportService.swift; sourceTree = "<group>"; };
+		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
 		1AB35F573C6A9295B7B83781 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		232747DAEE35358568E032BA /* AddAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAssetView.swift; sourceTree = "<group>"; };
 		24FB3EBD7F9EF6358F3D569A /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
@@ -71,6 +77,7 @@
 		4A051412B9C908E512258A73 /* BudgetComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetComponents.swift; sourceTree = "<group>"; };
 		5135CC79D6F54B517077FC78 /* FlashCountApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountApp.swift; sourceTree = "<group>"; };
 		5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlashCount.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B8F866E732FA0C08D5772C1 /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		76B154163C08B8060A9DE277 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
 		7836FC4CCC50F8A05E62E77C /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
 		786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRulesView.swift; sourceTree = "<group>"; };
@@ -86,6 +93,7 @@
 		C5E4BDD3B9D1E02F8AC4715E /* FlashCountWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = FlashCountWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA07EB27C4CAF30E53F187FB /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerView.swift; sourceTree = "<group>"; };
 		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F492DE61D255D29FC54B8139 /* PhysicalAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAsset.swift; sourceTree = "<group>"; };
 		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -105,6 +113,7 @@
 				B517332913BF860F9A5593AC /* Budget.swift */,
 				437BC90EE7A47F7AA13A5C1F /* Category.swift */,
 				AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */,
+				F492DE61D255D29FC54B8139 /* PhysicalAsset.swift */,
 				FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */,
 				76B154163C08B8060A9DE277 /* Transaction.swift */,
 			);
@@ -191,6 +200,7 @@
 			children = (
 				93EF0FA955BAD5A3CBA1C93A /* BudgetAnalyzer.swift */,
 				860856BC3464413E6C70219D /* RecurringService.swift */,
+				0972EB8F9449843DF36B3F3F /* ReportService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -209,6 +219,7 @@
 			children = (
 				232747DAEE35358568E032BA /* AddAssetView.swift */,
 				419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */,
+				150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */,
 			);
 			path = Asset;
 			sourceTree = "<group>";
@@ -238,9 +249,18 @@
 				29D5151D479084C7DD90D3EC /* Ledger */,
 				52BB412B1CDBFB55CB709B2C /* QuickEntry */,
 				932CC789060B5F284E089E80 /* Recurring */,
+				F74E75DE5F12B4EC77AE8246 /* Report */,
 				00F686A4D12029D240B4088F /* Settings */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		F74E75DE5F12B4EC77AE8246 /* Report */ = {
+			isa = PBXGroup;
+			children = (
+				5B8F866E732FA0C08D5772C1 /* ReportView.swift */,
+			);
+			path = Report;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -352,11 +372,15 @@
 				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,
 				06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */,
 				EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */,
+				F1852C708BA1FFE0BE7CBFBB /* PhysicalAsset.swift in Sources */,
+				0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */,
 				AB69F3E259FD621519793670 /* QuickAddIntent.swift in Sources */,
 				8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */,
 				6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */,
 				E7453E3C78C7446597DB37F8 /* RecurringRulesView.swift in Sources */,
 				81259BFCDB2B0C78332A3F79 /* RecurringService.swift in Sources */,
+				6094FC83504BB4FA9671588E /* ReportService.swift in Sources */,
+				987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */,
 				7A83F34058A971E78961B56A /* SettingsView.swift in Sources */,
 				14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */,
 			);

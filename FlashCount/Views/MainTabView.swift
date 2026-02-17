@@ -15,7 +15,7 @@ struct MainTabView: View {
                     .tag(1)
                 Color.clear // 中间占位 (记账按钮)
                     .tag(2)
-                RecurringRulesView()
+                ReportView()
                     .tag(3)
                 AssetDashboardView()
                     .tag(4)
@@ -52,7 +52,7 @@ struct MainTabView: View {
                 .offset(y: -16)
             }
 
-            tabButton(icon: "repeat", title: "周期", tag: 3)
+            tabButton(icon: "chart.bar.fill", title: "报表", tag: 3)
             tabButton(icon: "building.columns.fill", title: "资产", tag: 4)
         }
         .padding(.horizontal, 8)

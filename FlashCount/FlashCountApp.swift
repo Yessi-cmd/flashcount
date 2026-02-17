@@ -17,14 +17,15 @@ struct FlashCountApp: App {
             Ledger.self,
             RecurringRule.self,
             Budget.self,
-            Asset.self
+            Asset.self,
+            PhysicalAsset.self
         ])
     }
 
     /// 首次启动初始化默认数据
     @MainActor
     private func setupInitialData() {
-        guard let container = try? ModelContainer(for: Transaction.self, Category.self, Ledger.self, RecurringRule.self, Budget.self, Asset.self) else { return }
+        guard let container = try? ModelContainer(for: Transaction.self, Category.self, Ledger.self, RecurringRule.self, Budget.self, Asset.self, PhysicalAsset.self) else { return }
         let context = container.mainContext
 
         // 检查是否已初始化
