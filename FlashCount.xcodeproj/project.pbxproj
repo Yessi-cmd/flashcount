@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		009547089DC9F725E34E80F1 /* Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B517332913BF860F9A5593AC /* Budget.swift */; };
+		053C79ED47833B74864A2F20 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF30FA16DCE6E0385B858671 /* OnboardingView.swift */; };
 		06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA07EB27C4CAF30E53F187FB /* LedgerView.swift */; };
 		0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */; };
 		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
@@ -92,6 +93,7 @@
 		C2079B0C610F7D16FB9237E9 /* FlashCountWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountWidget.swift; sourceTree = "<group>"; };
 		C5E4BDD3B9D1E02F8AC4715E /* FlashCountWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = FlashCountWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA07EB27C4CAF30E53F187FB /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerView.swift; sourceTree = "<group>"; };
+		DF30FA16DCE6E0385B858671 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F492DE61D255D29FC54B8139 /* PhysicalAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAsset.swift; sourceTree = "<group>"; };
 		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
@@ -205,6 +207,14 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
+		7D2B610938B3651557485CE3 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				DF30FA16DCE6E0385B858671 /* OnboardingView.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
 		932CC789060B5F284E089E80 /* Recurring */ = {
 			isa = PBXGroup;
 			children = (
@@ -247,6 +257,7 @@
 				A63D79DB3ED665B56E73A881 /* Asset */,
 				243375D141001E19928FDC81 /* Budget */,
 				29D5151D479084C7DD90D3EC /* Ledger */,
+				7D2B610938B3651557485CE3 /* Onboarding */,
 				52BB412B1CDBFB55CB709B2C /* QuickEntry */,
 				932CC789060B5F284E089E80 /* Recurring */,
 				F74E75DE5F12B4EC77AE8246 /* Report */,
@@ -372,6 +383,7 @@
 				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,
 				06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */,
 				EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */,
+				053C79ED47833B74864A2F20 /* OnboardingView.swift in Sources */,
 				F1852C708BA1FFE0BE7CBFBB /* PhysicalAsset.swift in Sources */,
 				0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */,
 				AB69F3E259FD621519793670 /* QuickAddIntent.swift in Sources */,

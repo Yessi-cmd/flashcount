@@ -5,6 +5,9 @@ import SwiftData
 struct MainTabView: View {
     @State private var selectedTab = 0
     @State private var showQuickEntry = false
+    @State private var showTutorial = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @State private var showOnboarding = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -27,6 +30,18 @@ struct MainTabView: View {
         }
         .sheet(isPresented: $showQuickEntry) {
             QuickEntryView()
+        }
+        .sheet(isPresented: $showTutorial) {
+            TutorialView()
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(isPresented: $showOnboarding)
+        }
+        .onAppear {
+            if !hasCompletedOnboarding {
+                showOnboarding = true
+                hasCompletedOnboarding = true
+            }
         }
     }
 
@@ -53,7 +68,19 @@ struct MainTabView: View {
             }
 
             tabButton(icon: "chart.bar.fill", title: "报表", tag: 3)
-            tabButton(icon: "building.columns.fill", title: "资产", tag: 4)
+
+            // 资产 Tab + 教程按钮叠加
+            ZStack(alignment: .topTrailing) {
+                tabButton(icon: "building.columns.fill", title: "资产", tag: 4)
+                Button {
+                    showTutorial = true
+                } label: {
+                    Image(systemName: "questionmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.3))
+                }
+                .offset(x: 4, y: -2)
+            }
         }
         .padding(.horizontal, 8)
         .padding(.top, 8)
