@@ -36,11 +36,13 @@ targets:
     platform: iOS
     sources:
       - path: FlashCountWidget
+        excludes:
+          - "Info.plist"
+    info:
+      path: FlashCountWidget/Info.plist
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app.widget
-        INFOPLIST_KEY_CFBundleDisplayName: "FlashCount Widget"
-        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: "com.apple.widgetkit-extension"
-        GENERATE_INFOPLIST_FILE: YES
+        GENERATE_INFOPLIST_FILE: NO
         SWIFT_EMIT_LOC_STRINGS: YES
         TARGETED_DEVICE_FAMILY: "1"
