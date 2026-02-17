@@ -111,7 +111,7 @@ struct TutorialView: View {
         ("3", "hand.tap.fill", "Back Tap 背部轻拍",
          "设置 → 辅助功能 → 触控 → 轻点背面 → 选择 FlashCount 快捷指令"),
         ("4", "mic.fill", "Siri 语音",
-         "对 Siri 说："用 FlashCount 快速记账""),
+         "对 Siri 说「用 FlashCount 快速记账」"),
         ("5", "square.and.arrow.up", "快捷指令",
          "打开 iOS 快捷指令 App → 搜索 FlashCount → 添加到桌面或主屏幕"),
     ]
