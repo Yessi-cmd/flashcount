@@ -15,6 +15,7 @@ struct LedgerView: View {
     @State private var searchText = ""
     @State private var dateFilter: DateFilter = .all
     @State private var showCalendar = false
+    @State private var showSettings = false
     @State private var customStartDate = Calendar.current.date(byAdding: .month, value: -1, to: Date())!
     @State private var customEndDate = Date()
 
@@ -180,11 +181,19 @@ struct LedgerView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showLedgerManager = true
-                    } label: {
-                        Image(systemName: "folder.badge.gearshape")
-                            .foregroundStyle(.white.opacity(0.7))
+                    HStack(spacing: 12) {
+                        Button {
+                            showLedgerManager = true
+                        } label: {
+                            Image(systemName: "folder.badge.gearshape")
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .foregroundStyle(.white.opacity(0.7))
+                        }
                     }
                 }
             }
@@ -196,6 +205,9 @@ struct LedgerView: View {
             }
             .sheet(isPresented: $showLedgerManager) {
                 LedgerManagerView()
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
             .sheet(item: $editingTransaction) { transaction in
                 EditTransactionView(transaction: transaction)
