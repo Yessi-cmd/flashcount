@@ -121,7 +121,7 @@ struct ReportView: View {
                 .font(.subheadline.weight(.bold).monospacedDigit())
                 .foregroundStyle(color)
             if let change {
-                let pct = Int(abs(change) * 100)
+                let pct = Int(min(abs(change), 99.99) * 100)
                 HStack(spacing: 2) {
                     Image(systemName: change > 0 ? "arrow.up.right" : "arrow.down.right")
                         .font(.system(size: 8))
@@ -226,7 +226,7 @@ struct ReportView: View {
                             Circle().fill(Color(hex: item.categoryColor)).frame(width: 8, height: 8)
                             Text(item.categoryName).font(.caption2).foregroundStyle(.white.opacity(0.7))
                             Spacer()
-                            Text("\(Int(item.percentage * 100))%").font(.caption2.monospacedDigit()).foregroundStyle(.white.opacity(0.4))
+                            Text("\(Int(min(item.percentage, 99.99) * 100))%").font(.caption2.monospacedDigit()).foregroundStyle(.white.opacity(0.4))
                         }
                     }
                 }
@@ -272,7 +272,7 @@ struct ReportView: View {
                         Text(item.amount.formattedCurrency)
                             .font(.subheadline.weight(.semibold).monospacedDigit())
                             .foregroundStyle(.white)
-                        Text("\(Int(item.percentage * 100))%")
+                        Text("\(Int(min(item.percentage, 99.99) * 100))%")
                             .font(.caption2.monospacedDigit())
                             .foregroundStyle(.white.opacity(0.4))
                     }

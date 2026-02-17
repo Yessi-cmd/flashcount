@@ -14,6 +14,7 @@ struct LedgerView: View {
     @State private var editingTransaction: Transaction?
     @State private var searchText = ""
     @State private var dateFilter: DateFilter = .all
+    @State private var showCalendar = false
     @State private var customStartDate = Calendar.current.date(byAdding: .month, value: -1, to: Date())!
     @State private var customEndDate = Date()
 
@@ -155,8 +156,12 @@ struct LedgerView: View {
                         // 本月概览卡片
                         monthlySummaryCard
 
-                        // 交易列表
-                        transactionList
+                        // 交易列表 / 日历
+                        if showCalendar {
+                            CalendarView()
+                        } else {
+                            transactionList
+                        }
                     }
                     .padding()
                 }
@@ -164,6 +169,16 @@ struct LedgerView: View {
             .navigationTitle("账本")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        withAnimation(.spring(response: 0.3)) {
+                            showCalendar.toggle()
+                        }
+                    } label: {
+                        Image(systemName: showCalendar ? "list.bullet" : "calendar")
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showLedgerManager = true

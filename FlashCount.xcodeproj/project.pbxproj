@@ -28,6 +28,7 @@
 		81259BFCDB2B0C78332A3F79 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860856BC3464413E6C70219D /* RecurringService.swift */; };
 		8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */; };
 		987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8F866E732FA0C08D5772C1 /* ReportView.swift */; };
+		A13EA735400140C43507A11A /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07DB9D3D6E1549D61AC58249 /* CalendarView.swift */; };
 		A47229D7CE9842B5340A5C37 /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FB3EBD7F9EF6358F3D569A /* Asset.swift */; };
 		AB69F3E259FD621519793670 /* QuickAddIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C260BE6A36747442666B416 /* QuickAddIntent.swift */; };
 		DE83E5479BD532D70F116869 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437BC90EE7A47F7AA13A5C1F /* Category.swift */; };
@@ -41,6 +42,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		07DB9D3D6E1549D61AC58249 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		0972EB8F9449843DF36B3F3F /* ReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportService.swift; sourceTree = "<group>"; };
 		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
 		1AB35F573C6A9295B7B83781 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
@@ -132,6 +134,7 @@
 		29D5151D479084C7DD90D3EC /* Ledger */ = {
 			isa = PBXGroup;
 			children = (
+				07DB9D3D6E1549D61AC58249 /* CalendarView.swift */,
 				A50EA6A8307B2FDA8033E4DB /* EditTransactionView.swift */,
 				CA07EB27C4CAF30E53F187FB /* LedgerView.swift */,
 			);
@@ -315,6 +318,7 @@
 				5BCF195DFAC052F3CA54DB38 /* BudgetAnalyzer.swift in Sources */,
 				DF3833A27A9AC1A6E0042549 /* BudgetComponents.swift in Sources */,
 				E5F01D6D9E75A893B253FD5F /* BudgetView.swift in Sources */,
+				A13EA735400140C43507A11A /* CalendarView.swift in Sources */,
 				DE83E5479BD532D70F116869 /* Category.swift in Sources */,
 				7C4458387D731FB96F4CF0DD /* DataBackupService.swift in Sources */,
 				639A3149DBA85CAF2F7D115B /* DesignSystem.swift in Sources */,

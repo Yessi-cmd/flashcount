@@ -5,6 +5,7 @@ import SwiftData
 struct MainTabView: View {
     @State private var selectedTab = 0
     @State private var showQuickEntry = false
+    @State private var showAddAsset = false
     @State private var showTutorial = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showOnboarding = false
@@ -31,6 +32,9 @@ struct MainTabView: View {
         .sheet(isPresented: $showQuickEntry) {
             QuickEntryView()
         }
+        .sheet(isPresented: $showAddAsset) {
+            AddAssetView()
+        }
         .sheet(isPresented: $showTutorial) {
             TutorialView()
         }
@@ -50,9 +54,13 @@ struct MainTabView: View {
             tabButton(icon: "book.fill", title: "账本", tag: 0)
             tabButton(icon: "chart.pie.fill", title: "预算", tag: 1)
 
-            // 中间记账大按钮
+            // 中间加号按钮（资产页时添加资产，其他页记账）
             Button {
-                showQuickEntry = true
+                if selectedTab == 4 {
+                    showAddAsset = true
+                } else {
+                    showQuickEntry = true
+                }
             } label: {
                 ZStack {
                     Circle()
