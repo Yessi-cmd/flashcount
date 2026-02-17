@@ -12,12 +12,22 @@ struct LedgerView: View {
     @State private var showAddLedger = false
     @State private var showLedgerManager = false
     @State private var editingTransaction: Transaction?
+    @State private var searchText = ""
 
     private var filteredTransactions: [Transaction] {
-        guard let ledger = selectedLedger else {
-            return allTransactions
+        var result = allTransactions
+        if let ledger = selectedLedger {
+            result = result.filter { $0.ledger?.id == ledger.id }
         }
-        return allTransactions.filter { $0.ledger?.id == ledger.id }
+        if !searchText.isEmpty {
+            let query = searchText.lowercased()
+            result = result.filter {
+                $0.note.lowercased().contains(query) ||
+                $0.category?.name.lowercased().contains(query) == true ||
+                "\($0.amount)".contains(query)
+            }
+        }
+        return result
     }
 
     private var monthlyExpense: Decimal {
@@ -56,6 +66,28 @@ struct LedgerView: View {
 
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
+                        // 搜索栏
+                        HStack(spacing: 8) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.3))
+                            TextField("搜索备注、分类、金额...", text: $searchText)
+                                .font(.subheadline)
+                                .foregroundStyle(.white)
+                            if !searchText.isEmpty {
+                                Button {
+                                    searchText = ""
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(.white.opacity(0.3))
+                                }
+                            }
+                        }
+                        .padding(10)
+                        .background(.white.opacity(0.06))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+
                         // 账本选择器
                         ledgerPicker
 

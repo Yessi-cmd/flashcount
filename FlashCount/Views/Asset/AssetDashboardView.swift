@@ -7,7 +7,7 @@ struct AssetDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Asset.createdAt) private var assets: [Asset]
     @State private var showAddAsset = false
-    @AppStorage("hideAssetBalance") private var hideBalance = false
+    @AppStorage("hideAssetBalance") private var hideBalance = true
 
     private var totalAssets: Decimal {
         assets.filter { !$0.type.isLiability && !$0.isArchived }.reduce(0) { $0 + $1.balance }
@@ -30,38 +30,29 @@ struct AssetDashboardView: View {
                     VStack(spacing: DesignSystem.sectionSpacing) {
                         netWorthCard
 
-                        // 实物资产入口
-                        NavigationLink {
-                            PhysicalAssetView()
-                        } label: {
-                            HStack(spacing: 12) {
-                                ZStack {
-                                    Circle()
-                                        .fill(.orange.opacity(0.15))
-                                        .frame(width: 40, height: 40)
-                                    Image(systemName: "iphone.and.arrow.forward")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.orange)
-                                }
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("实物资产")
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(.white)
-                                    Text("手机、电脑、汽车 — 看看每天花多少钱")
-                                        .font(.caption)
-                                        .foregroundStyle(.white.opacity(0.4))
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.3))
-                            }
-                            .glassCard()
-                        }
-
                         if !assetItems.isEmpty || !liabilityItems.isEmpty { assetBreakdown }
                         if !assetItems.isEmpty { assetSection(title: "资产", items: assetItems, color: DesignSystem.incomeColor) }
                         if !liabilityItems.isEmpty { assetSection(title: "负债", items: liabilityItems, color: DesignSystem.expenseColor) }
+
+                        // 实物资产入口（和其他 section 统一风格）
+                        NavigationLink {
+                            PhysicalAssetView()
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: "iphone.and.arrow.forward")
+                                    .font(.caption)
+                                    .foregroundStyle(.orange)
+                                Text("实物资产追踪")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.white.opacity(0.6))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(.white.opacity(0.2))
+                            }
+                            .padding(.vertical, 8)
+                        }
+
                         if assets.isEmpty { emptyState }
                     }
                     .padding()

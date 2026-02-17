@@ -183,34 +183,43 @@ struct PhysicalAssetCard: View {
                 }
             }
 
-            // 进度条
-            VStack(spacing: 6) {
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(.white.opacity(0.06))
-                            .frame(height: 6)
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(progressColor)
-                            .frame(width: geo.size.width * asset.progressToTarget, height: 6)
+            // 进度条（仅有目标时显示）
+            if asset.targetDailyCost > 0 {
+                VStack(spacing: 6) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(.white.opacity(0.06))
+                                .frame(height: 6)
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(progressColor)
+                                .frame(width: geo.size.width * asset.progressToTarget, height: 6)
+                        }
+                    }
+                    .frame(height: 6)
+
+                    HStack {
+                        Text("\(Int(asset.progressToTarget * 100))%")
+                            .font(.caption2.weight(.medium).monospacedDigit())
+                            .foregroundStyle(progressColor)
+                        Spacer()
+                        if let remaining = asset.daysToTarget, remaining > 0 {
+                            Text("还需 \(remaining) 天达标 🎯")
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.4))
+                        } else if asset.dailyCost <= asset.targetDailyCost {
+                            Text("已达到目标日成本 ✅")
+                                .font(.caption2)
+                                .foregroundStyle(DesignSystem.incomeColor)
+                        }
                     }
                 }
-                .frame(height: 6)
-
+            } else {
                 HStack {
-                    Text("\(Int(asset.progressToTarget * 100))%")
-                        .font(.caption2.weight(.medium).monospacedDigit())
-                        .foregroundStyle(progressColor)
+                    Text("未设置目标日成本")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.3))
                     Spacer()
-                    if let remaining = asset.daysToTarget, remaining > 0 {
-                        Text("还需 \(remaining) 天达标 🎯")
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.4))
-                    } else {
-                        Text("已达到目标日成本 ✅")
-                            .font(.caption2)
-                            .foregroundStyle(DesignSystem.incomeColor)
-                    }
                 }
             }
         }
