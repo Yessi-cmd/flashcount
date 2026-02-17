@@ -17,6 +17,7 @@
 		2B5D41A4F0E108AF9B69568C /* FlashCountApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5135CC79D6F54B517077FC78 /* FlashCountApp.swift */; };
 		468F5C7AAACA9D84F9CA434E /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26155DCBB9FC382A8FD13EB /* Extensions.swift */; };
 		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
+		52CD3678A9C4C285ADA086C9 /* ErrorHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 579B0FCF828E4F2F1A01344D /* ErrorHandling.swift */; };
 		5BCF195DFAC052F3CA54DB38 /* BudgetAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EF0FA955BAD5A3CBA1C93A /* BudgetAnalyzer.swift */; };
 		6094FC83504BB4FA9671588E /* ReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0972EB8F9449843DF36B3F3F /* ReportService.swift */; };
 		639A3149DBA85CAF2F7D115B /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB35F573C6A9295B7B83781 /* DesignSystem.swift */; };
@@ -77,6 +78,7 @@
 		462A15F41FD0AD3DFEAAE8A0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		4A051412B9C908E512258A73 /* BudgetComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetComponents.swift; sourceTree = "<group>"; };
 		5135CC79D6F54B517077FC78 /* FlashCountApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountApp.swift; sourceTree = "<group>"; };
+		579B0FCF828E4F2F1A01344D /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
 		5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlashCount.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B8F866E732FA0C08D5772C1 /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		76B154163C08B8060A9DE277 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
@@ -175,6 +177,7 @@
 			isa = PBXGroup;
 			children = (
 				1AB35F573C6A9295B7B83781 /* DesignSystem.swift */,
+				579B0FCF828E4F2F1A01344D /* ErrorHandling.swift */,
 				B26155DCBB9FC382A8FD13EB /* Extensions.swift */,
 			);
 			path = Helpers;
@@ -378,6 +381,7 @@
 				DE83E5479BD532D70F116869 /* Category.swift in Sources */,
 				639A3149DBA85CAF2F7D115B /* DesignSystem.swift in Sources */,
 				E593E42B4BA66B8FD5435AE1 /* EditTransactionView.swift in Sources */,
+				52CD3678A9C4C285ADA086C9 /* ErrorHandling.swift in Sources */,
 				468F5C7AAACA9D84F9CA434E /* Extensions.swift in Sources */,
 				2B5D41A4F0E108AF9B69568C /* FlashCountApp.swift in Sources */,
 				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,

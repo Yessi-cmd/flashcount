@@ -7,6 +7,8 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearance = "system"
     @State private var showTutorial = false
     @State private var showRecurringRules = false
+    @State private var repairResult: String?
+    @State private var showRepairResult = false
 
     var body: some View {
         NavigationStack {
@@ -69,6 +71,23 @@ struct SettingsView: View {
                                 Text("导出数据 (JSON)").foregroundStyle(.white)
                             }
                         }
+                        Button {
+                            let service = DataRepairService(modelContext: modelContext)
+                            let report = service.runRepair()
+                            repairResult = report.summary
+                            showRepairResult = true
+                            if report.totalFixed > 0 {
+                                HapticManager.success()
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "wrench.and.screwdriver.fill").foregroundStyle(.orange)
+                                VStack(alignment: .leading) {
+                                    Text("数据自检修复").font(.subheadline).foregroundStyle(.white)
+                                    Text("检查并修复异常数据").font(.caption).foregroundStyle(.white.opacity(0.4))
+                                }
+                            }
+                        }
                     } header: {
                         Text("数据管理").foregroundStyle(.white.opacity(0.5))
                     }
@@ -79,14 +98,14 @@ struct SettingsView: View {
                         HStack {
                             Text("版本").foregroundStyle(.white)
                             Spacer()
-                            Text("1.0.0").foregroundStyle(.white.opacity(0.4))
+                            Text("1.1.0").foregroundStyle(.white.opacity(0.4))
                         }
                         HStack {
                             Text("开发者").foregroundStyle(.white)
                             Spacer()
                             Text("FlashCount OSS").foregroundStyle(.white.opacity(0.4))
                         }
-                        Link(destination: URL(string: "https://github.com")!) {
+                        Link(destination: URL(string: "https://github.com/Yessi-cmd/flashcount")!) {
                             HStack {
                                 Text("GitHub 仓库").foregroundStyle(.white)
                                 Spacer()
@@ -109,6 +128,11 @@ struct SettingsView: View {
                 NavigationStack {
                     RecurringRulesView()
                 }
+            }
+            .alert("数据自检结果", isPresented: $showRepairResult) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(repairResult ?? "")
             }
         }
     }

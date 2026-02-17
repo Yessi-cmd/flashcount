@@ -25,6 +25,7 @@ struct QuickEntryView: View {
     @State private var showDatePicker = false
     @State private var showSuccess = false
     @State private var showNote = false
+    @State private var saveError: String?
 
     private var currentCategories: [Category] {
         isExpense ? expenseCategories : incomeCategories
@@ -96,6 +97,7 @@ struct QuickEntryView: View {
                     selectedCategory = currentCategories.first
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -386,7 +388,14 @@ struct QuickEntryView: View {
             ledger: selectedLedger
         )
         modelContext.insert(transaction)
-        try? modelContext.save()
+
+        if let error = safeSave(modelContext) {
+            saveError = error
+            HapticManager.error()
+            return
+        }
+
+        HapticManager.success()
 
         // 成功动画
         withAnimation(.spring(response: 0.4)) {

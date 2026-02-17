@@ -24,6 +24,7 @@ struct EditTransactionView: View {
     @State private var selectedDate: Date
     @State private var selectedCategory: Category?
     @State private var selectedLedger: Ledger?
+    @State private var saveError: String?
 
     init(transaction: Transaction) {
         self.transaction = transaction
@@ -168,6 +169,7 @@ struct EditTransactionView: View {
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -179,7 +181,13 @@ struct EditTransactionView: View {
         transaction.date = selectedDate
         transaction.category = selectedCategory
         transaction.ledger = selectedLedger
-        try? modelContext.save()
+
+        if let error = safeSave(modelContext) {
+            saveError = error
+            HapticManager.error()
+            return
+        }
+        HapticManager.success()
         dismiss()
     }
 }
