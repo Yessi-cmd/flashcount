@@ -1,0 +1,491 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		009547089DC9F725E34E80F1 /* Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B517332913BF860F9A5593AC /* Budget.swift */; };
+		06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA07EB27C4CAF30E53F187FB /* LedgerView.swift */; };
+		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
+		24353780EBC756092F19094F /* AddAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232747DAEE35358568E032BA /* AddAssetView.swift */; };
+		25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */; };
+		2B5D41A4F0E108AF9B69568C /* FlashCountApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5135CC79D6F54B517077FC78 /* FlashCountApp.swift */; };
+		468F5C7AAACA9D84F9CA434E /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = B26155DCBB9FC382A8FD13EB /* Extensions.swift */; };
+		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
+		5BCF195DFAC052F3CA54DB38 /* BudgetAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93EF0FA955BAD5A3CBA1C93A /* BudgetAnalyzer.swift */; };
+		639A3149DBA85CAF2F7D115B /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AB35F573C6A9295B7B83781 /* DesignSystem.swift */; };
+		6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */; };
+		7A83F34058A971E78961B56A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 462A15F41FD0AD3DFEAAE8A0 /* SettingsView.swift */; };
+		7B2E32BCD75D603E808F3DF5 /* AddRecurringRuleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */; };
+		81259BFCDB2B0C78332A3F79 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 860856BC3464413E6C70219D /* RecurringService.swift */; };
+		8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */; };
+		A47229D7CE9842B5340A5C37 /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FB3EBD7F9EF6358F3D569A /* Asset.swift */; };
+		AB69F3E259FD621519793670 /* QuickAddIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C260BE6A36747442666B416 /* QuickAddIntent.swift */; };
+		DE83E5479BD532D70F116869 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437BC90EE7A47F7AA13A5C1F /* Category.swift */; };
+		DF3833A27A9AC1A6E0042549 /* BudgetComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A051412B9C908E512258A73 /* BudgetComponents.swift */; };
+		E371EC1E626E145C33A1646D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EEBF638849D9D22CD83348A1 /* Assets.xcassets */; };
+		E5F01D6D9E75A893B253FD5F /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7836FC4CCC50F8A05E62E77C /* BudgetView.swift */; };
+		E7453E3C78C7446597DB37F8 /* RecurringRulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */; };
+		EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454084E97E2460EC422CA4D1 /* MainTabView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1AB35F573C6A9295B7B83781 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
+		232747DAEE35358568E032BA /* AddAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAssetView.swift; sourceTree = "<group>"; };
+		24FB3EBD7F9EF6358F3D569A /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
+		30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryView.swift; sourceTree = "<group>"; };
+		419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDashboardView.swift; sourceTree = "<group>"; };
+		437BC90EE7A47F7AA13A5C1F /* Category.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Category.swift; sourceTree = "<group>"; };
+		454084E97E2460EC422CA4D1 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		462A15F41FD0AD3DFEAAE8A0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4A051412B9C908E512258A73 /* BudgetComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetComponents.swift; sourceTree = "<group>"; };
+		5135CC79D6F54B517077FC78 /* FlashCountApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountApp.swift; sourceTree = "<group>"; };
+		5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlashCount.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		76B154163C08B8060A9DE277 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
+		7836FC4CCC50F8A05E62E77C /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
+		786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRulesView.swift; sourceTree = "<group>"; };
+		860856BC3464413E6C70219D /* RecurringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringService.swift; sourceTree = "<group>"; };
+		8C260BE6A36747442666B416 /* QuickAddIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddIntent.swift; sourceTree = "<group>"; };
+		93EF0FA955BAD5A3CBA1C93A /* BudgetAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetAnalyzer.swift; sourceTree = "<group>"; };
+		9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRecurringRuleView.swift; sourceTree = "<group>"; };
+		AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ledger.swift; sourceTree = "<group>"; };
+		B26155DCBB9FC382A8FD13EB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		B517332913BF860F9A5593AC /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
+		CA07EB27C4CAF30E53F187FB /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerView.swift; sourceTree = "<group>"; };
+		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		00F686A4D12029D240B4088F /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				462A15F41FD0AD3DFEAAE8A0 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		0CA7977BB8907D50AD80F56F /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				24FB3EBD7F9EF6358F3D569A /* Asset.swift */,
+				B517332913BF860F9A5593AC /* Budget.swift */,
+				437BC90EE7A47F7AA13A5C1F /* Category.swift */,
+				AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */,
+				FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */,
+				76B154163C08B8060A9DE277 /* Transaction.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		18C415E3AE708EE698FBE5FC /* FlashCount */ = {
+			isa = PBXGroup;
+			children = (
+				5135CC79D6F54B517077FC78 /* FlashCountApp.swift */,
+				5233C58C5FC5809B36507A0D /* Helpers */,
+				B484E0DD9E15BC14899EB02B /* Intents */,
+				0CA7977BB8907D50AD80F56F /* Models */,
+				2AA5A582129CCAF2C05184C9 /* Resources */,
+				7C136BC3C4918F679ED26186 /* Services */,
+				E0027E670A15A02D29041114 /* Views */,
+			);
+			path = FlashCount;
+			sourceTree = "<group>";
+		};
+		1A35A800111501BFB954938B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		243375D141001E19928FDC81 /* Budget */ = {
+			isa = PBXGroup;
+			children = (
+				4A051412B9C908E512258A73 /* BudgetComponents.swift */,
+				7836FC4CCC50F8A05E62E77C /* BudgetView.swift */,
+			);
+			path = Budget;
+			sourceTree = "<group>";
+		};
+		29D5151D479084C7DD90D3EC /* Ledger */ = {
+			isa = PBXGroup;
+			children = (
+				CA07EB27C4CAF30E53F187FB /* LedgerView.swift */,
+			);
+			path = Ledger;
+			sourceTree = "<group>";
+		};
+		2AA5A582129CCAF2C05184C9 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				EEBF638849D9D22CD83348A1 /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		5233C58C5FC5809B36507A0D /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				1AB35F573C6A9295B7B83781 /* DesignSystem.swift */,
+				B26155DCBB9FC382A8FD13EB /* Extensions.swift */,
+			);
+			path = Helpers;
+			sourceTree = "<group>";
+		};
+		52BB412B1CDBFB55CB709B2C /* QuickEntry */ = {
+			isa = PBXGroup;
+			children = (
+				30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */,
+			);
+			path = QuickEntry;
+			sourceTree = "<group>";
+		};
+		5BE9222517922C0F733929D0 = {
+			isa = PBXGroup;
+			children = (
+				18C415E3AE708EE698FBE5FC /* FlashCount */,
+				1A35A800111501BFB954938B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7C136BC3C4918F679ED26186 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				93EF0FA955BAD5A3CBA1C93A /* BudgetAnalyzer.swift */,
+				860856BC3464413E6C70219D /* RecurringService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		932CC789060B5F284E089E80 /* Recurring */ = {
+			isa = PBXGroup;
+			children = (
+				9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */,
+				786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */,
+			);
+			path = Recurring;
+			sourceTree = "<group>";
+		};
+		A63D79DB3ED665B56E73A881 /* Asset */ = {
+			isa = PBXGroup;
+			children = (
+				232747DAEE35358568E032BA /* AddAssetView.swift */,
+				419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */,
+			);
+			path = Asset;
+			sourceTree = "<group>";
+		};
+		B484E0DD9E15BC14899EB02B /* Intents */ = {
+			isa = PBXGroup;
+			children = (
+				8C260BE6A36747442666B416 /* QuickAddIntent.swift */,
+			);
+			path = Intents;
+			sourceTree = "<group>";
+		};
+		E0027E670A15A02D29041114 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				454084E97E2460EC422CA4D1 /* MainTabView.swift */,
+				A63D79DB3ED665B56E73A881 /* Asset */,
+				243375D141001E19928FDC81 /* Budget */,
+				29D5151D479084C7DD90D3EC /* Ledger */,
+				52BB412B1CDBFB55CB709B2C /* QuickEntry */,
+				932CC789060B5F284E089E80 /* Recurring */,
+				00F686A4D12029D240B4088F /* Settings */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		CEA7B1E343522F154C31F430 /* FlashCount */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B477BC4F0AE3344E77BB30CB /* Build configuration list for PBXNativeTarget "FlashCount" */;
+			buildPhases = (
+				BCDAF86C124A45FAD721FC35 /* Sources */,
+				F5F4B968E87C3FEE6BC9A5AF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FlashCount;
+			packageProductDependencies = (
+			);
+			productName = FlashCount;
+			productReference = 5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2A0D6562311AC34A1F3D04EB /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+			};
+			buildConfigurationList = E9E7EF00E3D94ABF3F0D6A6A /* Build configuration list for PBXProject "FlashCount" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 5BE9222517922C0F733929D0;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				CEA7B1E343522F154C31F430 /* FlashCount */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		F5F4B968E87C3FEE6BC9A5AF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E371EC1E626E145C33A1646D /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		BCDAF86C124A45FAD721FC35 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				24353780EBC756092F19094F /* AddAssetView.swift in Sources */,
+				7B2E32BCD75D603E808F3DF5 /* AddRecurringRuleView.swift in Sources */,
+				A47229D7CE9842B5340A5C37 /* Asset.swift in Sources */,
+				4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */,
+				009547089DC9F725E34E80F1 /* Budget.swift in Sources */,
+				5BCF195DFAC052F3CA54DB38 /* BudgetAnalyzer.swift in Sources */,
+				DF3833A27A9AC1A6E0042549 /* BudgetComponents.swift in Sources */,
+				E5F01D6D9E75A893B253FD5F /* BudgetView.swift in Sources */,
+				DE83E5479BD532D70F116869 /* Category.swift in Sources */,
+				639A3149DBA85CAF2F7D115B /* DesignSystem.swift in Sources */,
+				468F5C7AAACA9D84F9CA434E /* Extensions.swift in Sources */,
+				2B5D41A4F0E108AF9B69568C /* FlashCountApp.swift in Sources */,
+				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,
+				06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */,
+				EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */,
+				AB69F3E259FD621519793670 /* QuickAddIntent.swift in Sources */,
+				8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */,
+				6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */,
+				E7453E3C78C7446597DB37F8 /* RecurringRulesView.swift in Sources */,
+				81259BFCDB2B0C78332A3F79 /* RecurringService.swift in Sources */,
+				7A83F34058A971E78961B56A /* SettingsView.swift in Sources */,
+				14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0F188CD2445B0EB99A852CC2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_KEY_CFBundleDisplayName = FlashCount;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.app;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		387FE2A723FCF0A6872971E0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		6C3D9E97A625E95B92B45192 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		BA0463994718A1AEAFDA00D4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_KEY_CFBundleDisplayName = FlashCount;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.app;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		B477BC4F0AE3344E77BB30CB /* Build configuration list for PBXNativeTarget "FlashCount" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BA0463994718A1AEAFDA00D4 /* Debug */,
+				0F188CD2445B0EB99A852CC2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E9E7EF00E3D94ABF3F0D6A6A /* Build configuration list for PBXProject "FlashCount" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6C3D9E97A625E95B92B45192 /* Debug */,
+				387FE2A723FCF0A6872971E0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 2A0D6562311AC34A1F3D04EB /* Project object */;
+}
