@@ -137,7 +137,20 @@ struct ReportView: View {
     // MARK: - 每日消费柱状图
 
     private func dailyBarChart(data: ReportData) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let totalDays = data.dailyExpenses.count
+        let labelStride = totalDays > 14 ? 5 : (totalDays > 7 ? 3 : 1)
+        // 预计算需要显示标签的日期
+        let visibleLabels: Set<String> = {
+            var s = Set<String>()
+            for (i, item) in data.dailyExpenses.enumerated() {
+                if i % labelStride == 0 || i == totalDays - 1 {
+                    s.insert(item.0)
+                }
+            }
+            return s
+        }()
+
+        return VStack(alignment: .leading, spacing: 12) {
             Text("每日消费").font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.7))
 
             Chart {
@@ -165,10 +178,12 @@ struct ReportView: View {
                 }
             }
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 7)) { value in
-                    AxisValueLabel()
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.5))
+                AxisMarks { value in
+                    if let label = value.as(String.self), visibleLabels.contains(label) {
+                        AxisValueLabel()
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.5))
+                    }
                 }
             }
             .frame(height: 180)

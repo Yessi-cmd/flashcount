@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UniformTypeIdentifiers
 
 /// 设置页面
 struct SettingsView: View {
@@ -9,6 +10,11 @@ struct SettingsView: View {
     @State private var showRecurringRules = false
     @State private var repairResult: String?
     @State private var showRepairResult = false
+    @State private var showExportShare = false
+    @State private var exportFileURL: URL?
+    @State private var showImportPicker = false
+    @State private var importResult: String?
+    @State private var showImportResult = false
 
     var body: some View {
         NavigationStack {
@@ -68,7 +74,21 @@ struct SettingsView: View {
                         } label: {
                             HStack {
                                 Image(systemName: "square.and.arrow.up").foregroundStyle(DesignSystem.primaryColor)
-                                Text("导出数据 (JSON)").foregroundStyle(.white)
+                                VStack(alignment: .leading) {
+                                    Text("导出数据 (JSON)").font(.subheadline).foregroundStyle(.white)
+                                    Text("备份实物资产等数据到文件").font(.caption).foregroundStyle(.white.opacity(0.4))
+                                }
+                            }
+                        }
+                        Button {
+                            showImportPicker = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.and.arrow.down").foregroundStyle(.green)
+                                VStack(alignment: .leading) {
+                                    Text("导入数据 (JSON)").font(.subheadline).foregroundStyle(.white)
+                                    Text("从备份文件恢复数据").font(.caption).foregroundStyle(.white.opacity(0.4))
+                                }
                             }
                         }
                         Button {
@@ -90,6 +110,9 @@ struct SettingsView: View {
                         }
                     } header: {
                         Text("数据管理").foregroundStyle(.white.opacity(0.5))
+                    } footer: {
+                        Text("⚠️ 卸载 App 会删除所有本地数据，建议定期导出备份")
+                            .font(.caption2).foregroundStyle(.orange.opacity(0.6))
                     }
                     .listRowBackground(Color.white.opacity(0.04))
 
@@ -98,7 +121,7 @@ struct SettingsView: View {
                         HStack {
                             Text("版本").foregroundStyle(.white)
                             Spacer()
-                            Text("1.1.0").foregroundStyle(.white.opacity(0.4))
+                            Text("1.2.0").foregroundStyle(.white.opacity(0.4))
                         }
                         HStack {
                             Text("开发者").foregroundStyle(.white)
@@ -129,15 +152,72 @@ struct SettingsView: View {
                     RecurringRulesView()
                 }
             }
+            .sheet(isPresented: $showExportShare) {
+                if let url = exportFileURL {
+                    ShareSheet(items: [url])
+                }
+            }
+            .fileImporter(isPresented: $showImportPicker, allowedContentTypes: [.json]) { result in
+                importData(result: result)
+            }
             .alert("数据自检结果", isPresented: $showRepairResult) {
                 Button("好的", role: .cancel) {}
             } message: {
                 Text(repairResult ?? "")
             }
+            .alert("导入结果", isPresented: $showImportResult) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(importResult ?? "")
+            }
         }
     }
 
     private func exportData() {
-        // TODO: JSON 导出
+        let service = DataBackupService(modelContext: modelContext)
+        do {
+            let url = try service.exportToFile()
+            exportFileURL = url
+            showExportShare = true
+            HapticManager.success()
+        } catch {
+            repairResult = "导出失败：\(error.localizedDescription)"
+            showRepairResult = true
+        }
     }
+
+    private func importData(result: Result<URL, Error>) {
+        switch result {
+        case .success(let url):
+            guard url.startAccessingSecurityScopedResource() else {
+                importResult = "无法访问文件"
+                showImportResult = true
+                return
+            }
+            defer { url.stopAccessingSecurityScopedResource() }
+
+            let service = DataBackupService(modelContext: modelContext)
+            do {
+                let report = try service.importJSON(from: url)
+                importResult = report.summary
+                showImportResult = true
+                HapticManager.success()
+            } catch {
+                importResult = "导入失败：\(error.localizedDescription)"
+                showImportResult = true
+            }
+        case .failure(let error):
+            importResult = "文件选择失败：\(error.localizedDescription)"
+            showImportResult = true
+        }
+    }
+}
+
+// MARK: - ShareSheet (UIKit wrapper)
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+    func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
 }

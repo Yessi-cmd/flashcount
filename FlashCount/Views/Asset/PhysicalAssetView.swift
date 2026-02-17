@@ -11,9 +11,14 @@ struct PhysicalAssetView: View {
     private var activeAssets: [PhysicalAsset] { assets.filter { !$0.isArchived } }
     private var archivedAssets: [PhysicalAsset] { assets.filter { $0.isArchived } }
 
-    /// 总持有价值
+    /// 总持有价值（折旧后）
     private var totalValue: Decimal {
         activeAssets.reduce(Decimal(0)) { $0 + $1.currentValue }
+    }
+
+    /// 原价总值
+    private var totalPurchasePrice: Decimal {
+        activeAssets.reduce(Decimal(0)) { $0 + $1.purchasePrice }
     }
 
     /// 平均日成本
@@ -60,10 +65,12 @@ struct PhysicalAssetView: View {
 
     private var overviewCard: some View {
         VStack(spacing: 16) {
-            Text("持有资产价值").font(.subheadline).foregroundStyle(.white.opacity(0.5))
+            Text("持有资产估值").font(.subheadline).foregroundStyle(.white.opacity(0.5))
             Text(totalValue.formattedCurrency)
                 .font(.system(size: 36, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(.white)
+            Text("原价合计 \(totalPurchasePrice.formattedCurrency)")
+                .font(.caption).foregroundStyle(.white.opacity(0.35))
             HStack(spacing: 24) {
                 VStack(spacing: 4) {
                     Text("持有数量").font(.caption).foregroundStyle(.white.opacity(0.4))
@@ -77,6 +84,13 @@ struct PhysicalAssetView: View {
                     Text(averageDailyCost.formattedCurrency)
                         .font(.subheadline.weight(.semibold).monospacedDigit())
                         .foregroundStyle(.orange)
+                }
+                Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 30)
+                VStack(spacing: 4) {
+                    Text("总折旧").font(.caption).foregroundStyle(.white.opacity(0.4))
+                    Text((totalPurchasePrice - totalValue).formattedCurrency)
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(DesignSystem.expenseColor)
                 }
             }
         }
