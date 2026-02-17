@@ -170,7 +170,15 @@ struct ReportView: View {
                 AxisMarks(position: .leading) { value in
                     AxisValueLabel {
                         if let v = value.as(Double.self) {
-                            Text("¥\(Int(v))").font(.caption2).foregroundStyle(.white.opacity(0.4))
+                            let absV = abs(v)
+                            let label: String = if absV >= 100_000_000 {
+                                String(format: "¥%.0f亿", v / 100_000_000)
+                            } else if absV >= 10_000 {
+                                String(format: "¥%.0f万", v / 10_000)
+                            } else {
+                                String(format: "¥%.0f", v)
+                            }
+                            Text(label).font(.caption2).foregroundStyle(.white.opacity(0.4))
                         }
                     }
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
