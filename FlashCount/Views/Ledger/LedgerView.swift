@@ -11,6 +11,7 @@ struct LedgerView: View {
     @State private var showAddTransaction = false
     @State private var showAddLedger = false
     @State private var showLedgerManager = false
+    @State private var editingTransaction: Transaction?
 
     private var filteredTransactions: [Transaction] {
         guard let ledger = selectedLedger else {
@@ -87,6 +88,9 @@ struct LedgerView: View {
             }
             .sheet(isPresented: $showLedgerManager) {
                 LedgerManagerView()
+            }
+            .sheet(item: $editingTransaction) { transaction in
+                EditTransactionView(transaction: transaction)
             }
             .onAppear {
                 if selectedLedger == nil {
@@ -228,6 +232,24 @@ struct LedgerView: View {
                 Section {
                     ForEach(transactions, id: \.id) { transaction in
                         TransactionRow(transaction: transaction)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    withAnimation {
+                                        modelContext.delete(transaction)
+                                        try? modelContext.save()
+                                    }
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
+                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                                Button {
+                                    editingTransaction = transaction
+                                } label: {
+                                    Label("编辑", systemImage: "pencil")
+                                }
+                                .tint(DesignSystem.primaryColor)
+                            }
                     }
                 } header: {
                     HStack {
