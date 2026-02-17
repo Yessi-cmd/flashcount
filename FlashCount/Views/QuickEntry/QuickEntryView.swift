@@ -340,6 +340,8 @@ struct QuickEntryView: View {
     // MARK: - Logic
 
     private func handleKeyPress(_ key: String) {
+        let maxIntegerDigits = 12  // 最大整数位数（万亿级别）
+
         switch key {
         case "⌫":
             if !amountText.isEmpty {
@@ -350,6 +352,8 @@ struct QuickEntryView: View {
                 amountText += amountText.isEmpty ? "0." : "."
             }
         case "00":
+            let intPart = amountText.split(separator: ".").first.map(String.init) ?? amountText
+            if intPart.count >= maxIntegerDigits { return }
             if !amountText.isEmpty && !amountText.contains(".") {
                 amountText += "00"
             } else if amountText.contains(".") {
@@ -365,6 +369,9 @@ struct QuickEntryView: View {
             withAnimation(.spring(response: 0.3)) { isExpense = true }
             selectedCategory = expenseCategories.first
         default:
+            // 限制整数部分最多 12 位
+            let intPart = amountText.split(separator: ".").first.map(String.init) ?? amountText
+            if !amountText.contains(".") && intPart.count >= maxIntegerDigits { return }
             // 限制小数点后两位
             if amountText.contains(".") {
                 let parts = amountText.split(separator: ".")

@@ -23,13 +23,13 @@ struct BudgetOverviewCard: View {
                         RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.1)).frame(height: 12)
                         RoundedRectangle(cornerRadius: 6)
                             .fill(progressGradient)
-                            .frame(width: min(geo.size.width * CGFloat(analysis.usagePercent), geo.size.width), height: 12)
+                            .frame(width: min(geo.size.width * CGFloat(min(analysis.usagePercent, 1.0)), geo.size.width), height: 12)
                             .animation(.spring(response: 0.8), value: analysis.usagePercent)
                     }
                 }
                 .frame(height: 12)
                 HStack {
-                    Text("\(Int(analysis.usagePercent * 100))%").font(.caption2.monospacedDigit()).foregroundStyle(alertColor)
+                    Text("\(Int(min(analysis.usagePercent, 9999) * 100))%").font(.caption2.monospacedDigit()).foregroundStyle(alertColor)
                     Spacer()
                     Text("预计: \(analysis.projectedTotal.formattedCurrency)").font(.caption2.monospacedDigit()).foregroundStyle(.white.opacity(0.4))
                 }
