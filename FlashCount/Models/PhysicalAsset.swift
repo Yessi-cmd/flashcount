@@ -5,11 +5,14 @@ import SwiftData
 enum PhysicalAssetCategory: String, Codable, CaseIterable {
     case phone = "手机"
     case laptop = "笔记本"
+    case desktop = "电脑"
     case tablet = "平板"
     case headphone = "耳机"
+    case speaker = "音箱"
     case watch = "手表"
     case camera = "相机"
     case console = "游戏机"
+    case drone = "无人机"
     case car = "汽车"
     case house = "房产"
     case other = "其他"
@@ -18,11 +21,14 @@ enum PhysicalAssetCategory: String, Codable, CaseIterable {
         switch self {
         case .phone: return "iphone"
         case .laptop: return "laptopcomputer"
+        case .desktop: return "desktopcomputer"
         case .tablet: return "ipad"
         case .headphone: return "headphones"
+        case .speaker: return "hifispeaker.fill"
         case .watch: return "applewatch"
         case .camera: return "camera.fill"
         case .console: return "gamecontroller.fill"
+        case .drone: return "airplane"
         case .car: return "car.fill"
         case .house: return "house.fill"
         case .other: return "cube.fill"
@@ -34,11 +40,14 @@ enum PhysicalAssetCategory: String, Codable, CaseIterable {
         switch self {
         case .phone: return 0.25
         case .laptop: return 0.25
+        case .desktop: return 0.20
         case .tablet: return 0.20
         case .headphone: return 0.20
+        case .speaker: return 0.15
         case .watch: return 0.20
         case .camera: return 0.15
         case .console: return 0.20
+        case .drone: return 0.25
         case .car: return 0.20
         case .house: return 0.02
         case .other: return 0.20
@@ -50,11 +59,14 @@ enum PhysicalAssetCategory: String, Codable, CaseIterable {
         switch self {
         case .phone: return 0.15      // 手机残值约 15%
         case .laptop: return 0.10
+        case .desktop: return 0.10
         case .tablet: return 0.15
         case .headphone: return 0.05
+        case .speaker: return 0.10
         case .watch: return 0.20
         case .camera: return 0.20
         case .console: return 0.10
+        case .drone: return 0.10
         case .car: return 0.30
         case .house: return 0.80
         case .other: return 0.10
