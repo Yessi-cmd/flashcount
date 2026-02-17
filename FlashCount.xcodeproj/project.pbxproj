@@ -29,8 +29,6 @@
 		987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8F866E732FA0C08D5772C1 /* ReportView.swift */; };
 		A47229D7CE9842B5340A5C37 /* Asset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24FB3EBD7F9EF6358F3D569A /* Asset.swift */; };
 		AB69F3E259FD621519793670 /* QuickAddIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C260BE6A36747442666B416 /* QuickAddIntent.swift */; };
-		B62A585D1F6C098499C018A5 /* FlashCountWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2079B0C610F7D16FB9237E9 /* FlashCountWidget.swift */; };
-		D4B01581AA15328C273F9A93 /* FlashCountWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C5E4BDD3B9D1E02F8AC4715E /* FlashCountWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		DE83E5479BD532D70F116869 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437BC90EE7A47F7AA13A5C1F /* Category.swift */; };
 		DF3833A27A9AC1A6E0042549 /* BudgetComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A051412B9C908E512258A73 /* BudgetComponents.swift */; };
 		E371EC1E626E145C33A1646D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EEBF638849D9D22CD83348A1 /* Assets.xcassets */; };
@@ -40,30 +38,6 @@
 		EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454084E97E2460EC422CA4D1 /* MainTabView.swift */; };
 		F1852C708BA1FFE0BE7CBFBB /* PhysicalAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = F492DE61D255D29FC54B8139 /* PhysicalAsset.swift */; };
 /* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-		12F52CDC0219A3A7CF7036BC /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 2A0D6562311AC34A1F3D04EB /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 74A2B24AD6E85CA120D43651;
-			remoteInfo = FlashCountWidgetExtension;
-		};
-/* End PBXContainerItemProxy section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		D28963889E23DE94710933B1 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				D4B01581AA15328C273F9A93 /* FlashCountWidgetExtension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0972EB8F9449843DF36B3F3F /* ReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportService.swift; sourceTree = "<group>"; };
@@ -92,8 +66,6 @@
 		AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ledger.swift; sourceTree = "<group>"; };
 		B26155DCBB9FC382A8FD13EB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		B517332913BF860F9A5593AC /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
-		C2079B0C610F7D16FB9237E9 /* FlashCountWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountWidget.swift; sourceTree = "<group>"; };
-		C5E4BDD3B9D1E02F8AC4715E /* FlashCountWidgetExtension.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = FlashCountWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		CA07EB27C4CAF30E53F187FB /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerView.swift; sourceTree = "<group>"; };
 		DF30FA16DCE6E0385B858671 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -142,7 +114,6 @@
 			isa = PBXGroup;
 			children = (
 				5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */,
-				C5E4BDD3B9D1E02F8AC4715E /* FlashCountWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -195,7 +166,6 @@
 			isa = PBXGroup;
 			children = (
 				18C415E3AE708EE698FBE5FC /* FlashCount */,
-				DAB405BBDE9089B6D865B6AC /* FlashCountWidget */,
 				1A35A800111501BFB954938B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -245,14 +215,6 @@
 			path = Intents;
 			sourceTree = "<group>";
 		};
-		DAB405BBDE9089B6D865B6AC /* FlashCountWidget */ = {
-			isa = PBXGroup;
-			children = (
-				C2079B0C610F7D16FB9237E9 /* FlashCountWidget.swift */,
-			);
-			path = FlashCountWidget;
-			sourceTree = "<group>";
-		};
 		E0027E670A15A02D29041114 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -280,35 +242,16 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		74A2B24AD6E85CA120D43651 /* FlashCountWidgetExtension */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D39EB6966ABD478E1E7DC6B2 /* Build configuration list for PBXNativeTarget "FlashCountWidgetExtension" */;
-			buildPhases = (
-				B75B6B2ED5CB03CCCD66758D /* Sources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = FlashCountWidgetExtension;
-			packageProductDependencies = (
-			);
-			productName = FlashCountWidgetExtension;
-			productReference = C5E4BDD3B9D1E02F8AC4715E /* FlashCountWidgetExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 		CEA7B1E343522F154C31F430 /* FlashCount */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = B477BC4F0AE3344E77BB30CB /* Build configuration list for PBXNativeTarget "FlashCount" */;
 			buildPhases = (
 				BCDAF86C124A45FAD721FC35 /* Sources */,
 				F5F4B968E87C3FEE6BC9A5AF /* Resources */,
-				D28963889E23DE94710933B1 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				27817675F307756E8D076FAC /* PBXTargetDependency */,
 			);
 			name = FlashCount;
 			packageProductDependencies = (
@@ -341,7 +284,6 @@
 			projectRoot = "";
 			targets = (
 				CEA7B1E343522F154C31F430 /* FlashCount */,
-				74A2B24AD6E85CA120D43651 /* FlashCountWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -358,14 +300,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		B75B6B2ED5CB03CCCD66758D /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				B62A585D1F6C098499C018A5 /* FlashCountWidget.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		BCDAF86C124A45FAD721FC35 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -404,14 +338,6 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		27817675F307756E8D076FAC /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 74A2B24AD6E85CA120D43651 /* FlashCountWidgetExtension */;
-			targetProxy = 12F52CDC0219A3A7CF7036BC /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
 /* Begin XCBuildConfiguration section */
 		0F188CD2445B0EB99A852CC2 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -429,23 +355,6 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.app;
-				SDKROOT = iphoneos;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Release;
-		};
-		357ED0D2DDA252CD22836ADD /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FlashCountWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.app.widget;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -577,23 +486,6 @@
 			};
 			name = Debug;
 		};
-		B82BB3415E5232D1C2BD436B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FlashCountWidget/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.app.widget;
-				SDKROOT = iphoneos;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
-			name = Debug;
-		};
 		BA0463994718A1AEAFDA00D4 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -624,15 +516,6 @@
 			buildConfigurations = (
 				BA0463994718A1AEAFDA00D4 /* Debug */,
 				0F188CD2445B0EB99A852CC2 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
-		D39EB6966ABD478E1E7DC6B2 /* Build configuration list for PBXNativeTarget "FlashCountWidgetExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				B82BB3415E5232D1C2BD436B /* Debug */,
-				357ED0D2DDA252CD22836ADD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
