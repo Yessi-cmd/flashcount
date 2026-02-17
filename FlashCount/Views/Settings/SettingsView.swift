@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 /// 设置页面
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
     @AppStorage("appearance") private var appearance = "system"
     @State private var showTutorial = false
     @State private var showRecurringRules = false
@@ -126,7 +127,7 @@ struct SettingsView: View {
                         HStack {
                             Text("开发者").foregroundStyle(.white)
                             Spacer()
-                            Text("FlashCount OSS").foregroundStyle(.white.opacity(0.4))
+                            Text("Yessi").foregroundStyle(.white.opacity(0.4))
                         }
                         Link(destination: URL(string: "https://github.com/Yessi-cmd/flashcount")!) {
                             HStack {
@@ -144,6 +145,12 @@ struct SettingsView: View {
             }
             .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.large)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") { dismiss() }
+                        .foregroundStyle(DesignSystem.primaryColor)
+                }
+            }
             .sheet(isPresented: $showTutorial) {
                 TutorialView()
             }
