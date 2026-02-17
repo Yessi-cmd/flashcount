@@ -13,12 +13,43 @@ struct LedgerView: View {
     @State private var showLedgerManager = false
     @State private var editingTransaction: Transaction?
     @State private var searchText = ""
+    @State private var dateFilter: DateFilter = .all
+    @State private var customStartDate = Calendar.current.date(byAdding: .month, value: -1, to: Date())!
+    @State private var customEndDate = Date()
+
+    enum DateFilter: String, CaseIterable {
+        case all = "全部"
+        case today = "今天"
+        case thisWeek = "本周"
+        case thisMonth = "本月"
+        case custom = "自定义"
+    }
 
     private var filteredTransactions: [Transaction] {
         var result = allTransactions
         if let ledger = selectedLedger {
             result = result.filter { $0.ledger?.id == ledger.id }
         }
+        // 日期筛选
+        let calendar = Calendar.current
+        let now = Date()
+        switch dateFilter {
+        case .all: break
+        case .today:
+            let start = calendar.startOfDay(for: now)
+            result = result.filter { $0.date >= start }
+        case .thisWeek:
+            let start = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+            result = result.filter { $0.date >= start }
+        case .thisMonth:
+            let start = calendar.dateInterval(of: .month, for: now)?.start ?? now
+            result = result.filter { $0.date >= start }
+        case .custom:
+            let start = calendar.startOfDay(for: customStartDate)
+            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: customEndDate))!
+            result = result.filter { $0.date >= start && $0.date < end }
+        }
+        // 关键词搜索
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             result = result.filter {
@@ -87,6 +118,36 @@ struct LedgerView: View {
                         .padding(10)
                         .background(.white.opacity(0.06))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                        // 日期筛选快捷标签
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(DateFilter.allCases, id: \.self) { filter in
+                                    Button {
+                                        withAnimation(.spring(response: 0.3)) { dateFilter = filter }
+                                    } label: {
+                                        Text(filter.rawValue)
+                                            .font(.caption.weight(.medium))
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(dateFilter == filter ? DesignSystem.primaryColor.opacity(0.2) : .white.opacity(0.06))
+                                            .foregroundStyle(dateFilter == filter ? DesignSystem.primaryColor : .white.opacity(0.5))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                            }
+                        }
+
+                        // 自定义日期范围
+                        if dateFilter == .custom {
+                            HStack(spacing: 12) {
+                                DatePicker("", selection: $customStartDate, displayedComponents: .date)
+                                    .datePickerStyle(.compact).labelsHidden().colorScheme(.dark)
+                                Text("→").foregroundStyle(.white.opacity(0.3))
+                                DatePicker("", selection: $customEndDate, displayedComponents: .date)
+                                    .datePickerStyle(.compact).labelsHidden().colorScheme(.dark)
+                            }
+                        }
 
                         // 账本选择器
                         ledgerPicker

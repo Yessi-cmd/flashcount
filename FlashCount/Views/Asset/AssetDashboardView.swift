@@ -34,23 +34,27 @@ struct AssetDashboardView: View {
                         if !assetItems.isEmpty { assetSection(title: "资产", items: assetItems, color: DesignSystem.incomeColor) }
                         if !liabilityItems.isEmpty { assetSection(title: "负债", items: liabilityItems, color: DesignSystem.expenseColor) }
 
-                        // 实物资产入口（和其他 section 统一风格）
-                        NavigationLink {
-                            PhysicalAssetView()
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "iphone.and.arrow.forward")
-                                    .font(.caption)
-                                    .foregroundStyle(.orange)
-                                Text("实物资产追踪")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.white.opacity(0.6))
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption2)
-                                    .foregroundStyle(.white.opacity(0.2))
+                        // 更多工具
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("资产工具").font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+
+                            NavigationLink {
+                                PhysicalAssetView()
+                            } label: {
+                                toolRow(icon: "iphone.and.arrow.forward", color: .orange, title: "实物资产", subtitle: "手机、电脑、汽车的日均成本")
                             }
-                            .padding(.vertical, 8)
+
+                            NavigationLink {
+                                SubscriptionListView()
+                            } label: {
+                                toolRow(icon: "repeat.circle.fill", color: .purple, title: "订阅管理", subtitle: "追踪 App、会员等周期性开支")
+                            }
+
+                            NavigationLink {
+                                VirtualAssetListView()
+                            } label: {
+                                toolRow(icon: "sparkles", color: .cyan, title: "虚拟资产", subtitle: "游戏账号、数字藏品等无形资产")
+                            }
                         }
 
                         if assets.isEmpty { emptyState }
@@ -173,5 +177,59 @@ struct AssetDashboardView: View {
                     .background(DesignSystem.primaryGradient).clipShape(Capsule())
             }
         }.padding(.vertical, 60)
+    }
+
+    private func toolRow(icon: String, color: Color, title: String, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(color.opacity(0.12))
+                    .frame(width: 36, height: 36)
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.subheadline.weight(.medium)).foregroundStyle(.white)
+                Text(subtitle).font(.caption2).foregroundStyle(.white.opacity(0.4))
+            }
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.2))
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - 订阅管理（占位）
+struct SubscriptionListView: View {
+    var body: some View {
+        ZStack {
+            DesignSystem.surfaceBackground.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "repeat.circle.fill").font(.system(size: 50)).foregroundStyle(.purple.opacity(0.3))
+                Text("订阅管理").font(.headline).foregroundStyle(.white.opacity(0.5))
+                Text("即将上线，敬请期待 🚀").font(.subheadline).foregroundStyle(.white.opacity(0.3))
+            }
+        }
+        .navigationTitle("订阅管理")
+        .navigationBarTitleDisplayMode(.large)
+    }
+}
+
+// MARK: - 虚拟资产（占位）
+struct VirtualAssetListView: View {
+    var body: some View {
+        ZStack {
+            DesignSystem.surfaceBackground.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "sparkles").font(.system(size: 50)).foregroundStyle(.cyan.opacity(0.3))
+                Text("虚拟资产").font(.headline).foregroundStyle(.white.opacity(0.5))
+                Text("即将上线，敬请期待 🚀").font(.subheadline).foregroundStyle(.white.opacity(0.3))
+            }
+        }
+        .navigationTitle("虚拟资产")
+        .navigationBarTitleDisplayMode(.large)
     }
 }

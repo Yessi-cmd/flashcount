@@ -165,8 +165,10 @@ struct ReportView: View {
                 }
             }
             .chartXAxis {
-                AxisMarks { value in
-                    AxisValueLabel().foregroundStyle(.white.opacity(0.5))
+                AxisMarks(values: .automatic(desiredCount: 7)) { value in
+                    AxisValueLabel()
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.5))
                 }
             }
             .frame(height: 180)

@@ -156,7 +156,7 @@ final class ReportService {
         var current = start
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = period == .weekly ? "E" : "d日"
+        formatter.dateFormat = period == .weekly ? "E" : "d"
 
         while current < end {
             let dayEnd = calendar.date(byAdding: .day, value: 1, to: current)!
