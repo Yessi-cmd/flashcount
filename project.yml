@@ -29,3 +29,18 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
         TARGETED_DEVICE_FAMILY: "1"
+    dependencies:
+      - target: FlashCountWidgetExtension
+  FlashCountWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: FlashCountWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app.widget
+        INFOPLIST_KEY_CFBundleDisplayName: "FlashCount Widget"
+        INFOPLIST_KEY_NSExtension_NSExtensionPointIdentifier: "com.apple.widgetkit-extension"
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+        TARGETED_DEVICE_FAMILY: "1"

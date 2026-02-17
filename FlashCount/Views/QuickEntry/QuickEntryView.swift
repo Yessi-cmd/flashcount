@@ -135,7 +135,7 @@ struct QuickEntryView: View {
     }
 
     private var amountDisplay: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text("¥")
                     .font(.title2.weight(.medium))
@@ -147,20 +147,16 @@ struct QuickEntryView: View {
                     .contentTransition(.numericText())
             }
 
-            if showDatePicker {
-                DatePicker("日期", selection: $selectedDate, displayedComponents: .date)
+            // 日期选择器 - 始终可见，方便补录历史账单
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.5))
+                DatePicker("", selection: $selectedDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
                     .colorScheme(.dark)
-                    .transition(.scale.combined(with: .opacity))
-            } else {
-                Button {
-                    withAnimation(.spring(response: 0.3)) { showDatePicker = true }
-                } label: {
-                    Text(selectedDate.relativeString)
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
-                }
+                    .scaleEffect(0.85)
             }
         }
         .frame(maxWidth: .infinity)
