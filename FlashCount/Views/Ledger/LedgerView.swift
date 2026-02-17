@@ -325,6 +325,25 @@ struct LedgerView: View {
                 Section {
                     ForEach(transactions, id: \.id) { transaction in
                         TransactionRow(transaction: transaction)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                editingTransaction = transaction
+                            }
+                            .contextMenu {
+                                Button {
+                                    editingTransaction = transaction
+                                } label: {
+                                    Label("编辑", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    withAnimation {
+                                        modelContext.delete(transaction)
+                                        try? modelContext.save()
+                                    }
+                                } label: {
+                                    Label("删除", systemImage: "trash")
+                                }
+                            }
                             .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                                 Button(role: .destructive) {
                                     withAnimation {
