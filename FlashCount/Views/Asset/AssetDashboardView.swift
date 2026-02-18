@@ -7,6 +7,7 @@ struct AssetDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Asset.createdAt) private var assets: [Asset]
     @State private var showAddAsset = false
+    @State private var editingAsset: Asset?
     @AppStorage("hideAssetBalance") private var hideBalance = true
 
     private var totalAssets: Decimal {
@@ -82,6 +83,9 @@ struct AssetDashboardView: View {
                 }
             }
             .sheet(isPresented: $showAddAsset) { AddAssetView() }
+            .sheet(item: $editingAsset) { asset in
+                AddAssetView(editAsset: asset)
+            }
         }
     }
 
@@ -160,6 +164,23 @@ struct AssetDashboardView: View {
                         .foregroundStyle(color)
                 }
                 .padding(.vertical, 4)
+                .contentShape(Rectangle())
+                .onTapGesture { editingAsset = asset }
+                .contextMenu {
+                    Button {
+                        editingAsset = asset
+                    } label: {
+                        Label("编辑", systemImage: "pencil")
+                    }
+                    Button(role: .destructive) {
+                        withAnimation {
+                            modelContext.delete(asset)
+                            try? modelContext.save()
+                        }
+                    } label: {
+                        Label("删除", systemImage: "trash")
+                    }
+                }
                 if asset.id != items.last?.id { Divider().background(.white.opacity(0.06)) }
             }
         }

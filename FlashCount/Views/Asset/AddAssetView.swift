@@ -1,15 +1,19 @@
 import SwiftUI
 import SwiftData
 
-/// 添加资产/负债账户
+/// 添加/编辑资产账户
 struct AddAssetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+
+    var editAsset: Asset?
 
     @State private var name = ""
     @State private var type: AssetType = .bankCard
     @State private var balanceText = ""
     @State private var selectedColor = "#667EEA"
+
+    private var isEditing: Bool { editAsset != nil }
 
     private let colors = [
         "#667EEA", "#764BA2", "#F093FB", "#FC5C7D",
@@ -83,7 +87,7 @@ struct AddAssetView: View {
                     .padding()
                 }
             }
-            .navigationTitle("添加账户").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(isEditing ? "编辑账户" : "添加账户").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消") { dismiss() }.foregroundStyle(.white.opacity(0.7))
@@ -94,12 +98,30 @@ struct AddAssetView: View {
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
+            .onAppear {
+                if let asset = editAsset {
+                    name = asset.name
+                    type = asset.type
+                    balanceText = "\(asset.balance)"
+                    selectedColor = asset.colorHex
+                }
+            }
         }
     }
 
     private func saveAsset() {
         guard let balance = Decimal(string: balanceText) else { return }
-        let asset = Asset(name: name, type: type, balance: balance, colorHex: selectedColor)
-        modelContext.insert(asset); try? modelContext.save(); dismiss()
+        if let asset = editAsset {
+            asset.name = name
+            asset.type = type
+            asset.balance = balance
+            asset.colorHex = selectedColor
+            asset.updatedAt = Date()
+        } else {
+            let asset = Asset(name: name, type: type, balance: balance, colorHex: selectedColor)
+            modelContext.insert(asset)
+        }
+        try? modelContext.save()
+        dismiss()
     }
 }
