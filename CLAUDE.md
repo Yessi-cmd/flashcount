@@ -13,6 +13,31 @@ Target: `FlashCount` (scheme `FlashCount`). Configs: `Debug`, `Release`. No test
 
 Never hand-edit `FlashCount.xcodeproj/` — edit `project.yml` instead, then regenerate.
 
+## Packaging for AltStore
+
+When asked to **打包** (package), produce an AltStore-compatible `.ipa` in `build/`:
+
+```bash
+# 1. Archive
+xcodebuild archive \
+  -project FlashCount.xcodeproj \
+  -scheme FlashCount \
+  -configuration Release \
+  -archivePath build/FlashCount.xcarchive
+
+# 2. Export IPA
+xcodebuild -exportArchive \
+  -archivePath build/FlashCount.xcarchive \
+  -exportPath build/ \
+  -exportOptionsPlist build/ExportOptions.plist
+
+# Result: build/FlashCount.ipa — sideload via AltStore on iPhone
+```
+
+- ExportOptions.plist uses `method: development` (free Apple dev account compatible).
+- The `.ipa` file lands at `build/FlashCount.ipa`. Copy it to phone or share directly.
+- `build/` is in `.gitignore` — artifacts never committed.
+
 ## Architecture Overview
 
 **Local-first iOS bookkeeping app** — SwiftUI + SwiftData + Swift Charts. No network, no cloud, no tracking. iOS 17.0+, Swift 5.9.
