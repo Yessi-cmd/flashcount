@@ -29,16 +29,16 @@ struct AddAssetView: View {
                     VStack(spacing: 24) {
                         // 账户名称
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("账户名称").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+                            Text("账户名称").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             TextField("例如：招商银行储蓄卡", text: $name)
-                                .font(.body).foregroundStyle(.white).padding(12)
-                                .background(.white.opacity(0.06))
+                                .font(.body).foregroundStyle(DesignSystem.textPrimary).padding(12)
+                                .background(DesignSystem.softFill)
                                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
                         }
 
                         // 类型选择
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("账户类型").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+                            Text("账户类型").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 4), spacing: 10) {
                                 ForEach(AssetType.allCases, id: \.rawValue) { assetType in
                                     Button {
@@ -49,8 +49,8 @@ struct AddAssetView: View {
                                             Text(assetType.rawValue).font(.caption2)
                                         }
                                         .frame(maxWidth: .infinity).padding(.vertical, 10)
-                                        .background(type == assetType ? Color(hex: selectedColor).opacity(0.2) : .white.opacity(0.04))
-                                        .foregroundStyle(type == assetType ? Color(hex: selectedColor) : .white.opacity(0.5))
+                                        .background(type == assetType ? Color(hex: selectedColor).opacity(0.2) : DesignSystem.softFill)
+                                        .foregroundStyle(type == assetType ? Color(hex: selectedColor) : DesignSystem.textSecondary)
                                         .clipShape(RoundedRectangle(cornerRadius: 10))
                                     }
                                 }
@@ -59,19 +59,19 @@ struct AddAssetView: View {
 
                         // 余额
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(type.isLiability ? "欠款金额" : "当前余额").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+                            Text(type.isLiability ? "欠款金额" : "当前余额").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             HStack {
-                                Text("¥").font(.title3).foregroundStyle(.white.opacity(0.5))
+                                Text("¥").font(.title3).foregroundStyle(DesignSystem.textSecondary)
                                 TextField("0.00", text: $balanceText).keyboardType(.decimalPad)
-                                    .font(.title2.weight(.semibold)).monospacedDigit().foregroundStyle(.white)
+                                    .font(.title2.weight(.semibold)).monospacedDigit().foregroundStyle(DesignSystem.textPrimary)
                             }
-                            .padding(12).background(.white.opacity(0.06))
+                            .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
                         }
 
                         // 颜色
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("颜色").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+                            Text("颜色").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 6), spacing: 12) {
                                 ForEach(colors, id: \.self) { color in
                                     Button { selectedColor = color } label: {
@@ -90,7 +90,7 @@ struct AddAssetView: View {
             .navigationTitle(isEditing ? "编辑账户" : "添加账户").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消") { dismiss() }.foregroundStyle(.white.opacity(0.7))
+                    Button("取消") { dismiss() }.foregroundStyle(DesignSystem.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") { saveAsset() }

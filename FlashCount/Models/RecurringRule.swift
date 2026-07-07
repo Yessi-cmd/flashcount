@@ -24,6 +24,12 @@ enum RecurringFrequency: String, Codable, CaseIterable {
     }
 }
 
+extension RecurringRule {
+    var isProtectedIncome: Bool {
+        !isExpense && category?.isSalaryIncome == true
+    }
+}
+
 /// 周期性自动入账规则
 @Model
 final class RecurringRule {

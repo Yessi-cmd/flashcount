@@ -26,6 +26,7 @@ struct ReportData {
     let netChange: Decimal
     let expenseChange: Double?     // 比上一期变化
     let incomeChange: Double?
+    let hasHiddenPrivateIncome: Bool
     let categoryBreakdown: [CategorySpending]
     let dailyExpenses: [(String, Decimal)]  // (日期标签, 金额)
     let streakDays: Int           // 连续记账天数
@@ -42,7 +43,7 @@ final class ReportService {
     }
 
     /// 生成报表
-    func generateReport(period: ReportPeriod) -> ReportData {
+    func generateReport(period: ReportPeriod, includePrivateIncome: Bool = true) -> ReportData {
         let calendar = Calendar.current
         let now = Date()
 
@@ -52,12 +53,15 @@ final class ReportService {
         // 获取交易
         let currentTransactions = fetchTransactions(from: currentStart, to: currentEnd)
         let previousTransactions = fetchTransactions(from: previousStart, to: previousEnd)
+        let hasHiddenPrivateIncome = !includePrivateIncome && currentTransactions.contains { $0.isProtectedIncome }
+        let incomeTransactions = currentTransactions.filter { !$0.isExpense && (includePrivateIncome || !$0.isProtectedIncome) }
+        let previousIncomeTransactions = previousTransactions.filter { !$0.isExpense && (includePrivateIncome || !$0.isProtectedIncome) }
 
         // 基础统计
         let totalExpense = currentTransactions.filter { $0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
-        let totalIncome = currentTransactions.filter { !$0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
+        let totalIncome = incomeTransactions.reduce(Decimal(0)) { $0 + $1.amount }
         let prevExpense = previousTransactions.filter { $0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
-        let prevIncome = previousTransactions.filter { !$0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
+        let prevIncome = previousIncomeTransactions.reduce(Decimal(0)) { $0 + $1.amount }
 
         let expenseChange: Double? = prevExpense > 0 ? NSDecimalNumber(decimal: (totalExpense - prevExpense) / prevExpense).doubleValue : nil
         let incomeChange: Double? = prevIncome > 0 ? NSDecimalNumber(decimal: (totalIncome - prevIncome) / prevIncome).doubleValue : nil
@@ -96,6 +100,7 @@ final class ReportService {
             netChange: totalIncome - totalExpense,
             expenseChange: expenseChange,
             incomeChange: incomeChange,
+            hasHiddenPrivateIncome: hasHiddenPrivateIncome,
             categoryBreakdown: categoryBreakdown,
             dailyExpenses: dailyExpenses,
             streakDays: streakDays,
@@ -130,8 +135,8 @@ final class ReportService {
     }
 
     private func buildCategoryBreakdown(transactions: [Transaction], totalExpense: Decimal, previousTransactions: [Transaction]) -> [CategorySpending] {
-        let grouped = Dictionary(grouping: transactions) { $0.category?.name ?? "未分类" }
-        let prevGrouped = Dictionary(grouping: previousTransactions) { $0.category?.name ?? "未分类" }
+        let grouped = Dictionary(grouping: transactions) { $0.category?.reportDisplayName ?? "未分类" }
+        let prevGrouped = Dictionary(grouping: previousTransactions) { $0.category?.reportDisplayName ?? "未分类" }
 
         return grouped.map { name, txns in
             let amount = txns.reduce(Decimal(0)) { $0 + $1.amount }
@@ -141,8 +146,8 @@ final class ReportService {
             let firstTxn = txns.first
             return CategorySpending(
                 categoryName: name,
-                categoryIcon: firstTxn?.category?.icon ?? "questionmark",
-                categoryColor: firstTxn?.category?.colorHex ?? "#667EEA",
+                categoryIcon: firstTxn?.category?.reportIcon ?? "questionmark",
+                categoryColor: firstTxn?.category?.reportColorHex ?? "#667EEA",
                 amount: amount,
                 percentage: percentage,
                 changeFromLastPeriod: change
@@ -173,20 +178,16 @@ final class ReportService {
         let descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\.date, order: .reverse)])
         guard let transactions = try? modelContext.fetch(descriptor), !transactions.isEmpty else { return 0 }
 
+        let loggedDays = Set(transactions.map { calendar.startOfDay(for: $0.date) })
         var streak = 0
-        var checkDate = calendar.startOfDay(for: Date())
+        let today = calendar.startOfDay(for: Date())
+        var checkDate = loggedDays.contains(today)
+            ? today
+            : calendar.date(byAdding: .day, value: -1, to: today)!
 
-        while true {
-            let nextDay = calendar.date(byAdding: .day, value: 1, to: checkDate)!
-            let hasTransaction = transactions.contains {
-                $0.date >= checkDate && $0.date < nextDay
-            }
-            if hasTransaction {
-                streak += 1
-                checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)!
-            } else {
-                break
-            }
+        while loggedDays.contains(checkDate) {
+            streak += 1
+            checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)!
         }
         return streak
     }

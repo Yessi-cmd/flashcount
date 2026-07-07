@@ -3,10 +3,13 @@ import Foundation
 /// 预算分析结果
 struct BudgetAnalysis {
     let budgetLimit: Decimal         // 预算上限
-    let totalSpent: Decimal          // 已花费
+    let totalSpent: Decimal          // 预算内已花费
+    let excludedSpent: Decimal       // 已记录但不计入预算的支出
     let daysElapsed: Int             // 已过天数
     let daysRemaining: Int           // 剩余天数
     let totalDaysInMonth: Int        // 当月总天数
+    let periodStart: Date
+    let periodEnd: Date
     let dailyAverage: Decimal        // 日均消费
     let projectedTotal: Decimal      // 预测月底总消费
     let remainingBudget: Decimal     // 剩余预算
@@ -14,20 +17,26 @@ struct BudgetAnalysis {
     let usagePercent: Double         // 已用百分比
     let alertLevel: BudgetAlertLevel // 预警等级
 
+    var projectedBalance: Decimal {
+        budgetLimit - projectedTotal
+    }
+
+    var projectedOverAmount: Decimal {
+        max(projectedTotal - budgetLimit, 0)
+    }
+
     /// 友好的预警消息
     var alertMessage: String {
         switch alertLevel {
         case .healthy:
-            return "预算充裕，继续保持 💪"
+            return "日常预算健康，今天建议不超过 \(dailyAllowance.formattedCurrency)"
         case .warning:
-            let remaining = remainingBudget as NSDecimalNumber
-            return "注意控制开支！剩余 ¥\(remaining.intValue)，日均可花 ¥\((dailyAllowance as NSDecimalNumber).intValue)"
+            return "注意消费节奏。剩余 \(daysRemaining) 天，今天建议不超过 \(dailyAllowance.formattedCurrency)"
         case .danger:
-            if projectedTotal > budgetLimit {
-                let overAmount = (projectedTotal - budgetLimit) as NSDecimalNumber
-                return "🚨 按目前进度，月底将超支 ¥\(overAmount.intValue)！你要吃土了！"
+            if projectedOverAmount > 0 {
+                return "按目前进度，月底预计超支 \(projectedOverAmount.formattedCurrency)"
             }
-            return "🚨 预算已用完，请控制开支！"
+            return "日常预算已用完，请控制接下来的支出"
         }
     }
 }
@@ -44,17 +53,26 @@ struct BudgetAnalyzer {
     static func analyze(
         budgetLimit: Decimal,
         totalSpent: Decimal,
-        referenceDate: Date = Date()
+        excludedSpent: Decimal = 0,
+        referenceDate: Date = Date(),
+        periodStart: Date? = nil,
+        periodEnd: Date? = nil
     ) -> BudgetAnalysis {
         let calendar = Calendar.current
+        let referenceDay = calendar.startOfDay(for: referenceDate)
+        let defaultStart = calendar.dateInterval(of: .month, for: referenceDate)?.start ?? referenceDay
+        let defaultEnd = calendar.dateInterval(of: .month, for: referenceDate)?.end
+            ?? calendar.date(byAdding: .month, value: 1, to: defaultStart)
+            ?? referenceDay
+        let start = calendar.startOfDay(for: periodStart ?? defaultStart)
+        let requestedEnd = calendar.startOfDay(for: periodEnd ?? defaultEnd)
+        let end = max(requestedEnd, calendar.date(byAdding: .day, value: 1, to: start) ?? requestedEnd)
 
-        // 计算当月天数信息
-        let components = calendar.dateComponents([.year, .month, .day], from: referenceDate)
-        let daysElapsed = max(components.day ?? 1, 1)  // 至少1天避免除零
-
-        let range = calendar.range(of: .day, in: .month, for: referenceDate)!
-        let totalDaysInMonth = range.count
-        let daysRemaining = max(totalDaysInMonth - daysElapsed, 0)
+        let totalDaysInMonth = max(calendar.dateComponents([.day], from: start, to: end).day ?? 1, 1)
+        let lastPeriodDay = calendar.date(byAdding: .day, value: -1, to: end) ?? start
+        let elapsedDate = min(max(referenceDay, start), lastPeriodDay)
+        let daysElapsed = max((calendar.dateComponents([.day], from: start, to: elapsedDate).day ?? 0) + 1, 1)
+        let daysRemaining = max(calendar.dateComponents([.day], from: referenceDay, to: end).day ?? 0, 0)
 
         // 计算指标
         let dailyAverage = totalSpent / Decimal(daysElapsed)
@@ -86,9 +104,12 @@ struct BudgetAnalyzer {
         return BudgetAnalysis(
             budgetLimit: budgetLimit,
             totalSpent: totalSpent,
+            excludedSpent: excludedSpent,
             daysElapsed: daysElapsed,
             daysRemaining: daysRemaining,
             totalDaysInMonth: totalDaysInMonth,
+            periodStart: start,
+            periodEnd: end,
             dailyAverage: dailyAverage,
             projectedTotal: projectedTotal,
             remainingBudget: remainingBudget,

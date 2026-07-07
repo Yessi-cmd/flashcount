@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-/// 账本（生活、生意、装修、旅行等）
+/// 账本。当前 App 面向个人自用，默认只保留一个生活账本。
 @Model
 final class Ledger {
     var id: UUID
@@ -43,8 +43,7 @@ final class Ledger {
 
     static func defaultLedgers() -> [Ledger] {
         [
-            Ledger(name: "生活", icon: "house.fill", colorHex: "#667EEA", isDefault: true, sortOrder: 0),
-            Ledger(name: "生意", icon: "briefcase.fill", colorHex: "#F093FB", sortOrder: 1),
+            Ledger(name: "生活", icon: "house.fill", colorHex: "#4EA8F8", isDefault: true, sortOrder: 0),
         ]
     }
 }

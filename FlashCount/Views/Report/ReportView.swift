@@ -5,6 +5,7 @@ import Charts
 /// 周报 / 月报页面
 struct ReportView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var privacyLock: PrivacyLockService
     @State private var selectedPeriod: ReportPeriod = .weekly
     @State private var reportData: ReportData?
 
@@ -40,6 +41,7 @@ struct ReportView: View {
             .navigationBarTitleDisplayMode(.large)
             .onAppear { generateReport() }
             .onChange(of: selectedPeriod) { generateReport() }
+            .onChange(of: privacyLock.isUnlocked) { generateReport() }
         }
     }
 
@@ -48,7 +50,7 @@ struct ReportView: View {
     private func generateReport() {
         let service = ReportService(modelContext: modelContext)
         withAnimation(.easeInOut(duration: 0.3)) {
-            reportData = service.generateReport(period: selectedPeriod)
+            reportData = service.generateReport(period: selectedPeriod, includePrivateIncome: privacyLock.isUnlocked)
         }
     }
 
@@ -65,12 +67,12 @@ struct ReportView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(selectedPeriod == period ? DesignSystem.primaryColor.opacity(0.2) : .clear)
-                        .foregroundStyle(selectedPeriod == period ? DesignSystem.primaryColor : .white.opacity(0.5))
+                        .foregroundStyle(selectedPeriod == period ? DesignSystem.primaryColor : DesignSystem.textSecondary)
                 }
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
-        .overlay(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius).stroke(.white.opacity(0.1)))
+        .overlay(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius).stroke(DesignSystem.borderColor))
     }
 
     // MARK: - 打卡连续天数
@@ -82,10 +84,10 @@ struct ReportView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("连续记账 \(days) 天")
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(DesignSystem.textPrimary)
                 Text(days >= 30 ? "厉害了！坚持就是胜利 💪" : days >= 7 ? "保持住，养成习惯！" : "每天记一笔，积少成多 ✨")
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(DesignSystem.textSecondary)
             }
             Spacer()
         }
@@ -102,25 +104,42 @@ struct ReportView: View {
     private func summaryCard(data: ReportData) -> some View {
         HStack(spacing: 0) {
             summaryItem(title: "支出", amount: data.totalExpense, color: DesignSystem.expenseColor, change: data.expenseChange)
-            summaryItem(title: "收入", amount: data.totalIncome, color: DesignSystem.incomeColor, change: data.incomeChange)
+            summaryItem(title: "收入", amount: data.totalIncome, color: DesignSystem.incomeColor, change: data.incomeChange, masked: data.hasHiddenPrivateIncome)
             VStack(spacing: 4) {
-                Text("结余").font(.caption).foregroundStyle(.white.opacity(0.4))
-                Text(data.netChange.formattedCurrency)
+                Text("结余").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                Text(data.hasHiddenPrivateIncome ? privacyLock.maskedText : data.netChange.formattedCurrency)
                     .font(.subheadline.weight(.bold).monospacedDigit())
                     .foregroundStyle(data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
             }
             .frame(maxWidth: .infinity)
         }
         .glassCard()
+        .overlay(alignment: .bottom) {
+            if data.hasHiddenPrivateIncome {
+                Button {
+                    Task { _ = await privacyLock.unlock() }
+                } label: {
+                    Label("解锁工资收入", systemImage: "lock.fill")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(DesignSystem.primaryColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(DesignSystem.cardBackground)
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(DesignSystem.borderColor, lineWidth: 1))
+                }
+                .offset(y: 14)
+            }
+        }
     }
 
-    private func summaryItem(title: String, amount: Decimal, color: Color, change: Double?) -> some View {
+    private func summaryItem(title: String, amount: Decimal, color: Color, change: Double?, masked: Bool = false) -> some View {
         VStack(spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.white.opacity(0.4))
-            Text(amount.formattedCurrency)
+            Text(title).font(.caption).foregroundStyle(DesignSystem.textTertiary)
+            Text(masked ? privacyLock.maskedText : amount.formattedCurrency)
                 .font(.subheadline.weight(.bold).monospacedDigit())
                 .foregroundStyle(color)
-            if let change {
+            if let change, !masked {
                 let pct = Int(min(abs(change), 99.99) * 100)
                 HStack(spacing: 2) {
                     Image(systemName: change > 0 ? "arrow.up.right" : "arrow.down.right")
@@ -151,7 +170,7 @@ struct ReportView: View {
         }()
 
         return VStack(alignment: .leading, spacing: 12) {
-            Text("每日消费").font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.7))
+            Text("每日消费").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
 
             Chart {
                 ForEach(Array(data.dailyExpenses.enumerated()), id: \.offset) { index, item in
@@ -178,11 +197,11 @@ struct ReportView: View {
                             } else {
                                 String(format: "¥%.0f", v)
                             }
-                            Text(label).font(.caption2).foregroundStyle(.white.opacity(0.4))
+                            Text(label).font(.caption2).foregroundStyle(DesignSystem.textTertiary)
                         }
                     }
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [4]))
-                        .foregroundStyle(.white.opacity(0.08))
+                        .foregroundStyle(DesignSystem.dividerColor)
                 }
             }
             .chartXAxis {
@@ -190,7 +209,7 @@ struct ReportView: View {
                     if let label = value.as(String.self), visibleLabels.contains(label) {
                         AxisValueLabel()
                             .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(DesignSystem.textSecondary)
                     }
                 }
             }
@@ -203,10 +222,10 @@ struct ReportView: View {
 
     private func categoryPieChart(data: ReportData) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("分类构成").font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.7))
+            Text("分类构成").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
 
             if data.categoryBreakdown.isEmpty {
-                Text("暂无支出数据").font(.caption).foregroundStyle(.white.opacity(0.3))
+                Text("暂无支出数据").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                     .frame(height: 160).frame(maxWidth: .infinity)
             } else {
                 Chart(data.categoryBreakdown) { item in
@@ -222,8 +241,8 @@ struct ReportView: View {
                     VStack {
                         Text(data.totalExpense.formattedCurrency)
                             .font(.subheadline.weight(.bold).monospacedDigit())
-                            .foregroundStyle(.white)
-                        Text("总支出").font(.caption2).foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(DesignSystem.textPrimary)
+                        Text("总支出").font(.caption2).foregroundStyle(DesignSystem.textSecondary)
                     }
                 }
 
@@ -232,9 +251,9 @@ struct ReportView: View {
                     ForEach(data.categoryBreakdown.prefix(6)) { item in
                         HStack(spacing: 6) {
                             Circle().fill(Color(hex: item.categoryColor)).frame(width: 8, height: 8)
-                            Text(item.categoryName).font(.caption2).foregroundStyle(.white.opacity(0.7))
+                            Text(item.categoryName).font(.caption2).foregroundStyle(DesignSystem.textSecondary)
                             Spacer()
-                            Text("\(Int(min(item.percentage, 99.99) * 100))%").font(.caption2.monospacedDigit()).foregroundStyle(.white.opacity(0.4))
+                            Text("\(Int(min(item.percentage, 99.99) * 100))%").font(.caption2.monospacedDigit()).foregroundStyle(DesignSystem.textTertiary)
                         }
                     }
                 }
@@ -248,7 +267,7 @@ struct ReportView: View {
     private func topCategoriesCard(data: ReportData) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("🏆 消费 Top 5").font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.7))
+                Text("🏆 消费 Top 5").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
             }
 
@@ -258,8 +277,8 @@ struct ReportView: View {
                     Text("\(index + 1)")
                         .font(.caption.weight(.bold).monospacedDigit())
                         .frame(width: 20, height: 20)
-                        .background(index < 3 ? Color.orange.opacity(0.2) : .white.opacity(0.06))
-                        .foregroundStyle(index < 3 ? .orange : .white.opacity(0.5))
+                        .background(index < 3 ? Color.orange.opacity(0.2) : DesignSystem.softFill)
+                        .foregroundStyle(index < 3 ? .orange : DesignSystem.textSecondary)
                         .clipShape(Circle())
 
                     // 图标
@@ -271,7 +290,7 @@ struct ReportView: View {
                     // 名称
                     Text(item.categoryName)
                         .font(.subheadline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(DesignSystem.textPrimary)
 
                     Spacer()
 
@@ -279,10 +298,10 @@ struct ReportView: View {
                     VStack(alignment: .trailing, spacing: 2) {
                         Text(item.amount.formattedCurrency)
                             .font(.subheadline.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(.white)
+                            .foregroundStyle(DesignSystem.textPrimary)
                         Text("\(Int(min(item.percentage, 99.99) * 100))%")
                             .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.white.opacity(0.4))
+                            .foregroundStyle(DesignSystem.textTertiary)
                     }
                 }
 
@@ -302,16 +321,16 @@ struct ReportView: View {
 
     private func insightsCard(data: ReportData) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("🧠 消费洞察").font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.7))
+            Text("🧠 消费洞察").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
 
             if data.insights.isEmpty {
                 Text("记账数据不足，多记几笔生成洞察 ✨")
-                    .font(.caption).foregroundStyle(.white.opacity(0.4))
+                    .font(.caption).foregroundStyle(DesignSystem.textTertiary)
             } else {
                 ForEach(data.insights, id: \.self) { insight in
                     Text(insight)
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .foregroundStyle(DesignSystem.textSecondary)
                         .padding(.vertical, 4)
                 }
             }

@@ -25,10 +25,10 @@ struct OnboardingView: View {
                         .foregroundStyle(DesignSystem.primaryGradient)
                     Text("FlashCount")
                         .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(DesignSystem.textPrimary)
                     Text("你的私人财务分析师")
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(DesignSystem.textSecondary)
                 }
                 .padding(.bottom, 40)
 
@@ -47,10 +47,10 @@ struct OnboardingView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(feature.title)
                                     .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(DesignSystem.textPrimary)
                                 Text(feature.desc)
                                     .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(DesignSystem.textSecondary)
                             }
                             Spacer()
                         }
@@ -68,7 +68,7 @@ struct OnboardingView: View {
                     }
                     Text("添加锁屏 Widget 或设置 Back Tap\n让记账快人一步！进入 App 后点 ❓ 查看教程")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(DesignSystem.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding()
@@ -86,7 +86,7 @@ struct OnboardingView: View {
                 } label: {
                     Text("开始使用 🚀")
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(DesignSystem.textPrimary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
                         .background(DesignSystem.primaryGradient)
@@ -127,10 +127,10 @@ struct TutorialView: View {
                         VStack(spacing: 8) {
                             Text("⚡ 快捷记账指南")
                                 .font(.title2.weight(.bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(DesignSystem.textPrimary)
                             Text("让记账不再需要翻找 App")
                                 .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(DesignSystem.textSecondary)
                         }
                         .padding(.top, 8)
 
@@ -154,25 +154,25 @@ struct TutorialView: View {
                                             .foregroundStyle(DesignSystem.primaryColor)
                                         Text(tutorial.title)
                                             .font(.subheadline.weight(.semibold))
-                                            .foregroundStyle(.white)
+                                            .foregroundStyle(DesignSystem.textPrimary)
                                     }
                                     Text(tutorial.detail)
                                         .font(.caption)
-                                        .foregroundStyle(.white.opacity(0.6))
+                                        .foregroundStyle(DesignSystem.textSecondary)
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                                 Spacer()
                             }
                             .padding()
-                            .background(.white.opacity(0.04))
+                            .background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(.white.opacity(0.06)))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(DesignSystem.borderColor))
                         }
 
                         // 底部提示
                         Text("设置完成后，记账只需 1 秒 ⚡")
                             .font(.caption)
-                            .foregroundStyle(.white.opacity(0.4))
+                            .foregroundStyle(DesignSystem.textTertiary)
                             .padding(.top, 8)
                     }
                     .padding()
