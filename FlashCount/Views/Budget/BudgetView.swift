@@ -4,36 +4,27 @@ import SwiftData
 /// 预算管理页面
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Ledger.sortOrder) private var ledgers: [Ledger]
+    @AppStorage("payday") private var payday = 1
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
-    @State private var selectedLedger: Ledger?
     @State private var showAddBudget = false
 
     private var currentBudget: Budget? {
-        let calendar = Calendar.current
-        let now = Date()
-        let year = calendar.component(.year, from: now)
-        let month = calendar.component(.month, from: now)
-        return allBudgets.first { b in
-            b.year == year && b.month == month
-            && b.ledger?.id == selectedLedger?.id
-            && b.categoryId == nil
-        }
+        BudgetReminderService.currentBudget(
+            in: allBudgets,
+            ledger: nil,
+            payday: payday
+        )
     }
 
-    private var monthlySpent: Decimal {
-        let calendar = Calendar.current
-        let now = Date()
-        return allTransactions
-            .filter { $0.isExpense && calendar.isDate($0.date, equalTo: now, toGranularity: .month) && $0.ledger?.id == selectedLedger?.id }
-            .reduce(0) { $0 + $1.amount }
-    }
-
-    private var analysis: BudgetAnalysis? {
-        guard let budget = currentBudget else { return nil }
-        return BudgetAnalyzer.analyze(budgetLimit: budget.monthlyLimit, totalSpent: monthlySpent)
+    private var reminder: BudgetReminder? {
+        BudgetReminderService.reminder(
+            budgets: allBudgets,
+            transactions: allTransactions,
+            ledger: nil,
+            payday: payday
+        )
     }
 
     var body: some View {
@@ -42,11 +33,10 @@ struct BudgetView: View {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
-                        budgetLedgerPicker
-                        if let analysis = analysis {
-                            BudgetOverviewCard(analysis: analysis)
-                            BudgetAlertCard(analysis: analysis)
-                            BudgetMetricsGrid(analysis: analysis)
+                        if let reminder {
+                            BudgetOverviewCard(analysis: reminder.analysis)
+                            BudgetAlertCard(reminder: reminder)
+                            BudgetMetricsGrid(analysis: reminder.analysis)
                         } else {
                             noBudgetPlaceholder
                         }
@@ -56,43 +46,30 @@ struct BudgetView: View {
             }
             .navigationTitle("预算")
             .navigationBarTitleDisplayMode(.large)
-            .sheet(isPresented: $showAddBudget) {
-                AddBudgetView(ledger: selectedLedger)
-            }
-            .onAppear {
-                if selectedLedger == nil {
-                    selectedLedger = ledgers.first(where: { $0.isDefault }) ?? ledgers.first
-                }
-            }
-        }
-    }
-
-    private var budgetLedgerPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(ledgers, id: \.id) { ledger in
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        withAnimation(.spring(response: 0.3)) { selectedLedger = ledger }
+                        showAddBudget = true
                     } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: ledger.icon).font(.caption)
-                            Text(ledger.name).font(.subheadline.weight(.medium))
-                        }
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(selectedLedger?.id == ledger.id ? Color(hex: ledger.colorHex).opacity(0.2) : .white.opacity(0.06))
-                        .foregroundStyle(selectedLedger?.id == ledger.id ? Color(hex: ledger.colorHex) : .white.opacity(0.5))
-                        .clipShape(Capsule())
+                        Label(currentBudget == nil ? "设置预算" : "调整预算", systemImage: currentBudget == nil ? "plus" : "slider.horizontal.3")
                     }
                 }
+            }
+            .sheet(isPresented: $showAddBudget) {
+                AddBudgetView(ledger: nil, existingBudget: currentBudget, payday: payday)
             }
         }
     }
 
     private var noBudgetPlaceholder: some View {
         VStack(spacing: 16) {
-            Image(systemName: "chart.pie").font(.system(size: 50)).foregroundStyle(.white.opacity(0.2))
-            Text("暂未设置预算").font(.headline).foregroundStyle(.white.opacity(0.5))
-            Text("设置月度预算，智能预警你的消费进度").font(.subheadline).foregroundStyle(.white.opacity(0.3)).multilineTextAlignment(.center)
+            Image(systemName: "chart.pie").font(.system(size: 50)).foregroundStyle(DesignSystem.textTertiary)
+            Text("暂未设置预算").font(.headline).foregroundStyle(DesignSystem.textPrimary)
+            Text("输入本发薪周期日常消费预算，按剩余天数提醒每日可花").font(.subheadline).foregroundStyle(DesignSystem.textSecondary).multilineTextAlignment(.center)
+            Text(BudgetScope.description)
+                .font(.caption)
+                .foregroundStyle(DesignSystem.textTertiary)
+                .multilineTextAlignment(.center)
             Button {
                 showAddBudget = true
             } label: {

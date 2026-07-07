@@ -4,6 +4,7 @@ import SwiftData
 /// 日历视图 - 展示每日收支
 struct CalendarView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var privacyLock: PrivacyLockService
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var displayedMonth = Date()
@@ -46,12 +47,45 @@ struct CalendarView: View {
             var entry = result[key] ?? (income: 0, expense: 0)
             if t.isExpense {
                 entry.expense += t.amount
-            } else {
+            } else if !isPrivateIncomeHidden(t) {
                 entry.income += t.amount
             }
             result[key] = entry
         }
         return result
+    }
+
+    private var hiddenIncomeDays: Set<String> {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let components = calendar.dateComponents([.year, .month], from: displayedMonth)
+        let monthTransactions = allTransactions.filter {
+            let tc = calendar.dateComponents([.year, .month], from: $0.date)
+            return tc.year == components.year && tc.month == components.month
+        }
+
+        return Set(monthTransactions.compactMap { transaction in
+            guard isPrivateIncomeHidden(transaction) else { return nil }
+            return formatter.string(from: transaction.date)
+        })
+    }
+
+    private func isPrivateIncomeHidden(_ transaction: Transaction) -> Bool {
+        transaction.isProtectedIncome && !privacyLock.isUnlocked
+    }
+
+    private func hasHiddenIncome(on date: Date) -> Bool {
+        allTransactions.contains {
+            calendar.isDate($0.date, inSameDayAs: date) && isPrivateIncomeHidden($0)
+        }
+    }
+
+    private var hasHiddenIncomeInDisplayedMonth: Bool {
+        let components = calendar.dateComponents([.year, .month], from: displayedMonth)
+        return allTransactions.contains {
+            let tc = calendar.dateComponents([.year, .month], from: $0.date)
+            return tc.year == components.year && tc.month == components.month && isPrivateIncomeHidden($0)
+        }
     }
 
     // 选中日期的交易列表
@@ -93,9 +127,9 @@ struct CalendarView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(DesignSystem.textSecondary)
                     .frame(width: 36, height: 36)
-                    .background(.white.opacity(0.06))
+                    .background(DesignSystem.softFill)
                     .clipShape(Circle())
             }
 
@@ -103,7 +137,7 @@ struct CalendarView: View {
 
             Text(displayedMonth.monthYearString)
                 .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(DesignSystem.textPrimary)
 
             Spacer()
 
@@ -115,9 +149,9 @@ struct CalendarView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(DesignSystem.textSecondary)
                     .frame(width: 36, height: 36)
-                    .background(.white.opacity(0.06))
+                    .background(DesignSystem.softFill)
                     .clipShape(Circle())
             }
         }
@@ -131,7 +165,7 @@ struct CalendarView: View {
             ForEach(weekdays, id: \.self) { day in
                 Text(day)
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.4))
+                    .foregroundStyle(DesignSystem.textTertiary)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -154,6 +188,7 @@ struct CalendarView: View {
             ForEach(daysInMonth, id: \.self) { date in
                 let key = formatter.string(from: date)
                 let summary = dailySummary[key]
+                let hiddenIncome = hiddenIncomeDays.contains(key)
                 let isToday = calendar.isDateInToday(date)
                 let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
 
@@ -168,7 +203,7 @@ struct CalendarView: View {
                             .foregroundStyle(
                                 isSelected ? .white
                                 : isToday ? DesignSystem.primaryColor
-                                : .white.opacity(0.8)
+                                : DesignSystem.textPrimary
                             )
 
                         if let summary {
@@ -184,6 +219,12 @@ struct CalendarView: View {
                                     .foregroundStyle(DesignSystem.incomeColor.opacity(0.8))
                                     .lineLimit(1)
                             }
+                            if hiddenIncome {
+                                Text("****")
+                                    .font(.system(size: 8).monospacedDigit())
+                                    .foregroundStyle(DesignSystem.textTertiary)
+                                    .lineLimit(1)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -193,7 +234,7 @@ struct CalendarView: View {
                             .fill(
                                 isSelected ? DesignSystem.primaryColor.opacity(0.3)
                                 : isToday ? DesignSystem.primaryColor.opacity(0.08)
-                                : summary != nil ? .white.opacity(0.03)
+                                : summary != nil ? DesignSystem.softFill
                                 : .clear
                             )
                     )
@@ -219,40 +260,40 @@ struct CalendarView: View {
             let tc = calendar.dateComponents([.year, .month], from: $0.date)
             return tc.year == components.year && tc.month == components.month
         }
-        let income = monthTransactions.filter { !$0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
+        let income = monthTransactions.filter { !$0.isExpense && !isPrivateIncomeHidden($0) }.reduce(Decimal(0)) { $0 + $1.amount }
         let expense = monthTransactions.filter { $0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
 
         return HStack(spacing: 0) {
             VStack(spacing: 2) {
-                Text("收入").font(.caption2).foregroundStyle(.white.opacity(0.4))
-                Text(income.formattedCurrency)
+                Text("收入").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
+                Text(hasHiddenIncomeInDisplayedMonth ? privacyLock.maskedText : income.formattedCurrency)
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(DesignSystem.incomeColor)
             }
             .frame(maxWidth: .infinity)
 
-            Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 24)
+            Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 24)
 
             VStack(spacing: 2) {
-                Text("支出").font(.caption2).foregroundStyle(.white.opacity(0.4))
+                Text("支出").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
                 Text(expense.formattedCurrency)
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(DesignSystem.expenseColor)
             }
             .frame(maxWidth: .infinity)
 
-            Rectangle().fill(.white.opacity(0.1)).frame(width: 1, height: 24)
+            Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 24)
 
             VStack(spacing: 2) {
-                Text("结余").font(.caption2).foregroundStyle(.white.opacity(0.4))
-                Text((income - expense).formattedCurrency)
+                Text("结余").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
+                Text(hasHiddenIncomeInDisplayedMonth ? privacyLock.maskedText : (income - expense).formattedCurrency)
                     .font(.caption.weight(.semibold).monospacedDigit())
                     .foregroundStyle(income >= expense ? DesignSystem.incomeColor : DesignSystem.expenseColor)
             }
             .frame(maxWidth: .infinity)
         }
         .padding(.vertical, 10)
-        .background(.white.opacity(0.04))
+        .background(DesignSystem.softFill)
         .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
@@ -264,10 +305,10 @@ struct CalendarView: View {
                 HStack {
                     Text(date.relativeString)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(DesignSystem.textSecondary)
                     Spacer()
                     let dayTotal = selectedDateTransactions.reduce(Decimal(0)) { $0 + $1.signedAmount }
-                    Text(dayTotal.formattedCurrency)
+                    Text(hasHiddenIncome(on: date) ? privacyLock.maskedText : dayTotal.formattedCurrency)
                         .font(.subheadline.weight(.semibold).monospacedDigit())
                         .foregroundStyle(dayTotal >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
                 }
@@ -278,42 +319,13 @@ struct CalendarView: View {
                     Spacer()
                     Text("当天无交易记录")
                         .font(.caption)
-                        .foregroundStyle(.white.opacity(0.3))
+                        .foregroundStyle(DesignSystem.textTertiary)
                     Spacer()
                 }
                 .padding(.vertical, 16)
             } else {
                 ForEach(selectedDateTransactions, id: \.id) { transaction in
-                    HStack(spacing: 10) {
-                        ZStack {
-                            Circle()
-                                .fill(Color(hex: transaction.category?.colorHex ?? "#667EEA").opacity(0.15))
-                                .frame(width: 32, height: 32)
-                            Image(systemName: transaction.category?.icon ?? "questionmark")
-                                .font(.caption)
-                                .foregroundStyle(Color(hex: transaction.category?.colorHex ?? "#667EEA"))
-                        }
-
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(transaction.category?.name ?? "未分类")
-                                .font(.caption.weight(.medium))
-                                .foregroundStyle(.white)
-                            if !transaction.note.isEmpty {
-                                Text(transaction.note)
-                                    .font(.caption2)
-                                    .foregroundStyle(.white.opacity(0.4))
-                                    .lineLimit(1)
-                            }
-                        }
-
-                        Spacer()
-
-                        Text("\(transaction.isExpense ? "-" : "+")\(transaction.amount.formattedAmount)")
-                            .font(.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(
-                                transaction.isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor
-                            )
-                    }
+                    TransactionRow(transaction: transaction, revealsPrivateIncome: privacyLock.isUnlocked)
                     .padding(.vertical, 4)
                 }
             }

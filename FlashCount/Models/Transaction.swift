@@ -10,6 +10,8 @@ final class Transaction {
     var note: String
     var date: Date
     var createdAt: Date
+    var isPrivateIncome: Bool = false
+    var cashPoolDelta: Decimal?
 
     // 关系
     var category: Category?
@@ -26,6 +28,8 @@ final class Transaction {
         isExpense: Bool = true,
         note: String = "",
         date: Date = Date(),
+        isPrivateIncome: Bool = false,
+        cashPoolDelta: Decimal? = nil,
         category: Category? = nil,
         ledger: Ledger? = nil,
         recurringRule: RecurringRule? = nil
@@ -36,8 +40,16 @@ final class Transaction {
         self.note = note
         self.date = date
         self.createdAt = Date()
+        self.isPrivateIncome = isPrivateIncome
+        self.cashPoolDelta = cashPoolDelta
         self.category = category
         self.ledger = ledger
         self.recurringRule = recurringRule
+    }
+}
+
+extension Transaction {
+    var isProtectedIncome: Bool {
+        !isExpense && (isPrivateIncome || category?.isSalaryIncome == true)
     }
 }

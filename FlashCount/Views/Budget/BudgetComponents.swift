@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// 预算概览卡片 - 进度条 + 百分比
 struct BudgetOverviewCard: View {
@@ -7,20 +8,20 @@ struct BudgetOverviewCard: View {
     var body: some View {
         VStack(spacing: 16) {
             HStack {
-                Text(Date().monthYearString).font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.6))
+                Text("发薪周期 \(cycleTitle)").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
                 Text(analysis.alertLevel.emoji).font(.title3)
             }
             VStack(spacing: 8) {
                 HStack {
-                    Text("已花费").font(.caption).foregroundStyle(.white.opacity(0.5))
+                    Text("预算内已花").font(.caption).foregroundStyle(DesignSystem.textSecondary)
                     Spacer()
                     Text("\(analysis.totalSpent.formattedCurrency) / \(analysis.budgetLimit.formattedCurrency)")
-                        .font(.caption.monospacedDigit()).foregroundStyle(.white.opacity(0.7))
+                        .font(.caption.monospacedDigit()).foregroundStyle(DesignSystem.textSecondary)
                 }
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 6).fill(.white.opacity(0.1)).frame(height: 12)
+                        RoundedRectangle(cornerRadius: 6).fill(DesignSystem.dividerColor).frame(height: 12)
                         RoundedRectangle(cornerRadius: 6)
                             .fill(progressGradient)
                             .frame(width: min(geo.size.width * CGFloat(min(analysis.usagePercent, 1.0)), geo.size.width), height: 12)
@@ -31,11 +32,47 @@ struct BudgetOverviewCard: View {
                 HStack {
                     Text("\(Int(min(analysis.usagePercent, 9999) * 100))%").font(.caption2.monospacedDigit()).foregroundStyle(alertColor)
                     Spacer()
-                    Text("预计: \(analysis.projectedTotal.formattedCurrency)").font(.caption2.monospacedDigit()).foregroundStyle(.white.opacity(0.4))
+                    Text("预计周期末 \(analysis.projectedTotal.formattedCurrency)").font(.caption2.monospacedDigit()).foregroundStyle(DesignSystem.textTertiary)
                 }
+
+                if analysis.excludedSpent > 0 {
+                    HStack(spacing: 5) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                            .font(.caption2)
+                        Text("已排除 \(analysis.excludedSpent.formattedCurrency)")
+                            .font(.caption2.monospacedDigit())
+                    }
+                    .foregroundStyle(DesignSystem.textTertiary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            HStack(spacing: 12) {
+                budgetPill(title: "剩余预算", value: analysis.remainingBudget.formattedCurrency, color: analysis.remainingBudget >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                budgetPill(title: "今日可花", value: analysis.dailyAllowance.formattedCurrency, color: DesignSystem.primaryColor)
             }
         }
         .glassCard()
+    }
+
+    private func budgetPill(title: String, value: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(DesignSystem.textTertiary)
+            Text(value)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(DesignSystem.softFill)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+    }
+
+    private var cycleTitle: String {
+        let endDisplay = Calendar.current.date(byAdding: .day, value: -1, to: analysis.periodEnd)?.shortDateString ?? analysis.periodEnd.shortDateString
+        return "\(analysis.periodStart.shortDateString)-\(endDisplay)"
     }
 
     private var progressGradient: LinearGradient {
@@ -57,14 +94,14 @@ struct BudgetOverviewCard: View {
 
 /// 预警消息卡片
 struct BudgetAlertCard: View {
-    let analysis: BudgetAnalysis
+    let reminder: BudgetReminder
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: alertIcon).font(.title2).foregroundStyle(alertColor)
             VStack(alignment: .leading, spacing: 4) {
-                Text(analysis.alertLevel.rawValue).font(.subheadline.weight(.semibold)).foregroundStyle(.white)
-                Text(analysis.alertMessage).font(.caption).foregroundStyle(.white.opacity(0.7))
+                Text(reminder.title).font(.subheadline.weight(.semibold)).foregroundStyle(DesignSystem.textPrimary)
+                Text(reminder.message).font(.caption).foregroundStyle(DesignSystem.textSecondary)
             }
             Spacer()
         }
@@ -75,15 +112,11 @@ struct BudgetAlertCard: View {
     }
 
     private var alertIcon: String {
-        switch analysis.alertLevel {
-        case .healthy: return "checkmark.shield.fill"
-        case .warning: return "exclamationmark.triangle.fill"
-        case .danger: return "flame.fill"
-        }
+        reminder.iconName
     }
 
     private var alertColor: Color {
-        switch analysis.alertLevel {
+        switch reminder.alertLevel {
         case .healthy: return DesignSystem.incomeColor
         case .warning: return DesignSystem.warningColor
         case .danger: return DesignSystem.dangerColor
@@ -98,19 +131,29 @@ struct BudgetMetricsGrid: View {
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             metricCard(title: "日均消费", value: analysis.dailyAverage.formattedCurrency, icon: "chart.bar.fill", color: "#778BEB")
-            metricCard(title: "每日可花", value: analysis.dailyAllowance.formattedCurrency, icon: "wallet.pass.fill",
+            metricCard(title: "今日可花", value: analysis.dailyAllowance.formattedCurrency, icon: "wallet.pass.fill",
                        color: analysis.alertLevel == .danger ? "#FF4757" : "#2ED573")
             metricCard(title: "剩余预算", value: analysis.remainingBudget.formattedCurrency, icon: "banknote.fill",
                        color: analysis.remainingBudget >= 0 ? "#4ECDC4" : "#FF6B6B")
             metricCard(title: "剩余天数", value: "\(analysis.daysRemaining) 天", icon: "calendar", color: "#FFA502")
+            metricCard(title: "预计周期末", value: analysis.projectedTotal.formattedCurrency, icon: "chart.line.uptrend.xyaxis", color: "#4EA8F8")
+            metricCard(
+                title: analysis.projectedBalance >= 0 ? "预计结余" : "预计超支",
+                value: analysis.projectedBalance.formattedCurrency,
+                icon: analysis.projectedBalance >= 0 ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
+                color: analysis.projectedBalance >= 0 ? "#18B985" : "#F2556B"
+            )
+            if analysis.excludedSpent > 0 {
+                metricCard(title: "预算外支出", value: analysis.excludedSpent.formattedCurrency, icon: "line.3.horizontal.decrease.circle.fill", color: "#9AA6B2")
+            }
         }
     }
 
     private func metricCard(title: String, value: String, icon: String, color: String) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack { Image(systemName: icon).font(.caption).foregroundStyle(Color(hex: color)); Spacer() }
-            Text(value).font(.headline.monospacedDigit()).foregroundStyle(.white)
-            Text(title).font(.caption).foregroundStyle(.white.opacity(0.5))
+            Text(value).font(.headline.monospacedDigit()).foregroundStyle(DesignSystem.textPrimary)
+            Text(title).font(.caption).foregroundStyle(DesignSystem.textSecondary)
         }
         .glassCard()
     }
@@ -121,7 +164,21 @@ struct AddBudgetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     let ledger: Ledger?
+    let existingBudget: Budget?
+    let payday: Int
+
     @State private var amountText = ""
+    @State private var saveError: String?
+    @State private var didLoadInitialAmount = false
+
+    private var trimmedAmountText: String {
+        amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var canSave: Bool {
+        guard let amount = Decimal(string: trimmedAmountText) else { return false }
+        return amount > 0
+    }
 
     var body: some View {
         NavigationStack {
@@ -129,41 +186,113 @@ struct AddBudgetView: View {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
                 VStack(spacing: 24) {
                     VStack(spacing: 8) {
-                        Text(Date().monthYearString).font(.subheadline).foregroundStyle(.white.opacity(0.5))
+                        Text(cycleTitle).font(.subheadline).foregroundStyle(DesignSystem.textSecondary)
                         HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            Text("¥").font(.title2).foregroundStyle(.white.opacity(0.6))
+                            Text("¥").font(.title2).foregroundStyle(DesignSystem.textSecondary)
                             TextField("0", text: $amountText).keyboardType(.decimalPad)
                                 .font(.system(size: 48, weight: .bold, design: .rounded))
-                                .monospacedDigit().foregroundStyle(.white).multilineTextAlignment(.center)
+                                .monospacedDigit().foregroundStyle(DesignSystem.textPrimary).multilineTextAlignment(.center)
                         }.padding(.vertical, 20)
-                        Text("月度预算上限").font(.caption).foregroundStyle(.white.opacity(0.4))
+                        Text("发薪周期日常预算上限").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                     }
                     HStack(spacing: 12) {
                         ForEach(["3000", "5000", "8000", "10000"], id: \.self) { amount in
                             Button { amountText = amount } label: {
                                 Text("¥\(amount)").font(.caption.weight(.medium))
                                     .padding(.horizontal, 12).padding(.vertical, 8)
-                                    .background(.white.opacity(0.06)).foregroundStyle(.white.opacity(0.6)).clipShape(Capsule())
+                                    .background(DesignSystem.softFill).foregroundStyle(DesignSystem.textSecondary).clipShape(Capsule())
                             }
                         }
                     }
                     Spacer()
                 }.padding()
             }
-            .navigationTitle("设置预算").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(existingBudget == nil ? "发薪周期预算" : "调整预算").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button("取消") { dismiss() }.foregroundStyle(.white.opacity(0.7)) }
+                ToolbarItem(placement: .topBarLeading) { Button("取消") { dismiss() }.foregroundStyle(DesignSystem.textSecondary) }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("保存") { saveBudget() }.disabled(amountText.isEmpty).foregroundStyle(DesignSystem.primaryColor)
+                    Button("保存") { saveBudget() }.disabled(!canSave).foregroundStyle(DesignSystem.primaryColor)
                 }
+            }
+            .onAppear {
+                loadInitialAmountIfNeeded()
+            }
+            .alert("保存失败", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("好", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
             }
         }
     }
 
+    private var cycle: PayCycle {
+        PayCycleService.cycle(payday: payday)
+    }
+
+    private var cycleTitle: String {
+        let endDisplay = Calendar.current.date(byAdding: .day, value: -1, to: cycle.end)?.shortDateString ?? cycle.end.shortDateString
+        return "\(cycle.start.fullDateString) - \(endDisplay)"
+    }
+
+    private func loadInitialAmountIfNeeded() {
+        guard !didLoadInitialAmount else { return }
+        didLoadInitialAmount = true
+
+        if let existingBudget {
+            amountText = NSDecimalNumber(decimal: existingBudget.monthlyLimit).stringValue
+        }
+    }
+
     private func saveBudget() {
-        guard let amount = Decimal(string: amountText), amount > 0 else { return }
-        let cal = Calendar.current; let now = Date()
-        let budget = Budget(monthlyLimit: amount, year: cal.component(.year, from: now), month: cal.component(.month, from: now), ledger: ledger)
-        modelContext.insert(budget); try? modelContext.save(); dismiss()
+        guard let amount = Decimal(string: trimmedAmountText), amount > 0 else { return }
+        let cycle = PayCycleService.cycle(payday: payday)
+        let year = cycle.budgetYear
+        let month = cycle.budgetMonth
+        let descriptor = FetchDescriptor<Budget>(
+            predicate: #Predicate<Budget> { budget in
+                budget.year == year && budget.month == month && budget.categoryId == nil
+            }
+        )
+
+        do {
+            let matchingBudgets = try modelContext.fetch(descriptor)
+                .filter { matchesLedger($0) }
+                .sorted { $0.createdAt > $1.createdAt }
+            let currentBudget = existingBudget ?? matchingBudgets.first
+
+            if let currentBudget {
+                currentBudget.monthlyLimit = amount
+                currentBudget.year = year
+                currentBudget.month = month
+                currentBudget.ledger = ledger
+                currentBudget.categoryId = nil
+                removeDuplicateBudgets(except: currentBudget, from: matchingBudgets)
+            } else {
+                let budget = Budget(monthlyLimit: amount, year: year, month: month, ledger: ledger)
+                modelContext.insert(budget)
+            }
+
+            try modelContext.save()
+            dismiss()
+        } catch {
+            saveError = error.localizedDescription
+        }
+    }
+
+    private func matchesLedger(_ budget: Budget) -> Bool {
+        if let ledger {
+            return budget.ledger?.id == ledger.id
+        } else {
+            return budget.ledger == nil
+        }
+    }
+
+    private func removeDuplicateBudgets(except currentBudget: Budget, from budgets: [Budget]) {
+        for budget in budgets where budget.id != currentBudget.id {
+            modelContext.delete(budget)
+        }
     }
 }

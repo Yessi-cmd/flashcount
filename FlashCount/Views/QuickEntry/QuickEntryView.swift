@@ -5,6 +5,7 @@ import SwiftData
 struct QuickEntryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("payday") private var payday = 1
 
     @Query(sort: \Ledger.sortOrder) private var ledgers: [Ledger]
     @Query(
@@ -15,6 +16,8 @@ struct QuickEntryView: View {
         filter: #Predicate<Category> { $0.isExpense == false && $0.isArchived == false },
         sort: \Category.sortOrder
     ) private var incomeCategories: [Category]
+    @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
+    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
 
     @State private var amountText = ""
     @State private var isExpense = true
@@ -26,9 +29,36 @@ struct QuickEntryView: View {
     @State private var showSuccess = false
     @State private var showNote = false
     @State private var saveError: String?
+    @State private var budgetReminderText: String?
+    @State private var budgetReminderLevel: BudgetAlertLevel?
+    @State private var wheelCategory: Category?
+    @State private var showAllCategories = false
+    @State private var showTemplateManager = false
+    @State private var editingTemplate: TransactionTemplate?
 
     private var currentCategories: [Category] {
         isExpense ? expenseCategories : incomeCategories
+    }
+
+    private var rootCategories: [Category] {
+        Category.rootCategories(from: currentCategories, isExpense: isExpense)
+    }
+
+    private var recentCategories: [Category] {
+        var seen = Set<String>()
+        var result: [Category] = []
+        let rootNames = Set(rootCategories.map(\.rootCategoryName))
+
+        for transaction in allTransactions where transaction.isExpense == isExpense {
+            guard let category = transaction.category else { continue }
+            let rootName = category.rootCategoryName
+            guard rootNames.contains(rootName), !seen.contains(rootName), let representative = categoryRepresentative(for: rootName) else { continue }
+            result.append(representative)
+            seen.insert(rootName)
+            if result.count >= 8 { break }
+        }
+
+        return result.isEmpty ? Array(rootCategories.prefix(8)) : result
     }
 
     var body: some View {
@@ -43,6 +73,19 @@ struct QuickEntryView: View {
                         // 收入/支出切换
                         typeToggle
 
+                        // 记账模板
+                        TemplateBarView(
+                            expenseCategories: expenseCategories,
+                            incomeCategories: incomeCategories,
+                            onSelect: { template, category in
+                                applyTemplate(template, category: category)
+                            },
+                            onManage: { showTemplateManager = true },
+                            onEditTemplate: { template in
+                                editingTemplate = template
+                            }
+                        )
+
                         // 金额显示
                         amountDisplay
 
@@ -53,9 +96,6 @@ struct QuickEntryView: View {
                         if showNote {
                             noteField
                         }
-
-                        // 账本选择
-                        ledgerSelector
 
                         // 数字键盘
                         numberPad
@@ -71,15 +111,26 @@ struct QuickEntryView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("取消") { dismiss() }
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(DesignSystem.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showNote.toggle()
-                    } label: {
-                        Image(systemName: "note.text")
-                            .foregroundStyle(showNote ? DesignSystem.primaryColor : .white.opacity(0.5))
+                    HStack(spacing: 12) {
+                        if ledgers.count > 1 {
+                            ledgerMenu
+                        }
+
+                        Button {
+                            showNote.toggle()
+                        } label: {
+                            Image(systemName: "note.text")
+                                .foregroundStyle(showNote ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                        }
                     }
+                }
+            }
+            .overlay {
+                if let wheelCategory {
+                    categoryWheel(for: wheelCategory)
                 }
             }
             .overlay {
@@ -94,45 +145,85 @@ struct QuickEntryView: View {
                 }
                 // 默认选中第一个分类
                 if selectedCategory == nil {
-                    selectedCategory = currentCategories.first
+                    selectedCategory = defaultCategory(from: currentCategories, isExpense: isExpense)
                 }
             }
             .saveErrorAlert($saveError)
+            .sheet(isPresented: $showTemplateManager) {
+                TemplateManagementView()
+            }
+            .sheet(item: $editingTemplate) { template in
+                TemplateEditView(
+                    categories: expenseCategories + incomeCategories,
+                    template: template
+                ) { _ in
+                    try? modelContext.save()
+                    HapticManager.success()
+                }
+            }
         }
     }
 
     // MARK: - Components
 
+    private var ledgerMenu: some View {
+        Menu {
+            ForEach(ledgers, id: \.id) { ledger in
+                Button {
+                    selectedLedger = ledger
+                    HapticManager.selection()
+                } label: {
+                    Label(ledger.name, systemImage: selectedLedger?.id == ledger.id ? "checkmark.circle.fill" : ledger.icon)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: selectedLedger?.icon ?? "book.closed")
+                    .font(.caption)
+                Text(selectedLedger?.name ?? "账本")
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(DesignSystem.textSecondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(DesignSystem.softFill)
+            .clipShape(Capsule())
+        }
+    }
+
     private var typeToggle: some View {
         HStack(spacing: 0) {
             Button {
                 withAnimation(.spring(response: 0.3)) { isExpense = true }
-                selectedCategory = expenseCategories.first
+                selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
+                showAllCategories = false
             } label: {
                 Text("支出")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background(isExpense ? DesignSystem.expenseColor.opacity(0.2) : .clear)
-                    .foregroundStyle(isExpense ? DesignSystem.expenseColor : .white.opacity(0.5))
+                    .foregroundStyle(isExpense ? DesignSystem.expenseColor : DesignSystem.textSecondary)
             }
 
             Button {
                 withAnimation(.spring(response: 0.3)) { isExpense = false }
-                selectedCategory = incomeCategories.first
+                selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
+                showAllCategories = false
             } label: {
                 Text("收入")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background(!isExpense ? DesignSystem.incomeColor.opacity(0.2) : .clear)
-                    .foregroundStyle(!isExpense ? DesignSystem.incomeColor : .white.opacity(0.5))
+                    .foregroundStyle(!isExpense ? DesignSystem.incomeColor : DesignSystem.textSecondary)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius)
-                .stroke(.white.opacity(0.1), lineWidth: 1)
+                .stroke(DesignSystem.borderColor, lineWidth: 1)
         )
     }
 
@@ -141,11 +232,11 @@ struct QuickEntryView: View {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text("¥")
                     .font(.title2.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(DesignSystem.textSecondary)
                 Text(amountText.isEmpty ? "0.00" : amountText)
                     .font(.system(size: 48, weight: .bold, design: .rounded))
                     .monospacedDigit()
-                    .foregroundStyle(.white)
+                    .foregroundStyle(DesignSystem.textPrimary)
                     .contentTransition(.numericText())
             }
 
@@ -153,11 +244,10 @@ struct QuickEntryView: View {
             HStack(spacing: 6) {
                 Image(systemName: "calendar")
                     .font(.caption)
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(DesignSystem.textSecondary)
                 DatePicker("", selection: $selectedDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
-                    .colorScheme(.dark)
                     .scaleEffect(0.85)
             }
         }
@@ -166,100 +256,91 @@ struct QuickEntryView: View {
     }
 
     private var categoryGrid: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 12) {
-            ForEach(currentCategories, id: \.id) { category in
-                Button {
-                    withAnimation(.spring(response: 0.3)) {
-                        selectedCategory = category
-                    }
-                } label: {
-                    VStack(spacing: 6) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    selectedCategory?.id == category.id
-                                    ? Color(hex: category.colorHex).opacity(0.3)
-                                    : .white.opacity(0.06)
-                                )
-                                .frame(width: 48, height: 48)
+        VStack(alignment: .leading, spacing: 12) {
+            categorySection(title: "常用 / 最近", categories: recentCategories)
+            allCategoriesToggle
 
-                            if selectedCategory?.id == category.id {
-                                Circle()
-                                    .stroke(Color(hex: category.colorHex), lineWidth: 2)
-                                    .frame(width: 48, height: 48)
-                            }
-
-                            Image(systemName: category.icon)
-                                .font(.title3)
-                                .foregroundStyle(Color(hex: category.colorHex))
-                        }
-
-                        Text(category.name)
-                            .font(.caption2)
-                            .foregroundStyle(.white.opacity(0.7))
-                            .lineLimit(1)
-                    }
-                }
+            if showAllCategories {
+                categorySection(title: "全部分类", categories: rootCategories)
+                    .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
         .glassCard()
     }
 
-    private var noteField: some View {
-        HStack {
-            Image(systemName: "pencil")
-                .foregroundStyle(.white.opacity(0.4))
-            TextField("添加备注...", text: $note)
-                .foregroundStyle(.white)
-                .font(.subheadline)
+    private var allCategoriesToggle: some View {
+        Button {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                showAllCategories.toggle()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: showAllCategories ? "chevron.up.circle.fill" : "square.grid.2x2")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(DesignSystem.primaryColor)
+
+                Text(showAllCategories ? "收起全部分类" : "展开全部分类")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(DesignSystem.textSecondary)
+
+                Spacer(minLength: 8)
+
+                if let selectedCategory {
+                    Text(selectedCategory.entryDisplayName)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(DesignSystem.textTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(DesignSystem.softFill)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
-        .padding(12)
-        .background(.white.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .buttonStyle(.plain)
     }
 
-    private var ledgerSelector: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(ledgers, id: \.id) { ledger in
-                    Button {
-                        withAnimation(.spring(response: 0.3)) {
-                            selectedLedger = ledger
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: ledger.icon)
-                                .font(.caption)
-                            Text(ledger.name)
-                                .font(.caption)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(
-                            selectedLedger?.id == ledger.id
-                            ? Color(hex: ledger.colorHex).opacity(0.2)
-                            : .white.opacity(0.06)
-                        )
-                        .foregroundStyle(
-                            selectedLedger?.id == ledger.id
-                            ? Color(hex: ledger.colorHex)
-                            : .white.opacity(0.5)
-                        )
-                        .clipShape(Capsule())
-                        .overlay(
-                            Capsule()
-                                .stroke(
-                                    selectedLedger?.id == ledger.id
-                                    ? Color(hex: ledger.colorHex).opacity(0.5)
-                                    : .clear,
-                                    lineWidth: 1
-                                )
-                        )
-                    }
+    private func categorySection(title: String, categories: [Category]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(DesignSystem.textTertiary)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 12) {
+                ForEach(categories, id: \.id) { category in
+                    categoryButton(category)
                 }
             }
         }
+    }
+
+    private func categoryButton(_ category: Category) -> some View {
+        let children = Category.childCategories(for: category.rootCategoryName, in: currentCategories, isExpense: isExpense)
+        return CategorySelectionTile(
+            category: category,
+            selectedCategory: selectedCategory,
+            hasChildren: !children.isEmpty,
+            iconSize: .title3,
+            circleSize: 46,
+            minHeight: 70,
+            onSelect: { selectCategory(category) },
+            onLongPress: { showWheel(for: category) }
+        )
+    }
+
+    private var noteField: some View {
+        HStack {
+            Image(systemName: "pencil")
+                .foregroundStyle(DesignSystem.textTertiary)
+            TextField("添加备注...", text: $note)
+                .foregroundStyle(DesignSystem.textPrimary)
+                .font(.subheadline)
+        }
+        .padding(12)
+        .background(DesignSystem.softFill)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     private var numberPad: some View {
@@ -284,12 +365,12 @@ struct QuickEntryView: View {
                                     .font(.title3.weight(.medium))
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 50)
-                                    .background(.white.opacity(button == "⌫" ? 0.08 : 0.04))
+                                    .background(DesignSystem.softFill)
                                     .foregroundStyle(
-                                        button == "⌫" ? .white.opacity(0.6)
+                                        button == "⌫" ? DesignSystem.textSecondary
                                         : button == "+" ? DesignSystem.incomeColor
                                         : button == "-" ? DesignSystem.expenseColor
-                                        : .white
+                                        : DesignSystem.textPrimary
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 10))
                             }
@@ -330,7 +411,19 @@ struct QuickEntryView: View {
 
             Text("记账成功！")
                 .font(.headline)
-                .foregroundStyle(.white)
+                .foregroundStyle(DesignSystem.textPrimary)
+            if let budgetReminderText {
+                HStack(spacing: 6) {
+                    Image(systemName: budgetReminderIcon)
+                    Text(budgetReminderText)
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(budgetReminderColor)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(budgetReminderColor.opacity(0.12))
+                .clipShape(Capsule())
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.ultraThinMaterial)
@@ -364,10 +457,12 @@ struct QuickEntryView: View {
             }
         case "+":
             withAnimation(.spring(response: 0.3)) { isExpense = false }
-            selectedCategory = incomeCategories.first
+            selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
+            showAllCategories = false
         case "-":
             withAnimation(.spring(response: 0.3)) { isExpense = true }
-            selectedCategory = expenseCategories.first
+            selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
+            showAllCategories = false
         default:
             // 限制整数部分最多 12 位
             let intPart = amountText.split(separator: ".").first.map(String.init) ?? amountText
@@ -383,6 +478,101 @@ struct QuickEntryView: View {
         }
     }
 
+    private func selectCategory(_ category: Category) {
+        let rootName = category.rootCategoryName
+        let target = category.name == rootName
+            ? lastUsedCategory(for: rootName, in: currentCategories, isExpense: isExpense) ?? rootCategory(for: rootName, in: currentCategories) ?? category
+            : category
+
+        withAnimation(.spring(response: 0.3)) {
+            selectedCategory = target
+            showAllCategories = false
+        }
+        HapticManager.selection()
+    }
+
+    private func selectExactCategory(_ category: Category) {
+        withAnimation(.spring(response: 0.3)) {
+            selectedCategory = category
+            wheelCategory = nil
+            showAllCategories = false
+        }
+    }
+
+    private func showWheel(for category: Category) {
+        let children = Category.childCategories(for: category.rootCategoryName, in: currentCategories, isExpense: isExpense)
+        guard !children.isEmpty else {
+            selectCategory(category)
+            return
+        }
+        HapticManager.impact(.soft)
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
+            wheelCategory = category
+        }
+    }
+
+    private func categoryWheel(for category: Category) -> some View {
+        let rootName = category.rootCategoryName
+        let children = Category.childCategories(for: rootName, in: currentCategories, isExpense: isExpense)
+        return CategoryWheelOverlay(
+            parentCategory: rootCategory(for: rootName, in: currentCategories) ?? category,
+            children: children,
+            selectedCategory: selectedCategory,
+            onSelectParent: {
+                if let root = rootCategory(for: rootName, in: currentCategories) {
+                    selectExactCategory(root)
+                } else {
+                    selectExactCategory(category)
+                }
+            },
+            onSelectChild: { child in
+                selectExactCategory(child)
+            },
+            onDismiss: {
+                withAnimation(.spring(response: 0.18, dampingFraction: 0.9)) {
+                    wheelCategory = nil
+                }
+            }
+        )
+    }
+
+    private func defaultCategory(from categories: [Category], isExpense targetIsExpense: Bool) -> Category? {
+        let roots = Category.rootCategories(from: categories, isExpense: targetIsExpense)
+        guard let firstRoot = roots.first else { return categories.first }
+        return lastUsedCategory(for: firstRoot.rootCategoryName, in: categories, isExpense: targetIsExpense)
+            ?? rootCategory(for: firstRoot.rootCategoryName, in: categories)
+            ?? firstRoot
+    }
+
+    private func categoryRepresentative(for rootName: String) -> Category? {
+        rootCategory(for: rootName, in: currentCategories)
+            ?? currentCategories.first { $0.rootCategoryName == rootName }
+    }
+
+    private func rootCategory(for rootName: String, in categories: [Category]) -> Category? {
+        categories.first { $0.name == rootName && !$0.isArchived }
+    }
+
+    private func lastUsedCategory(for rootName: String, in categories: [Category], isExpense targetIsExpense: Bool) -> Category? {
+        let categoryIDs = Set(categories.map(\.id))
+        return allTransactions.first { transaction in
+            guard transaction.isExpense == targetIsExpense, let category = transaction.category else { return false }
+            return categoryIDs.contains(category.id) && category.rootCategoryName == rootName
+        }?.category
+    }
+
+    /// 应用模板 — 一键填入金额 / 分类 / 备注 / 收支类型
+    private func applyTemplate(_ template: TransactionTemplate, category: Category?) {
+        withAnimation(.spring(response: 0.3)) {
+            amountText = String(describing: template.amount)
+            isExpense = template.isExpense
+            note = template.note
+            selectedCategory = category
+            showAllCategories = false
+        }
+        HapticManager.impact(.light)
+    }
+
     private func saveTransaction() {
         guard let amount = Decimal(string: amountText), amount > 0 else { return }
 
@@ -391,10 +581,14 @@ struct QuickEntryView: View {
             isExpense: isExpense,
             note: note,
             date: selectedDate,
+            isPrivateIncome: !isExpense && selectedCategory?.isSalaryIncome == true,
             category: selectedCategory,
             ledger: selectedLedger
         )
+        let cashDelta = CashPoolService.transactionDelta(for: transaction)
+        transaction.cashPoolDelta = cashDelta
         modelContext.insert(transaction)
+        CashPoolService(modelContext: modelContext).apply(delta: cashDelta)
 
         if let error = safeSave(modelContext) {
             saveError = error
@@ -403,15 +597,54 @@ struct QuickEntryView: View {
         }
 
         HapticManager.success()
+        updateBudgetReminder(afterSaving: transaction)
 
         // 成功动画
         withAnimation(.spring(response: 0.4)) {
             showSuccess = true
         }
 
-        // 1秒后自动关闭页面
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+        let delay = budgetReminderText == nil ? 1.0 : 1.6
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             dismiss()
+        }
+    }
+
+    private func updateBudgetReminder(afterSaving transaction: Transaction) {
+        budgetReminderText = nil
+        budgetReminderLevel = nil
+        guard transaction.isExpense else { return }
+
+        var transactions = allTransactions
+        if !transactions.contains(where: { $0.id == transaction.id }) {
+            transactions.insert(transaction, at: 0)
+        }
+
+        guard let reminder = BudgetReminderService.reminder(
+            budgets: allBudgets,
+            transactions: transactions,
+            ledger: nil,
+            referenceDate: transaction.date,
+            payday: payday
+        ), reminder.shouldSurfaceAfterSave else { return }
+
+        budgetReminderText = reminder.shortMessage
+        budgetReminderLevel = reminder.alertLevel
+    }
+
+    private var budgetReminderIcon: String {
+        switch budgetReminderLevel {
+        case .warning: return "exclamationmark.triangle.fill"
+        case .danger: return "flame.fill"
+        default: return "checkmark.circle.fill"
+        }
+    }
+
+    private var budgetReminderColor: Color {
+        switch budgetReminderLevel {
+        case .warning: return DesignSystem.warningColor
+        case .danger: return DesignSystem.dangerColor
+        default: return DesignSystem.incomeColor
         }
     }
 }

@@ -9,8 +9,8 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     GENERATE_INFOPLIST_FILE: YES
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: "1.3.0"
+    CURRENT_PROJECT_VERSION: 3
 targets:
   FlashCount:
     type: application
@@ -23,6 +23,7 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "用于解锁工资、资金池、储蓄目标和分期账单等隐私金额"
         INFOPLIST_KEY_CFBundleDisplayName: "FlashCount"
         PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

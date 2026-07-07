@@ -3,10 +3,10 @@ import SwiftData
 
 /// 主标签栏视图
 struct MainTabView: View {
+    @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
     @State private var selectedTab = 0
     @State private var showQuickEntry = false
-    @State private var showAddAsset = false
-    @State private var showTutorial = false
+    @State private var showAddCashPoolItem = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showOnboarding = false
 
@@ -21,7 +21,7 @@ struct MainTabView: View {
                     .tag(2)
                 ReportView()
                     .tag(3)
-                AssetDashboardView()
+                AssetDashboardView(isActive: selectedTab == 4)
                     .tag(4)
             }
             .tint(DesignSystem.primaryColor)
@@ -32,11 +32,8 @@ struct MainTabView: View {
         .sheet(isPresented: $showQuickEntry) {
             QuickEntryView()
         }
-        .sheet(isPresented: $showAddAsset) {
-            AddAssetView()
-        }
-        .sheet(isPresented: $showTutorial) {
-            TutorialView()
+        .sheet(isPresented: $showAddCashPoolItem) {
+            AddCashPoolItemView(nextSortOrder: cashPoolItems.count)
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding)
@@ -54,10 +51,10 @@ struct MainTabView: View {
             tabButton(icon: "book.fill", title: "账本", tag: 0)
             tabButton(icon: "chart.pie.fill", title: "预算", tag: 1)
 
-            // 中间加号按钮（资产页时添加资产，其他页记账）
+            // 中间加号按钮（资产页时盘点资金池，其他页记账）
             Button {
                 if selectedTab == 4 {
-                    showAddAsset = true
+                    showAddCashPoolItem = true
                 } else {
                     showQuickEntry = true
                 }
@@ -77,18 +74,7 @@ struct MainTabView: View {
 
             tabButton(icon: "chart.bar.fill", title: "报表", tag: 3)
 
-            // 资产 Tab + 教程按钮叠加
-            ZStack(alignment: .topTrailing) {
-                tabButton(icon: "building.columns.fill", title: "资产", tag: 4)
-                Button {
-                    showTutorial = true
-                } label: {
-                    Image(systemName: "questionmark.circle.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(.white.opacity(0.3))
-                }
-                .offset(x: 4, y: -2)
-            }
+            tabButton(icon: "building.columns.fill", title: "资产", tag: 4)
         }
         .padding(.horizontal, 8)
         .padding(.top, 8)
@@ -117,7 +103,7 @@ struct MainTabView: View {
             .foregroundStyle(
                 selectedTab == tag
                 ? DesignSystem.primaryColor
-                : .white.opacity(0.4)
+                : DesignSystem.textTertiary
             )
         }
     }

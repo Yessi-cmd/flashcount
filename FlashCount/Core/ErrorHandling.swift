@@ -82,7 +82,9 @@ final class DataRepairService {
 
         for t in allTransactions {
             if t.category == nil {
-                t.category = t.isExpense ? expenseCategories.first : incomeCategories.first
+                let categories = t.isExpense ? expenseCategories : incomeCategories
+                let roots = Category.rootCategories(from: categories, isExpense: t.isExpense)
+                t.category = roots.first ?? categories.first
                 report.orphanedTransactions += 1
             }
         }

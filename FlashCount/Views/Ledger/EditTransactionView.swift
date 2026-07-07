@@ -25,6 +25,7 @@ struct EditTransactionView: View {
     @State private var selectedCategory: Category?
     @State private var selectedLedger: Ledger?
     @State private var saveError: String?
+    @State private var wheelCategory: Category?
 
     init(transaction: Transaction) {
         self.transaction = transaction
@@ -40,6 +41,10 @@ struct EditTransactionView: View {
         isExpense ? expenseCategories : incomeCategories
     }
 
+    private var rootCategories: [Category] {
+        Category.rootCategories(from: currentCategories, isExpense: isExpense)
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -51,106 +56,73 @@ struct EditTransactionView: View {
                         HStack(spacing: 0) {
                             Button {
                                 withAnimation(.spring(response: 0.3)) { isExpense = true }
-                                selectedCategory = expenseCategories.first
+                                selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
                             } label: {
                                 Text("支出").font(.subheadline.weight(.semibold))
                                     .frame(maxWidth: .infinity).padding(.vertical, 10)
                                     .background(isExpense ? DesignSystem.expenseColor.opacity(0.2) : .clear)
-                                    .foregroundStyle(isExpense ? DesignSystem.expenseColor : .white.opacity(0.5))
+                                    .foregroundStyle(isExpense ? DesignSystem.expenseColor : DesignSystem.textSecondary)
                             }
                             Button {
                                 withAnimation(.spring(response: 0.3)) { isExpense = false }
-                                selectedCategory = incomeCategories.first
+                                selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
                             } label: {
                                 Text("收入").font(.subheadline.weight(.semibold))
                                     .frame(maxWidth: .infinity).padding(.vertical, 10)
                                     .background(!isExpense ? DesignSystem.incomeColor.opacity(0.2) : .clear)
-                                    .foregroundStyle(!isExpense ? DesignSystem.incomeColor : .white.opacity(0.5))
+                                    .foregroundStyle(!isExpense ? DesignSystem.incomeColor : DesignSystem.textSecondary)
                             }
                         }
                         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
-                        .overlay(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius).stroke(.white.opacity(0.1), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius).stroke(DesignSystem.borderColor, lineWidth: 1))
 
                         // 金额
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("金额").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+                            Text("金额").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             HStack {
-                                Text("¥").font(.title3).foregroundStyle(.white.opacity(0.5))
+                                Text("¥").font(.title3).foregroundStyle(DesignSystem.textSecondary)
                                 TextField("0.00", text: $amountText)
                                     .keyboardType(.decimalPad)
                                     .font(.title2.weight(.semibold)).monospacedDigit()
-                                    .foregroundStyle(.white)
+                                    .foregroundStyle(DesignSystem.textPrimary)
                             }
-                            .padding(12).background(.white.opacity(0.06))
+                            .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
                         }
 
                         // 分类
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("分类").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+                            Text("分类").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 5), spacing: 12) {
-                                ForEach(currentCategories, id: \.id) { category in
-                                    Button {
-                                        withAnimation(.spring(response: 0.3)) { selectedCategory = category }
-                                    } label: {
-                                        VStack(spacing: 6) {
-                                            ZStack {
-                                                Circle()
-                                                    .fill(selectedCategory?.id == category.id
-                                                          ? Color(hex: category.colorHex).opacity(0.3)
-                                                          : .white.opacity(0.06))
-                                                    .frame(width: 44, height: 44)
-                                                if selectedCategory?.id == category.id {
-                                                    Circle().stroke(Color(hex: category.colorHex), lineWidth: 2)
-                                                        .frame(width: 44, height: 44)
-                                                }
-                                                Image(systemName: category.icon).font(.subheadline)
-                                                    .foregroundStyle(Color(hex: category.colorHex))
-                                            }
-                                            Text(category.name).font(.caption2)
-                                                .foregroundStyle(.white.opacity(0.7)).lineLimit(1)
-                                        }
-                                    }
+                                ForEach(rootCategories, id: \.id) { category in
+                                    let children = Category.childCategories(for: category.rootCategoryName, in: currentCategories, isExpense: isExpense)
+                                    CategorySelectionTile(
+                                        category: category,
+                                        selectedCategory: selectedCategory,
+                                        hasChildren: !children.isEmpty,
+                                        iconSize: .subheadline,
+                                        circleSize: 44,
+                                        minHeight: 66,
+                                        onSelect: { selectCategory(category) },
+                                        onLongPress: { showWheel(for: category) }
+                                    )
                                 }
                             }
                         }
 
                         // 备注
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("备注").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
-                            TextField("添加备注...", text: $note).font(.subheadline).foregroundStyle(.white)
-                                .padding(12).background(.white.opacity(0.06))
+                            Text("备注").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
+                            TextField("添加备注...", text: $note).font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
+                                .padding(12).background(DesignSystem.softFill)
                                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
                         }
 
                         // 日期
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("日期").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
+                            Text("日期").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                                .datePickerStyle(.compact).labelsHidden().colorScheme(.dark)
-                        }
-
-                        // 账本
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("账本").font(.caption.weight(.medium)).foregroundStyle(.white.opacity(0.5))
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 8) {
-                                    ForEach(ledgers, id: \.id) { ledger in
-                                        Button {
-                                            selectedLedger = ledger
-                                        } label: {
-                                            HStack(spacing: 4) {
-                                                Image(systemName: ledger.icon).font(.caption)
-                                                Text(ledger.name).font(.caption)
-                                            }
-                                            .padding(.horizontal, 12).padding(.vertical, 6)
-                                            .background(selectedLedger?.id == ledger.id ? Color(hex: ledger.colorHex).opacity(0.2) : .white.opacity(0.06))
-                                            .foregroundStyle(selectedLedger?.id == ledger.id ? Color(hex: ledger.colorHex) : .white.opacity(0.5))
-                                            .clipShape(Capsule())
-                                        }
-                                    }
-                                }
-                            }
+                                .datePickerStyle(.compact).labelsHidden()
                         }
 
                         Spacer()
@@ -158,29 +130,135 @@ struct EditTransactionView: View {
                     .padding()
                 }
             }
+            .overlay {
+                if let wheelCategory {
+                    categoryWheel(for: wheelCategory)
+                }
+            }
             .navigationTitle("编辑记录").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("取消") { dismiss() }.foregroundStyle(.white.opacity(0.7))
+                    Button("取消") { dismiss() }.foregroundStyle(DesignSystem.textSecondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("保存") { saveChanges() }
-                        .disabled(amountText.isEmpty)
-                        .foregroundStyle(DesignSystem.primaryColor)
+                    HStack(spacing: 12) {
+                        if ledgers.count > 1 {
+                            ledgerMenu
+                        }
+
+                        Button("保存") { saveChanges() }
+                            .disabled(amountText.isEmpty)
+                            .foregroundStyle(DesignSystem.primaryColor)
+                    }
                 }
             }
             .saveErrorAlert($saveError)
         }
     }
 
+    private var ledgerMenu: some View {
+        Menu {
+            ForEach(ledgers, id: \.id) { ledger in
+                Button {
+                    selectedLedger = ledger
+                    HapticManager.selection()
+                } label: {
+                    Label(ledger.name, systemImage: selectedLedger?.id == ledger.id ? "checkmark.circle.fill" : ledger.icon)
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: selectedLedger?.icon ?? "book.closed")
+                    .font(.caption)
+                Text(selectedLedger?.name ?? "账本")
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(DesignSystem.textSecondary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(DesignSystem.softFill)
+            .clipShape(Capsule())
+        }
+    }
+
+    private func selectCategory(_ category: Category) {
+        let target = category.name == category.rootCategoryName
+            ? rootCategory(for: category.rootCategoryName, in: currentCategories) ?? category
+            : category
+        withAnimation(.spring(response: 0.3)) {
+            selectedCategory = target
+        }
+        HapticManager.selection()
+    }
+
+    private func selectExactCategory(_ category: Category) {
+        withAnimation(.spring(response: 0.3)) {
+            selectedCategory = category
+            wheelCategory = nil
+        }
+    }
+
+    private func showWheel(for category: Category) {
+        let children = Category.childCategories(for: category.rootCategoryName, in: currentCategories, isExpense: isExpense)
+        guard !children.isEmpty else {
+            selectCategory(category)
+            return
+        }
+        HapticManager.impact(.soft)
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
+            wheelCategory = category
+        }
+    }
+
+    private func categoryWheel(for category: Category) -> some View {
+        let rootName = category.rootCategoryName
+        let children = Category.childCategories(for: rootName, in: currentCategories, isExpense: isExpense)
+        return CategoryWheelOverlay(
+            parentCategory: rootCategory(for: rootName, in: currentCategories) ?? category,
+            children: children,
+            selectedCategory: selectedCategory,
+            onSelectParent: {
+                if let root = rootCategory(for: rootName, in: currentCategories) {
+                    selectExactCategory(root)
+                } else {
+                    selectExactCategory(category)
+                }
+            },
+            onSelectChild: { child in
+                selectExactCategory(child)
+            },
+            onDismiss: {
+                withAnimation(.spring(response: 0.18, dampingFraction: 0.9)) {
+                    wheelCategory = nil
+                }
+            }
+        )
+    }
+
+    private func defaultCategory(from categories: [Category], isExpense targetIsExpense: Bool) -> Category? {
+        let roots = Category.rootCategories(from: categories, isExpense: targetIsExpense)
+        guard let firstRoot = roots.first else { return categories.first }
+        return rootCategory(for: firstRoot.rootCategoryName, in: categories) ?? firstRoot
+    }
+
+    private func rootCategory(for rootName: String, in categories: [Category]) -> Category? {
+        categories.first { $0.name == rootName && !$0.isArchived }
+    }
+
     private func saveChanges() {
         guard let amount = Decimal(string: amountText), amount > 0 else { return }
+        let oldCashPoolDelta = transaction.cashPoolDelta
         transaction.amount = amount
         transaction.isExpense = isExpense
         transaction.note = note
         transaction.date = selectedDate
         transaction.category = selectedCategory
         transaction.ledger = selectedLedger
+        transaction.isPrivateIncome = !isExpense && selectedCategory?.isSalaryIncome == true
+        let newCashPoolDelta = CashPoolService.transactionDelta(for: transaction)
+        transaction.cashPoolDelta = newCashPoolDelta
+        CashPoolService(modelContext: modelContext).replace(oldDelta: oldCashPoolDelta, newDelta: newCashPoolDelta)
 
         if let error = safeSave(modelContext) {
             saveError = error
