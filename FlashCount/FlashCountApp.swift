@@ -42,7 +42,7 @@ private struct AppRootView: View {
                 DefaultDataService(modelContext: modelContext).prepareAppData()
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase != .active {
+                if phase == .background {
                     privacyLock.lock()
                 }
             }

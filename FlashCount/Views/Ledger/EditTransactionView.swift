@@ -26,6 +26,7 @@ struct EditTransactionView: View {
     @State private var selectedLedger: Ledger?
     @State private var saveError: String?
     @State private var wheelCategory: Category?
+    @State private var showDeleteConfirm = false
 
     init(transaction: Transaction) {
         self.transaction = transaction
@@ -102,7 +103,7 @@ struct EditTransactionView: View {
                                         hasChildren: !children.isEmpty,
                                         iconSize: .subheadline,
                                         circleSize: 44,
-                                        minHeight: 66,
+                                        minHeight: 74,
                                         onSelect: { selectCategory(category) },
                                         onLongPress: { showWheel(for: category) }
                                     )
@@ -125,6 +126,26 @@ struct EditTransactionView: View {
                                 .datePickerStyle(.compact).labelsHidden()
                         }
 
+                        // 删除按钮
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "trash")
+                                Text("删除此记录")
+                            }
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(DesignSystem.dangerColor)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(DesignSystem.dangerColor.opacity(0.08))
+                            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius)
+                                    .stroke(DesignSystem.dangerColor.opacity(0.2), lineWidth: 1)
+                            )
+                        }
+
                         Spacer()
                     }
                     .padding()
@@ -134,6 +155,12 @@ struct EditTransactionView: View {
                 if let wheelCategory {
                     categoryWheel(for: wheelCategory)
                 }
+            }
+            .alert("确认删除", isPresented: $showDeleteConfirm) {
+                Button("取消", role: .cancel) {}
+                Button("删除", role: .destructive) { deleteTransaction() }
+            } message: {
+                Text("删除后无法恢复，确定要删除这笔交易吗？")
             }
             .navigationTitle("编辑记录").navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -261,6 +288,20 @@ struct EditTransactionView: View {
         CashPoolService(modelContext: modelContext).replace(oldDelta: oldCashPoolDelta, newDelta: newCashPoolDelta)
 
         if let error = safeSave(modelContext) {
+            modelContext.rollback()
+            saveError = error
+            HapticManager.error()
+            return
+        }
+        HapticManager.success()
+        dismiss()
+    }
+
+    private func deleteTransaction() {
+        CashPoolService(modelContext: modelContext).reverse(delta: transaction.cashPoolDelta)
+        modelContext.delete(transaction)
+        if let error = safeSave(modelContext) {
+            modelContext.rollback()
             saveError = error
             HapticManager.error()
             return

@@ -110,31 +110,188 @@ enum DesignSystem {
         : UIColor(red: 0.88, green: 0.92, blue: 0.95, alpha: 1)
     })
 
-    // MARK: - 圆角 & 间距
+    // MARK: - Layout tokens
 
+    static let space4: CGFloat = 4
+    static let space8: CGFloat = 8
+    static let space12: CGFloat = 12
+    static let space16: CGFloat = 16
+    static let space24: CGFloat = 24
+    static let space32: CGFloat = 32
     static let cornerRadius: CGFloat = 16
     static let smallCornerRadius: CGFloat = 10
+    static let heroCornerRadius: CGFloat = 24
     static let cardPadding: CGFloat = 16
     static let sectionSpacing: CGFloat = 20
+
+    // MARK: - Motion tokens
+
+    static let quickAnimation = Animation.easeOut(duration: 0.16)
+    static let standardAnimation = Animation.easeInOut(duration: 0.24)
+    static let emphasisAnimation = Animation.spring(response: 0.36, dampingFraction: 0.84)
+    static let navigationAnimation = Animation.spring(response: 0.44, dampingFraction: 0.86, blendDuration: 0.08)
+    static let pageAnimation = Animation.spring(response: 0.52, dampingFraction: 0.90, blendDuration: 0.10)
 }
 
-/// 毛玻璃卡片修饰器
+/// 轻量环境光背景。静态渐变提供空间层次，不引入持续动画或离屏模糊。
+struct AmbientBackground: View {
+    let accent: Color
+
+    var body: some View {
+        ZStack {
+            DesignSystem.surfaceBackground
+
+            RadialGradient(
+                colors: [accent.opacity(0.13), .clear],
+                center: .topLeading,
+                startRadius: 0,
+                endRadius: 330
+            )
+            .offset(x: -70, y: -120)
+
+            RadialGradient(
+                colors: [DesignSystem.primaryColor.opacity(0.07), .clear],
+                center: .bottomTrailing,
+                startRadius: 0,
+                endRadius: 420
+            )
+            .offset(x: 90, y: 170)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+/// 普通内容卡片。实体表面保持列表和数据内容清晰，避免大量毛玻璃造成的视觉与渲染负担。
 struct GlassCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(DesignSystem.cardPadding)
-            .background(DesignSystem.cardBackground)
+            .background {
+                ZStack {
+                    DesignSystem.cardBackground
+                    LinearGradient(
+                        colors: [.white.opacity(0.10), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.cornerRadius)
-                    .stroke(DesignSystem.borderColor, lineWidth: 1)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.48), DesignSystem.borderColor, DesignSystem.borderColor.opacity(0.35)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
             )
-            .shadow(color: .black.opacity(0.06), radius: 14, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.025), radius: 4, x: 0, y: 1)
+            .shadow(color: .black.opacity(0.045), radius: 14, x: 0, y: 7)
+    }
+}
+
+/// 用于金额和预算等关键摘要的高层级卡片。
+struct HeroCard: ViewModifier {
+    let accent: Color
+
+    func body(content: Content) -> some View {
+        content
+            .padding(DesignSystem.space24)
+            .background {
+                ZStack {
+                    DesignSystem.cardBackground
+                    LinearGradient(
+                        colors: [accent.opacity(0.16), .clear],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    RadialGradient(
+                        colors: [.white.opacity(0.20), .clear],
+                        center: .topLeading,
+                        startRadius: 0,
+                        endRadius: 240
+                    )
+                }
+            }
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.heroCornerRadius))
+            .overlay {
+                RoundedRectangle(cornerRadius: DesignSystem.heroCornerRadius)
+                    .stroke(
+                        LinearGradient(
+                            colors: [.white.opacity(0.60), accent.opacity(0.24), accent.opacity(0.10)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+            }
+            .shadow(color: .black.opacity(0.035), radius: 5, x: 0, y: 2)
+            .shadow(color: accent.opacity(0.11), radius: 20, x: 0, y: 10)
+    }
+}
+
+/// 统一轻触反馈；系统“减少动态效果”开启时只保留透明度变化。
+struct PressableButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .opacity(configuration.isPressed ? 0.84 : 1)
+            .animation(reduceMotion ? nil : DesignSystem.quickAnimation, value: configuration.isPressed)
+    }
+}
+
+/// 悬浮主操作按钮使用更明显的压缩与旋转反馈，释放后由系统 Sheet 动画接管。
+struct FloatingActionButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.88 : 1)
+            .rotationEffect(.degrees(configuration.isPressed && !reduceMotion ? 8 : 0))
+            .opacity(configuration.isPressed ? 0.90 : 1)
+            .animation(reduceMotion ? nil : DesignSystem.emphasisAnimation, value: configuration.isPressed)
+    }
+}
+
+/// 页面内容按层级轻柔进入，适合 Sheet 和首屏关键区块；减少动态效果时立即呈现。
+struct SoftReveal: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let delay: Double
+    let distance: CGFloat
+    @State private var isVisible = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible || reduceMotion ? 1 : 0)
+            .offset(y: isVisible || reduceMotion ? 0 : distance)
+            .scaleEffect(isVisible || reduceMotion ? 1 : 0.985)
+            .onAppear {
+                guard !reduceMotion else {
+                    isVisible = true
+                    return
+                }
+                withAnimation(DesignSystem.pageAnimation.delay(delay)) {
+                    isVisible = true
+                }
+            }
     }
 }
 
 extension View {
     func glassCard() -> some View {
         modifier(GlassCard())
+    }
+
+    func heroCard(accent: Color = DesignSystem.primaryColor) -> some View {
+        modifier(HeroCard(accent: accent))
+    }
+
+    func softReveal(delay: Double = 0, distance: CGFloat = 12) -> some View {
+        modifier(SoftReveal(delay: delay, distance: distance))
     }
 }

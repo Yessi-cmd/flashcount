@@ -6,6 +6,7 @@ struct LedgerView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("payday") private var payday = 1
+    @AppStorage("hideHomeIncome") private var hideHomeIncome = true
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
 
@@ -17,10 +18,18 @@ struct LedgerView: View {
     @State private var showAddTransaction = false
     @State private var editingTransaction: Transaction?
     @State private var searchText = ""
+    @State private var debouncedSearchText = ""
     @State private var dateFilter: DateFilter = .all
+    @State private var showCustomDatePicker = false
     @State private var showCalendar = false
     @State private var showSettings = false
     @State private var showReminders = false
+    @State private var deleteError: String?
+    @State private var undoInfo: UndoDeleteInfo?
+    @State private var undoWorkItem: DispatchWorkItem?
+    @State private var isSelecting = false
+    @State private var selectedIds = Set<UUID>()
+    @State private var batchDeleteError: String?
     @State private var customStartDate = Calendar.current.date(byAdding: .month, value: -1, to: Date())!
     @State private var customEndDate = Date()
 
@@ -30,6 +39,9 @@ struct LedgerView: View {
     @State private var categoryFilterId: UUID?
     @State private var minAmountText = ""
     @State private var maxAmountText = ""
+    @State private var visibleTransactionLimit = 200
+
+    private let transactionPageSize = 200
 
     enum DateFilter: String, CaseIterable {
         case all = "全部"
@@ -39,89 +51,124 @@ struct LedgerView: View {
         case custom = "自定义"
     }
 
-    private var filteredTransactions: [Transaction] {
-        var result = allTransactions
-        // 日期筛选
+    /// 单次渲染所需的交易数据。筛选、月度统计、按日分组在同一遍历中完成。
+    private struct LedgerPresentation {
+        struct MonthlySummary {
+            let expense: Decimal
+            let income: Decimal
+            let hasHiddenIncome: Bool
+        }
+
+        struct DayGroup: Identifiable {
+            let id: Date
+            let title: String
+            let transactions: [Transaction]
+            let netTotal: Decimal
+            let hasHiddenIncome: Bool
+        }
+
+        let filteredTransactions: [Transaction]
+        let visibleTransactionCount: Int
+        let monthlySummary: MonthlySummary
+        let dayGroups: [DayGroup]
+
+        var hasMoreTransactions: Bool {
+            visibleTransactionCount < filteredTransactions.count
+        }
+    }
+
+    private func makePresentation(visibleTransactionLimit: Int) -> LedgerPresentation {
         let calendar = Calendar.current
         let now = Date()
+        let range: Range<Date>?
         switch dateFilter {
-        case .all: break
+        case .all:
+            range = nil
         case .today:
-            let start = calendar.startOfDay(for: now)
-            result = result.filter { $0.date >= start }
+            range = calendar.startOfDay(for: now)..<Date.distantFuture
         case .thisWeek:
-            let start = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now
-            result = result.filter { $0.date >= start }
+            range = (calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now)..<Date.distantFuture
         case .thisMonth:
-            let start = calendar.dateInterval(of: .month, for: now)?.start ?? now
-            result = result.filter { $0.date >= start }
+            range = (calendar.dateInterval(of: .month, for: now)?.start ?? now)..<Date.distantFuture
         case .custom:
             let start = calendar.startOfDay(for: customStartDate)
-            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: customEndDate))!
-            result = result.filter { $0.date >= start && $0.date < end }
+            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: customEndDate)) ?? start
+            range = start..<end
         }
-        // 类型筛选
-        if typeFilter != .all {
-            let isExpenseSelected = typeFilter == .expense
-            result = result.filter { $0.isExpense == isExpenseSelected }
-        }
+        let selectedCategory = categoryFilterId.flatMap { id in allCategories.first { $0.id == id } }
+        let categoryRootName = selectedCategory?.rootCategoryName == selectedCategory?.name ? selectedCategory?.name : nil
+        let categoryID = categoryRootName == nil ? selectedCategory?.id : nil
+        let selectedExpenseType: Bool? = typeFilter == .all ? nil : typeFilter == .expense
+        let minAmount = Decimal(string: minAmountText).flatMap { $0 > 0 ? $0 : nil }
+        let maxAmount = Decimal(string: maxAmountText).flatMap { $0 > 0 ? $0 : nil }
+        let searchQuery = debouncedSearchText.isEmpty ? nil : debouncedSearchText.lowercased()
+        let currentMonth = calendar.dateInterval(of: .month, for: now)
 
-        // 分类筛选
-        if let categoryId = categoryFilterId,
-           let category = allCategories.first(where: { $0.id == categoryId }) {
-            if category.rootCategoryName == category.name {
-                // 根分类：匹配所有该根分类下的交易
-                result = result.filter { $0.category?.rootCategoryName == category.name }
-            } else {
-                // 子分类：精确匹配
-                result = result.filter { $0.category?.id == categoryId }
+        var filteredTransactions: [Transaction] = []
+        var expense: Decimal = 0
+        var income: Decimal = 0
+        var hasHiddenIncome = hideHomeIncome
+        var visibleTransactionsByDay: [Date: [Transaction]] = [:]
+        var netTotalsByDay: [Date: Decimal] = [:]
+        var hiddenIncomeByDay: Set<Date> = []
+
+        for transaction in allTransactions {
+            guard range?.contains(transaction.date) ?? true,
+                  selectedExpenseType.map({ transaction.isExpense == $0 }) ?? true,
+                  categoryRootName.map({ transaction.category?.rootCategoryName == $0 }) ?? true,
+                  categoryID.map({ transaction.category?.id == $0 }) ?? true,
+                  minAmount.map({ transaction.amount >= $0 }) ?? true,
+                  maxAmount.map({ transaction.amount <= $0 }) ?? true
+            else { continue }
+
+            if let searchQuery {
+                guard !isPrivateIncomeHidden(transaction),
+                      transaction.note.lowercased().contains(searchQuery)
+                        || transaction.category?.name.lowercased().contains(searchQuery) == true
+                        || transaction.category?.rootCategoryName.lowercased().contains(searchQuery) == true
+                        || "\(transaction.amount)".contains(searchQuery)
+                else { continue }
+            }
+
+            filteredTransactions.append(transaction)
+            let day = calendar.startOfDay(for: transaction.date)
+            netTotalsByDay[day, default: 0] += transaction.signedAmount
+            if isPrivateIncomeHidden(transaction) || (hideHomeIncome && !transaction.isExpense) {
+                hiddenIncomeByDay.insert(day)
+            }
+
+            if filteredTransactions.count <= visibleTransactionLimit {
+                visibleTransactionsByDay[day, default: []].append(transaction)
+            }
+
+            if currentMonth?.contains(transaction.date) == true {
+                if transaction.isExpense {
+                    expense += transaction.amount
+                } else if isPrivateIncomeHidden(transaction) {
+                    hasHiddenIncome = true
+                } else {
+                    income += transaction.amount
+                    if hideHomeIncome { hasHiddenIncome = true }
+                }
             }
         }
 
-        // 金额范围筛选
-        if let minVal = Decimal(string: minAmountText), minVal > 0 {
-            result = result.filter { $0.amount >= minVal }
-        }
-        if let maxVal = Decimal(string: maxAmountText), maxVal > 0 {
-            result = result.filter { $0.amount <= maxVal }
+        let dayGroups = visibleTransactionsByDay.keys.sorted(by: >).map { day in
+            LedgerPresentation.DayGroup(
+                id: day,
+                title: day.relativeString,
+                transactions: visibleTransactionsByDay[day] ?? [],
+                netTotal: netTotalsByDay[day] ?? 0,
+                hasHiddenIncome: hiddenIncomeByDay.contains(day)
+            )
         }
 
-        // 关键词搜索
-        if !searchText.isEmpty {
-            let query = searchText.lowercased()
-            result = result.filter {
-                if isPrivateIncomeHidden($0) { return false }
-                return $0.note.lowercased().contains(query) ||
-                $0.category?.name.lowercased().contains(query) == true ||
-                $0.category?.rootCategoryName.lowercased().contains(query) == true ||
-                "\($0.amount)".contains(query)
-            }
-        }
-        return result
-    }
-
-    private var monthlyExpense: Decimal {
-        let calendar = Calendar.current
-        let now = Date()
-        return filteredTransactions
-            .filter { $0.isExpense && calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
-            .reduce(0) { $0 + $1.amount }
-    }
-
-    private var monthlyIncome: Decimal {
-        let calendar = Calendar.current
-        let now = Date()
-        return filteredTransactions
-            .filter { !$0.isExpense && !isPrivateIncomeHidden($0) && calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
-            .reduce(0) { $0 + $1.amount }
-    }
-
-    private var hasHiddenMonthlyIncome: Bool {
-        let calendar = Calendar.current
-        let now = Date()
-        return filteredTransactions.contains {
-            isPrivateIncomeHidden($0) && calendar.isDate($0.date, equalTo: now, toGranularity: .month)
-        }
+        return LedgerPresentation(
+            filteredTransactions: filteredTransactions,
+            visibleTransactionCount: min(filteredTransactions.count, visibleTransactionLimit),
+            monthlySummary: .init(expense: expense, income: income, hasHiddenIncome: hasHiddenIncome),
+            dayGroups: dayGroups
+        )
     }
 
     private var budgetReminder: BudgetReminder? {
@@ -131,18 +178,6 @@ struct LedgerView: View {
             ledger: nil,
             payday: payday
         )
-    }
-
-    /// 按日期分组的交易
-    private var groupedTransactions: [(String, [Transaction])] {
-        let grouped = Dictionary(grouping: filteredTransactions) { transaction -> String in
-            transaction.date.relativeString
-        }
-        return grouped.sorted { a, b in
-            let dateA = a.value.first?.date ?? Date()
-            let dateB = b.value.first?.date ?? Date()
-            return dateA > dateB
-        }
     }
 
     /// 是否有活跃的筛选条件（不计关键词搜索）
@@ -168,10 +203,11 @@ struct LedgerView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let presentation = makePresentation(visibleTransactionLimit: visibleTransactionLimit)
+
+        return NavigationStack {
             ZStack {
-                DesignSystem.surfaceBackground
-                    .ignoresSafeArea()
+                AmbientBackground(accent: DesignSystem.primaryColor)
 
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
@@ -264,17 +300,44 @@ struct LedgerView: View {
 
                         // 自定义日期范围
                         if dateFilter == .custom {
-                            HStack(spacing: 12) {
-                                DatePicker("", selection: $customStartDate, displayedComponents: .date)
-                                    .datePickerStyle(.compact).labelsHidden()
-                                Text("→").foregroundStyle(DesignSystem.textTertiary)
-                                DatePicker("", selection: $customEndDate, displayedComponents: .date)
-                                    .datePickerStyle(.compact).labelsHidden()
+                            Button {
+                                withAnimation(.spring(response: 0.3)) {
+                                    showCustomDatePicker.toggle()
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: showCustomDatePicker ? "chevron.up" : "chevron.down")
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(DesignSystem.primaryColor)
+                                    Text("\(customStartDate.shortDateString) → \(customEndDate.shortDateString)")
+                                        .font(.subheadline.weight(.medium))
+                                        .foregroundStyle(DesignSystem.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "calendar")
+                                        .font(.caption)
+                                        .foregroundStyle(DesignSystem.textTertiary)
+                                }
+                                .padding(10)
+                                .background(DesignSystem.softFill)
+                                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            }
+                            .buttonStyle(.plain)
+
+                            if showCustomDatePicker {
+                                HStack(spacing: 12) {
+                                    DatePicker("开始", selection: $customStartDate, displayedComponents: .date)
+                                        .datePickerStyle(.compact)
+                                    Text("→")
+                                        .foregroundStyle(DesignSystem.textTertiary)
+                                    DatePicker("结束", selection: $customEndDate, displayedComponents: .date)
+                                        .datePickerStyle(.compact)
+                                }
+                                .transition(.move(edge: .top).combined(with: .opacity))
                             }
                         }
 
                         // 本月概览卡片
-                        monthlySummaryCard
+                        monthlySummaryCard(presentation.monthlySummary)
 
                         if let budgetReminder {
                             ledgerBudgetCard(budgetReminder)
@@ -284,7 +347,7 @@ struct LedgerView: View {
                         if showCalendar {
                             CalendarView()
                         } else {
-                            transactionList
+                            transactionList(presentation)
                         }
                     }
                     .padding()
@@ -293,48 +356,89 @@ struct LedgerView: View {
             .navigationTitle("账本")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        withAnimation(.spring(response: 0.3)) {
-                            showCalendar.toggle()
-                        }
-                    } label: {
-                        Image(systemName: showCalendar ? "list.bullet" : "calendar")
-                            .foregroundStyle(DesignSystem.textSecondary)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        // 筛选按钮
-                        Button {
-                            showFilterSheet = true
-                        } label: {
-                            HStack(spacing: 2) {
-                                Image(systemName: "line.3.horizontal.decrease")
-                                    .font(.subheadline)
-                                    .foregroundStyle(hasActiveFilters ? DesignSystem.primaryColor : DesignSystem.textSecondary)
-                                if hasActiveFilters {
-                                    Text("\(activeFilterCount)")
-                                        .font(.caption2.weight(.bold))
-                                        .foregroundStyle(.white)
-                                        .frame(width: 16, height: 16)
-                                        .background(DesignSystem.primaryColor)
-                                        .clipShape(Circle())
-                                }
+                if isSelecting {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("取消") {
+                            withAnimation(.spring(response: 0.3)) {
+                                isSelecting = false
+                                selectedIds.removeAll()
                             }
                         }
+                        .foregroundStyle(DesignSystem.primaryColor)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        HStack(spacing: 12) {
+                            Text("已选 \(selectedIds.count)")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(DesignSystem.textSecondary)
 
+                            Button(selectedIds.count == presentation.filteredTransactions.count ? "取消全选" : "全选") {
+                                withAnimation(.spring(response: 0.3)) {
+                                    if selectedIds.count == presentation.filteredTransactions.count {
+                                        selectedIds.removeAll()
+                                    } else {
+                                        selectedIds = Set(presentation.filteredTransactions.map(\.id))
+                                    }
+                                }
+                            }
+                            .foregroundStyle(DesignSystem.primaryColor)
+                        }
+                    }
+                } else {
+                    ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            showReminders = true
+                            withAnimation(.spring(response: 0.3)) {
+                                showCalendar.toggle()
+                            }
                         } label: {
-                            Image(systemName: "bell.badge.fill")
+                            Image(systemName: showCalendar ? "list.bullet" : "calendar")
                                 .foregroundStyle(DesignSystem.textSecondary)
                         }
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape")
-                                .foregroundStyle(DesignSystem.textSecondary)
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        HStack(spacing: 12) {
+                            // 批量选择
+                            Button {
+                                withAnimation(.spring(response: 0.3)) {
+                                    isSelecting = true
+                                }
+                            } label: {
+                                Image(systemName: "checkmark.circle")
+                                    .font(.subheadline)
+                                    .foregroundStyle(DesignSystem.textSecondary)
+                            }
+
+                            // 筛选按钮
+                            Button {
+                                showFilterSheet = true
+                            } label: {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "line.3.horizontal.decrease")
+                                        .font(.subheadline)
+                                        .foregroundStyle(hasActiveFilters ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                                    if hasActiveFilters {
+                                        Text("\(activeFilterCount)")
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(.white)
+                                            .frame(width: 16, height: 16)
+                                            .background(DesignSystem.primaryColor)
+                                            .clipShape(Circle())
+                                    }
+                                }
+                            }
+
+                            Button {
+                                showReminders = true
+                            } label: {
+                                Image(systemName: "bell.badge.fill")
+                                    .foregroundStyle(DesignSystem.textSecondary)
+                            }
+                            Button {
+                                showSettings = true
+                            } label: {
+                                Image(systemName: "gearshape")
+                                    .foregroundStyle(DesignSystem.textSecondary)
+                            }
                         }
                     }
                 }
@@ -363,12 +467,45 @@ struct LedgerView: View {
             .sheet(item: $editingTransaction) { transaction in
                 EditTransactionView(transaction: transaction)
             }
+            .saveErrorAlert($deleteError)
+            .alert("批量删除失败", isPresented: .init(
+                get: { batchDeleteError != nil },
+                set: { if !$0 { batchDeleteError = nil } }
+            )) {
+                Button("好的", role: .cancel) { batchDeleteError = nil }
+            } message: {
+                Text(batchDeleteError ?? "未知错误")
+            }
+            .overlay(alignment: .bottom) {
+                if isSelecting {
+                    batchActionBar(transactions: presentation.filteredTransactions)
+                } else {
+                    undoDeleteToast
+                }
+            }
+            .task(id: searchText) {
+                // 防抖：用户停止输入 300ms 后再执行搜索过滤
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                debouncedSearchText = searchText
+            }
+            .onChange(of: debouncedSearchText) { resetVisibleTransactionLimit() }
+            .onChange(of: dateFilter) { resetVisibleTransactionLimit() }
+            .onChange(of: typeFilter) { resetVisibleTransactionLimit() }
+            .onChange(of: categoryFilterId) { resetVisibleTransactionLimit() }
+            .onChange(of: minAmountText) { resetVisibleTransactionLimit() }
+            .onChange(of: maxAmountText) { resetVisibleTransactionLimit() }
+            .onChange(of: customStartDate) { resetVisibleTransactionLimit() }
+            .onChange(of: customEndDate) { resetVisibleTransactionLimit() }
         }
+    }
+
+    private func resetVisibleTransactionLimit() {
+        visibleTransactionLimit = transactionPageSize
     }
 
     // MARK: - Components
 
-    private var monthlySummaryCard: some View {
+    private func monthlySummaryCard(_ summary: LedgerPresentation.MonthlySummary) -> some View {
         VStack(spacing: 16) {
             // 月份标题
             HStack {
@@ -376,6 +513,19 @@ struct LedgerView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
+                Button {
+                    hideHomeIncome.toggle()
+                    HapticManager.selection()
+                } label: {
+                    Image(systemName: hideHomeIncome ? "eye.slash.fill" : "eye.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(hideHomeIncome ? DesignSystem.textTertiary : DesignSystem.primaryColor)
+                        .frame(width: 32, height: 32)
+                        .background(DesignSystem.softFill)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel(hideHomeIncome ? "显示首页收入" : "隐藏首页收入")
             }
 
             HStack(spacing: 0) {
@@ -384,7 +534,7 @@ struct LedgerView: View {
                     Text("支出")
                         .font(.caption)
                         .foregroundStyle(DesignSystem.textSecondary)
-                    Text(monthlyExpense.formattedCurrency)
+                    Text(summary.expense.formattedCurrency)
                         .font(.title3.weight(.bold).monospacedDigit())
                         .foregroundStyle(DesignSystem.expenseColor)
                 }
@@ -395,7 +545,7 @@ struct LedgerView: View {
                     Text("收入")
                         .font(.caption)
                         .foregroundStyle(DesignSystem.textSecondary)
-                    Text(hasHiddenMonthlyIncome ? privacyLock.maskedText : monthlyIncome.formattedCurrency)
+                    Text(summary.hasHiddenIncome ? privacyLock.maskedText : summary.income.formattedCurrency)
                         .font(.title3.weight(.bold).monospacedDigit())
                         .foregroundStyle(DesignSystem.incomeColor)
                 }
@@ -406,17 +556,17 @@ struct LedgerView: View {
                     Text("结余")
                         .font(.caption)
                         .foregroundStyle(DesignSystem.textSecondary)
-                    Text(hasHiddenMonthlyIncome ? privacyLock.maskedText : (monthlyIncome - monthlyExpense).formattedCurrency)
+                    Text(summary.hasHiddenIncome ? privacyLock.maskedText : (summary.income - summary.expense).formattedCurrency)
                         .font(.title3.weight(.bold).monospacedDigit())
                         .foregroundStyle(
-                            monthlyIncome >= monthlyExpense
+                            summary.income >= summary.expense
                             ? DesignSystem.incomeColor
                             : DesignSystem.expenseColor
                         )
                 }
             }
 
-            if hasHiddenMonthlyIncome {
+            if summary.hasHiddenIncome && !hideHomeIncome {
                 Button {
                     Task { _ = await privacyLock.unlock() }
                 } label: {
@@ -426,7 +576,7 @@ struct LedgerView: View {
                 }
             }
         }
-        .glassCard()
+        .heroCard(accent: summary.income >= summary.expense ? DesignSystem.incomeColor : DesignSystem.expenseColor)
     }
 
     private func ledgerBudgetCard(_ reminder: BudgetReminder) -> some View {
@@ -468,9 +618,9 @@ struct LedgerView: View {
         }
     }
 
-    private var transactionList: some View {
+    private func transactionList(_ presentation: LedgerPresentation) -> some View {
         LazyVStack(spacing: 4) {
-            if groupedTransactions.isEmpty {
+            if presentation.dayGroups.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: hasActiveFilters || !searchText.isEmpty ? "line.3.horizontal.decrease.circle" : "tray")
                         .font(.system(size: 40))
@@ -490,6 +640,7 @@ struct LedgerView: View {
                                     minAmountText = ""
                                     maxAmountText = ""
                                     searchText = ""
+                                    debouncedSearchText = ""
                                 }
                             }
                             .font(.subheadline.weight(.medium))
@@ -510,19 +661,52 @@ struct LedgerView: View {
                 .padding(.vertical, 60)
             }
 
-            ForEach(groupedTransactions, id: \.0) { dateString, transactions in
+            ForEach(presentation.dayGroups) { group in
                 Section {
-                    ForEach(transactions, id: \.id) { transaction in
-                        TransactionRow(transaction: transaction, revealsPrivateIncome: privacyLock.isUnlocked)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if isPrivateIncomeHidden(transaction) {
-                                    Task { _ = await privacyLock.unlock() }
+                    ForEach(group.transactions, id: \.id) { transaction in
+                let isSelected = selectedIds.contains(transaction.id)
+
+                HStack(spacing: 0) {
+                    if isSelecting {
+                        Button {
+                            withAnimation(.spring(response: 0.2)) {
+                                if isSelected {
+                                    selectedIds.remove(transaction.id)
                                 } else {
-                                    editingTransaction = transaction
+                                    selectedIds.insert(transaction.id)
                                 }
                             }
-                            .contextMenu {
+                        } label: {
+                            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                .font(.title3)
+                                .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textTertiary)
+                                .frame(width: 36, height: 36)
+                        }
+                    }
+
+                    TransactionRow(
+                        transaction: transaction,
+                        revealsPrivateIncome: privacyLock.isUnlocked,
+                        hidesIncome: hideHomeIncome
+                    )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if isSelecting {
+                                withAnimation(.spring(response: 0.2)) {
+                                    if isSelected {
+                                        selectedIds.remove(transaction.id)
+                                    } else {
+                                        selectedIds.insert(transaction.id)
+                                    }
+                                }
+                            } else if isPrivateIncomeHidden(transaction) {
+                                Task { _ = await privacyLock.unlock() }
+                            } else {
+                                editingTransaction = transaction
+                            }
+                        }
+                        .contextMenu {
+                            if !isSelecting {
                                 Button {
                                     if isPrivateIncomeHidden(transaction) {
                                         Task { _ = await privacyLock.unlock() }
@@ -540,7 +724,9 @@ struct LedgerView: View {
                                     Label("删除", systemImage: "trash")
                                 }
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        }
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            if !isSelecting {
                                 Button(role: .destructive) {
                                     withAnimation {
                                         deleteTransaction(transaction)
@@ -549,7 +735,9 @@ struct LedgerView: View {
                                     Label("删除", systemImage: "trash")
                                 }
                             }
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                        }
+                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                            if !isSelecting {
                                 Button {
                                     if isPrivateIncomeHidden(transaction) {
                                         Task { _ = await privacyLock.unlock() }
@@ -561,16 +749,19 @@ struct LedgerView: View {
                                 }
                                 .tint(DesignSystem.primaryColor)
                             }
-                    }
+                        }
+                        .opacity(isSelecting && isSelected ? 1 : (isSelecting ? 0.7 : 1))
+                        .background(isSelecting && isSelected ? DesignSystem.primaryColor.opacity(0.06) : .clear)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
                 } header: {
                     HStack {
-                        Text(dateString)
+                        Text(group.title)
                             .font(.caption.weight(.medium))
                             .foregroundStyle(DesignSystem.textTertiary)
                         Spacer()
-                        let dayTotal = transactions.reduce(Decimal(0)) { $0 + $1.signedAmount }
-                        let hasHiddenIncome = transactions.contains { isPrivateIncomeHidden($0) }
-                        Text(hasHiddenIncome ? privacyLock.maskedText : dayTotal.formattedCurrency)
+                        Text(group.hasHiddenIncome ? privacyLock.maskedText : group.netTotal.formattedCurrency)
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(DesignSystem.textTertiary)
                     }
@@ -578,23 +769,226 @@ struct LedgerView: View {
                     .padding(.bottom, 4)
                 }
             }
+
+            if presentation.hasMoreTransactions {
+                Button {
+                    withAnimation(DesignSystem.standardAnimation) {
+                        visibleTransactionLimit += transactionPageSize
+                    }
+                } label: {
+                    VStack(spacing: 4) {
+                        Text("继续加载")
+                            .font(.subheadline.weight(.semibold))
+                        Text("已显示 \(presentation.visibleTransactionCount) / \(presentation.filteredTransactions.count) 笔")
+                            .font(.caption2.monospacedDigit())
+                    }
+                    .foregroundStyle(DesignSystem.primaryColor)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, DesignSystem.space12)
+                    .background(DesignSystem.primaryColor.opacity(0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                }
+                .buttonStyle(PressableButtonStyle())
+                .padding(.top, DesignSystem.space12)
+            }
+        }
+    }
+
+    // MARK: - 删除撤销 Toast
+
+    private var undoDeleteToast: some View {
+        Group {
+            if undoInfo != nil {
+                HStack(spacing: 12) {
+                    Image(systemName: "trash")
+                        .font(.subheadline)
+                        .foregroundStyle(DesignSystem.textSecondary)
+
+                    Text("已删除 1 笔")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(DesignSystem.textPrimary)
+
+                    Spacer(minLength: 8)
+
+                    Button {
+                        undoDelete()
+                    } label: {
+                        Text("撤销")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(DesignSystem.primaryColor)
+                    }
+
+                    Button {
+                        withAnimation(.spring(response: 0.3)) {
+                            undoInfo = nil
+                        }
+                        undoWorkItem?.cancel()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(DesignSystem.textTertiary)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(DesignSystem.cardBackground)
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    // MARK: - 批量操作栏
+
+    private func batchActionBar(transactions: [Transaction]) -> some View {
+        HStack(spacing: 12) {
+            Button(role: .destructive) {
+                batchDeleteSelected(from: transactions)
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "trash")
+                    Text("删除 (\(selectedIds.count))")
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(selectedIds.isEmpty ? DesignSystem.textTertiary : DesignSystem.dangerColor)
+            }
+            .disabled(selectedIds.isEmpty)
+
+            Spacer()
+
+            Button {
+                withAnimation(.spring(response: 0.3)) {
+                    isSelecting = false
+                    selectedIds.removeAll()
+                }
+            } label: {
+                Text("完成")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(DesignSystem.textSecondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    private func batchDeleteSelected(from transactions: [Transaction]) {
+        let toDelete = transactions.filter { selectedIds.contains($0.id) }
+        for transaction in toDelete {
+            CashPoolService(modelContext: modelContext).reverse(delta: transaction.cashPoolDelta)
+            modelContext.delete(transaction)
+        }
+        if let error = safeSave(modelContext) {
+            modelContext.rollback()
+            batchDeleteError = error
+        } else {
+            HapticManager.success()
+            withAnimation(.spring(response: 0.3)) {
+                selectedIds.removeAll()
+                isSelecting = false
+            }
         }
     }
 
     private func deleteTransaction(_ transaction: Transaction) {
+        // 保存事务数据以便撤销
+        let info = UndoDeleteInfo(
+            amount: transaction.amount,
+            isExpense: transaction.isExpense,
+            note: transaction.note,
+            date: transaction.date,
+            isPrivateIncome: transaction.isPrivateIncome,
+            cashPoolDelta: transaction.cashPoolDelta,
+            category: transaction.category,
+            ledger: transaction.ledger,
+            recurringRule: transaction.recurringRule
+        )
         CashPoolService(modelContext: modelContext).reverse(delta: transaction.cashPoolDelta)
         modelContext.delete(transaction)
-        try? modelContext.save()
+        if let error = safeSave(modelContext) {
+            modelContext.rollback()
+            deleteError = error
+            return
+        }
+
+        // 显示撤销条
+        withAnimation(.spring(response: 0.3)) {
+            undoInfo = info
+        }
+        undoWorkItem?.cancel()
+        let task = DispatchWorkItem { [self] in
+            withAnimation(.spring(response: 0.3)) {
+                self.undoInfo = nil
+            }
+        }
+        undoWorkItem = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: task)
     }
+
+    private func undoDelete() {
+        guard let info = undoInfo else { return }
+        undoWorkItem?.cancel()
+
+        let transaction = Transaction(
+            amount: info.amount,
+            isExpense: info.isExpense,
+            note: info.note,
+            date: info.date,
+            isPrivateIncome: info.isPrivateIncome,
+            cashPoolDelta: info.cashPoolDelta,
+            category: info.category,
+            ledger: info.ledger,
+            recurringRule: info.recurringRule
+        )
+        modelContext.insert(transaction)
+        if let delta = info.cashPoolDelta {
+            CashPoolService(modelContext: modelContext).apply(delta: delta)
+        }
+
+        if let error = safeSave(modelContext) {
+            deleteError = error
+        }
+
+        withAnimation(.spring(response: 0.3)) {
+            undoInfo = nil
+        }
+        HapticManager.success()
+    }
+}
+
+// MARK: - 撤销删除信息
+private struct UndoDeleteInfo {
+    let amount: Decimal
+    let isExpense: Bool
+    let note: String
+    let date: Date
+    let isPrivateIncome: Bool
+    let cashPoolDelta: Decimal?
+    let category: Category?
+    let ledger: Ledger?
+    let recurringRule: RecurringRule?
 }
 
 /// 单笔交易行
 struct TransactionRow: View {
     let transaction: Transaction
     var revealsPrivateIncome = true
+    var hidesIncome = false
 
     private var hidesPrivateIncome: Bool {
         transaction.isProtectedIncome && !revealsPrivateIncome
+    }
+
+    private var hidesIncomeAmount: Bool {
+        hidesPrivateIncome || (hidesIncome && !transaction.isExpense)
     }
 
     var body: some View {
@@ -625,13 +1019,16 @@ struct TransactionRow: View {
             Spacer()
 
             // 金额
-            Text(hidesPrivateIncome ? "****" : "\(transaction.isExpense ? "-" : "+")\(transaction.amount.formattedAmount)")
+            Text(hidesIncomeAmount ? "****" : "\(transaction.isExpense ? "-" : "+")\(transaction.amount.formattedCompactAmount)")
                 .font(.subheadline.weight(.semibold).monospacedDigit())
                 .foregroundStyle(
                     transaction.isExpense
                     ? DesignSystem.expenseColor
                     : DesignSystem.incomeColor
                 )
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+                .allowsTightening(true)
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 4)

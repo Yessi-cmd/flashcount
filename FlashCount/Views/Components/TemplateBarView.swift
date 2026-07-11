@@ -77,6 +77,12 @@ struct TemplateBarView: View {
             let pool = template.isExpense ? expenseCategories : incomeCategories
             let category = template.categoryName
                 .flatMap { name in pool.first { $0.name == name } }
+                // 在预期池中没找到时，尝试在另一个池中查找（应对分类被重命名的情况）
+                ?? template.categoryName
+                    .flatMap { name in
+                        let otherPool = template.isExpense ? incomeCategories : expenseCategories
+                        return otherPool.first { $0.name == name }
+                    }
             onSelect(template, category)
             HapticManager.selection()
         } label: {

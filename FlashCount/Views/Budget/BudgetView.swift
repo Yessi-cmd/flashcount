@@ -6,9 +6,19 @@ struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("payday") private var payday = 1
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
-    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    @Query private var recentTransactions: [Transaction]
 
     @State private var showAddBudget = false
+
+    init() {
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -90, to: calendar.startOfDay(for: Date())) ?? .distantPast
+        _recentTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: \Transaction.date,
+            order: .reverse
+        )
+    }
 
     private var currentBudget: Budget? {
         BudgetReminderService.currentBudget(
@@ -21,7 +31,7 @@ struct BudgetView: View {
     private var reminder: BudgetReminder? {
         BudgetReminderService.reminder(
             budgets: allBudgets,
-            transactions: allTransactions,
+            transactions: recentTransactions,
             ledger: nil,
             payday: payday
         )
@@ -30,7 +40,7 @@ struct BudgetView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                DesignSystem.surfaceBackground.ignoresSafeArea()
+                AmbientBackground(accent: DesignSystem.incomeColor)
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
                         if let reminder {

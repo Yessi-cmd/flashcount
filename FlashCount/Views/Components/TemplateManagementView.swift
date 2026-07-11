@@ -14,6 +14,7 @@ struct TemplateManagementView: View {
 
     @State private var showAddSheet = false
     @State private var editingTemplate: TransactionTemplate?
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -49,17 +50,24 @@ struct TemplateManagementView: View {
             .sheet(isPresented: $showAddSheet) {
                 TemplateEditView(categories: allCategories) { template in
                     modelContext.insert(template)
-                    try? modelContext.save()
-                    HapticManager.success()
+                    if let error = safeSave(modelContext) {
+                        saveError = error
+                    } else {
+                        HapticManager.success()
+                    }
                 }
             }
             .sheet(item: $editingTemplate) { template in
                 TemplateEditView(categories: allCategories, template: template) { updated in
                     // 原地更新已在 Bindable 中完成
-                    try? modelContext.save()
-                    HapticManager.success()
+                    if let error = safeSave(modelContext) {
+                        saveError = error
+                    } else {
+                        HapticManager.success()
+                    }
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -77,7 +85,9 @@ struct TemplateManagementView: View {
                 for index in indexSet {
                     modelContext.delete(templates[index])
                 }
-                try? modelContext.save()
+                if let error = safeSave(modelContext) {
+                    saveError = error
+                }
             }
             .onMove { from, to in
                 var sorted = templates
@@ -85,7 +95,9 @@ struct TemplateManagementView: View {
                 for (index, t) in sorted.enumerated() {
                     t.sortOrder = index
                 }
-                try? modelContext.save()
+                if let error = safeSave(modelContext) {
+                    saveError = error
+                }
             }
         }
         .scrollContentBackground(.hidden)

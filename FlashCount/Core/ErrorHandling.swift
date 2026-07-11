@@ -3,13 +3,16 @@ import SwiftData
 
 // MARK: - 保存错误处理
 
-/// 安全保存，失败时记录错误信息
+/// 安全保存，失败时记录错误信息并回滚内存状态
+/// 回滚防止「下一个成功保存」固化不一致的内存状态
 @MainActor
+@discardableResult
 func safeSave(_ context: ModelContext) -> String? {
     do {
         try context.save()
         return nil
     } catch {
+        context.rollback()
         return error.localizedDescription
     }
 }
@@ -109,7 +112,9 @@ final class DataRepairService {
             }
         }
 
-        try? modelContext.save()
+        if let error = safeSave(modelContext) {
+            print("数据自检修复最终保存失败: \(error)")
+        }
         return report
     }
 }

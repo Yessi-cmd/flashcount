@@ -8,6 +8,7 @@ struct SavingsGoalView: View {
 
     @State private var showAddGoal = false
     @State private var editingGoal: SavingsGoal?
+    @State private var saveError: String?
     @AppStorage("hideAssetBalance") private var hideAssetBalance = true
 
     private var activeGoals: [SavingsGoal] {
@@ -51,6 +52,7 @@ struct SavingsGoalView: View {
             .sheet(item: $editingGoal) { goal in
                 AddSavingsGoalView(editGoal: goal)
             }
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -133,14 +135,18 @@ struct SavingsGoalView: View {
             Button {
                 goal.isCompleted.toggle()
                 goal.updatedAt = Date()
-                try? modelContext.save()
+                if let error = safeSave(modelContext) {
+                    self.saveError = error
+                }
             } label: {
                 Label(goal.isCompleted ? "标记未完成" : "标记完成", systemImage: goal.isCompleted ? "circle" : "checkmark.circle")
             }
             Button(role: .destructive) {
                 goal.isArchived = true
                 goal.updatedAt = Date()
-                try? modelContext.save()
+                if let error = safeSave(modelContext) {
+                    self.saveError = error
+                }
             } label: {
                 Label("归档", systemImage: "archivebox")
             }

@@ -170,6 +170,16 @@ extension Category {
                 ]
             ),
             CategoryGroupDefinition(
+                name: "AI",
+                icon: "sparkle.magnifyingglass",
+                colorHex: "#C084FC",
+                children: [
+                    CategoryItemDefinition(name: "ai会员", icon: "person.badge.key.fill", colorHex: "#C084FC"),
+                    CategoryItemDefinition(name: "ai coding plan", icon: "chevron.left.forwardslash.chevron.right", colorHex: "#A78BFA"),
+                    CategoryItemDefinition(name: "ai api", icon: "antenna.radiowaves.left.and.right", colorHex: "#8B5CF6"),
+                ]
+            ),
+            CategoryGroupDefinition(
                 name: "社交",
                 icon: "gift.fill",
                 colorHex: "#FF8FAB",
