@@ -17,7 +17,7 @@ struct QuickEntryView: View {
         sort: \Category.sortOrder
     ) private var incomeCategories: [Category]
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
-    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    @Query private var recentTransactions: [Transaction]
 
     @State private var amountText = ""
     @State private var isExpense = true
@@ -35,6 +35,18 @@ struct QuickEntryView: View {
     @State private var showAllCategories = false
     @State private var showTemplateManager = false
     @State private var editingTemplate: TransactionTemplate?
+    @State private var isSaving = false
+    @Namespace private var typeSelectionNamespace
+
+    init() {
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -90, to: calendar.startOfDay(for: Date())) ?? .distantPast
+        _recentTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: \Transaction.date,
+            order: .reverse
+        )
+    }
 
     private var currentCategories: [Category] {
         isExpense ? expenseCategories : incomeCategories
@@ -49,7 +61,7 @@ struct QuickEntryView: View {
         var result: [Category] = []
         let rootNames = Set(rootCategories.map(\.rootCategoryName))
 
-        for transaction in allTransactions where transaction.isExpense == isExpense {
+        for transaction in recentTransactions where transaction.isExpense == isExpense {
             guard let category = transaction.category else { continue }
             let rootName = category.rootCategoryName
             guard rootNames.contains(rootName), !seen.contains(rootName), let representative = categoryRepresentative(for: rootName) else { continue }
@@ -65,13 +77,14 @@ struct QuickEntryView: View {
         NavigationStack {
             ZStack {
                 // 背景
-                DesignSystem.surfaceBackground
-                    .ignoresSafeArea()
+                AmbientBackground(accent: isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor)
+                    .animation(DesignSystem.standardAnimation, value: isExpense)
 
                 ScrollView {
-                    VStack(spacing: 20) {
+                    VStack(spacing: 8) {
                         // 收入/支出切换
                         typeToggle
+                            .softReveal(delay: 0.02, distance: 8)
 
                         // 记账模板
                         TemplateBarView(
@@ -85,25 +98,41 @@ struct QuickEntryView: View {
                                 editingTemplate = template
                             }
                         )
+                        .softReveal(delay: 0.06, distance: 10)
 
                         // 金额显示
                         amountDisplay
+                            .softReveal(delay: 0.10, distance: 12)
 
                         // 分类选择
                         categoryGrid
+                            .softReveal(delay: 0.14, distance: 14)
 
-                        // 备注 & 日期
+                        // 备注
                         if showNote {
                             noteField
                         }
-
-                        // 数字键盘
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    VStack(spacing: DesignSystem.space12) {
                         numberPad
-
-                        // 提交按钮
                         submitButton
                     }
-                    .padding()
+                    .padding(.horizontal)
+                    .padding(.top, DesignSystem.space12)
+                    .padding(.bottom, DesignSystem.space8)
+                    .background(.regularMaterial)
+                    .overlay(alignment: .top) {
+                        Rectangle()
+                            .fill(DesignSystem.dividerColor)
+                            .frame(height: 1)
+                    }
+                    .softReveal(delay: 0.18, distance: 18)
                 }
             }
             .navigationTitle("记一笔")
@@ -157,8 +186,11 @@ struct QuickEntryView: View {
                     categories: expenseCategories + incomeCategories,
                     template: template
                 ) { _ in
-                    try? modelContext.save()
-                    HapticManager.success()
+                    if let error = safeSave(modelContext) {
+                        saveError = error
+                    } else {
+                        HapticManager.success()
+                    }
                 }
             }
         }
@@ -198,12 +230,19 @@ struct QuickEntryView: View {
                 withAnimation(.spring(response: 0.3)) { isExpense = true }
                 selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
                 showAllCategories = false
+                HapticManager.selection()
             } label: {
                 Text("支出")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(isExpense ? DesignSystem.expenseColor.opacity(0.2) : .clear)
+                    .background {
+                        if isExpense {
+                            RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius)
+                                .fill(DesignSystem.expenseColor.opacity(0.18))
+                                .matchedGeometryEffect(id: "quickEntryTypeSelection", in: typeSelectionNamespace)
+                        }
+                    }
                     .foregroundStyle(isExpense ? DesignSystem.expenseColor : DesignSystem.textSecondary)
             }
 
@@ -211,12 +250,19 @@ struct QuickEntryView: View {
                 withAnimation(.spring(response: 0.3)) { isExpense = false }
                 selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
                 showAllCategories = false
+                HapticManager.selection()
             } label: {
                 Text("收入")
                     .font(.subheadline.weight(.semibold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(!isExpense ? DesignSystem.incomeColor.opacity(0.2) : .clear)
+                    .background {
+                        if !isExpense {
+                            RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius)
+                                .fill(DesignSystem.incomeColor.opacity(0.18))
+                                .matchedGeometryEffect(id: "quickEntryTypeSelection", in: typeSelectionNamespace)
+                        }
+                    }
                     .foregroundStyle(!isExpense ? DesignSystem.incomeColor : DesignSystem.textSecondary)
             }
         }
@@ -228,36 +274,37 @@ struct QuickEntryView: View {
     }
 
     private var amountDisplay: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 4) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text("¥")
-                    .font(.title2.weight(.medium))
+                    .font(.title3.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
                 Text(amountText.isEmpty ? "0.00" : amountText)
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
                     .monospacedDigit()
                     .foregroundStyle(DesignSystem.textPrimary)
                     .contentTransition(.numericText())
             }
 
             // 日期选择器 - 始终可见，方便补录历史账单
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Image(systemName: "calendar")
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(DesignSystem.textSecondary)
                 DatePicker("", selection: $selectedDate, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .labelsHidden()
-                    .scaleEffect(0.85)
+                    .scaleEffect(0.8)
+                    .environment(\.locale, Locale(identifier: "zh_CN"))
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 6)
     }
 
     private var categoryGrid: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            categorySection(title: "常用 / 最近", categories: recentCategories)
+        VStack(alignment: .leading, spacing: 6) {
+            categorySection(title: "常用", categories: recentCategories)
             allCategoriesToggle
 
             if showAllCategories {
@@ -294,20 +341,20 @@ struct QuickEntryView: View {
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.vertical, 5)
             .background(DesignSystem.softFill)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }
 
     private func categorySection(title: String, categories: [Category]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.caption.weight(.medium))
+                .font(.caption2.weight(.medium))
                 .foregroundStyle(DesignSystem.textTertiary)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                 ForEach(categories, id: \.id) { category in
                     categoryButton(category)
                 }
@@ -321,9 +368,9 @@ struct QuickEntryView: View {
             category: category,
             selectedCategory: selectedCategory,
             hasChildren: !children.isEmpty,
-            iconSize: .title3,
-            circleSize: 46,
-            minHeight: 70,
+            iconSize: .subheadline,
+            circleSize: 36,
+            minHeight: 62,
             onSelect: { selectCategory(category) },
             onLongPress: { showWheel(for: category) }
         )
@@ -346,34 +393,48 @@ struct QuickEntryView: View {
     private var numberPad: some View {
         let buttons = [
             ["7", "8", "9", "⌫"],
-            ["4", "5", "6", "+"],
-            ["1", "2", "3", "-"],
+            ["4", "5", "6", "收入"],
+            ["1", "2", "3", "支出"],
             [".", "0", "00", ""]
         ]
 
-        return VStack(spacing: 8) {
+        return VStack(spacing: 6) {
             ForEach(buttons, id: \.self) { row in
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     ForEach(row, id: \.self) { button in
                         if button.isEmpty {
-                            Color.clear.frame(height: 50)
+                            Color.clear.frame(height: 42)
                         } else {
                             Button {
                                 handleKeyPress(button)
                             } label: {
                                 Text(button)
-                                    .font(.title3.weight(.medium))
+                                    .font(button == "收入" || button == "支出" ? .caption2.weight(.semibold) : .body.weight(.medium))
                                     .frame(maxWidth: .infinity)
-                                    .frame(height: 50)
-                                    .background(DesignSystem.softFill)
+                                    .frame(height: 42)
+                                    .background(button == "收入" ? DesignSystem.incomeColor.opacity(0.12)
+                                        : button == "支出" ? DesignSystem.expenseColor.opacity(0.12)
+                                        : DesignSystem.softFill)
                                     .foregroundStyle(
                                         button == "⌫" ? DesignSystem.textSecondary
-                                        : button == "+" ? DesignSystem.incomeColor
-                                        : button == "-" ? DesignSystem.expenseColor
+                                        : button == "收入" ? DesignSystem.incomeColor
+                                        : button == "支出" ? DesignSystem.expenseColor
                                         : DesignSystem.textPrimary
                                     )
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .overlay(
+                                        Group {
+                                            if button == "收入" || button == "支出" {
+                                                RoundedRectangle(cornerRadius: 8)
+                                                    .stroke(
+                                                        button == "收入" ? DesignSystem.incomeColor.opacity(0.3) : DesignSystem.expenseColor.opacity(0.3),
+                                                        lineWidth: 1
+                                                    )
+                                            }
+                                        }
+                                    )
                             }
+                            .buttonStyle(PressableButtonStyle())
                         }
                     }
                 }
@@ -386,10 +447,10 @@ struct QuickEntryView: View {
             saveTransaction()
         } label: {
             Text("保存")
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(height: 44)
                 .background(
                     amountText.isEmpty
                     ? AnyShapeStyle(.gray.opacity(0.3))
@@ -397,13 +458,14 @@ struct QuickEntryView: View {
                         ? AnyShapeStyle(DesignSystem.expenseGradient)
                         : AnyShapeStyle(DesignSystem.incomeGradient)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
+                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
         }
         .disabled(amountText.isEmpty)
+        .buttonStyle(PressableButtonStyle())
     }
 
     private var successOverlay: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
                 .foregroundStyle(DesignSystem.incomeColor)
@@ -412,6 +474,7 @@ struct QuickEntryView: View {
             Text("记账成功！")
                 .font(.headline)
                 .foregroundStyle(DesignSystem.textPrimary)
+
             if let budgetReminderText {
                 HStack(spacing: 6) {
                     Image(systemName: budgetReminderIcon)
@@ -424,10 +487,38 @@ struct QuickEntryView: View {
                 .background(budgetReminderColor.opacity(0.12))
                 .clipShape(Capsule())
             }
+
+            Divider()
+                .frame(width: 160)
+
+            Button {
+                resetForm()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus.circle.fill")
+                    Text("再记一笔")
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(DesignSystem.primaryColor)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(DesignSystem.primaryColor.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+            .padding(.horizontal, 40)
+
+            Button {
+                dismiss()
+            } label: {
+                Text("完成")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(DesignSystem.textSecondary)
+                    .underline()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(.ultraThinMaterial)
-        .transition(.opacity)
+        .transition(.scale(scale: 0.96).combined(with: .opacity))
     }
 
     // MARK: - Logic
@@ -455,11 +546,11 @@ struct QuickEntryView: View {
                     amountText += "0"
                 }
             }
-        case "+":
+        case "收入":
             withAnimation(.spring(response: 0.3)) { isExpense = false }
             selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
             showAllCategories = false
-        case "-":
+        case "支出":
             withAnimation(.spring(response: 0.3)) { isExpense = true }
             selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
             showAllCategories = false
@@ -555,7 +646,7 @@ struct QuickEntryView: View {
 
     private func lastUsedCategory(for rootName: String, in categories: [Category], isExpense targetIsExpense: Bool) -> Category? {
         let categoryIDs = Set(categories.map(\.id))
-        return allTransactions.first { transaction in
+        return recentTransactions.first { transaction in
             guard transaction.isExpense == targetIsExpense, let category = transaction.category else { return false }
             return categoryIDs.contains(category.id) && category.rootCategoryName == rootName
         }?.category
@@ -574,7 +665,9 @@ struct QuickEntryView: View {
     }
 
     private func saveTransaction() {
-        guard let amount = Decimal(string: amountText), amount > 0 else { return }
+        guard !isSaving, let amount = Decimal(string: amountText), amount > 0 else { return }
+        isSaving = true
+        defer { isSaving = false }
 
         let transaction = Transaction(
             amount: amount,
@@ -591,6 +684,7 @@ struct QuickEntryView: View {
         CashPoolService(modelContext: modelContext).apply(delta: cashDelta)
 
         if let error = safeSave(modelContext) {
+            modelContext.rollback()
             saveError = error
             HapticManager.error()
             return
@@ -599,14 +693,19 @@ struct QuickEntryView: View {
         HapticManager.success()
         updateBudgetReminder(afterSaving: transaction)
 
-        // 成功动画
         withAnimation(.spring(response: 0.4)) {
             showSuccess = true
         }
+    }
 
-        let delay = budgetReminderText == nil ? 1.0 : 1.6
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-            dismiss()
+    private func resetForm() {
+        withAnimation(.spring(response: 0.3)) {
+            amountText = ""
+            note = ""
+            showNote = false
+            showSuccess = false
+            budgetReminderText = nil
+            budgetReminderLevel = nil
         }
     }
 
@@ -615,9 +714,21 @@ struct QuickEntryView: View {
         budgetReminderLevel = nil
         guard transaction.isExpense else { return }
 
-        var transactions = allTransactions
-        if !transactions.contains(where: { $0.id == transaction.id }) {
-            transactions.insert(transaction, at: 0)
+        let cycle = PayCycleService.cycle(containing: transaction.date, payday: payday)
+        let cycleStart = cycle.start
+        let cycleEnd = cycle.end
+        let descriptor = FetchDescriptor<Transaction>(
+            predicate: #Predicate<Transaction> { item in
+                item.date >= cycleStart && item.date < cycleEnd
+            },
+            sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
+        )
+
+        let transactions: [Transaction]
+        do {
+            transactions = try modelContext.fetch(descriptor)
+        } catch {
+            return
         }
 
         guard let reminder = BudgetReminderService.reminder(

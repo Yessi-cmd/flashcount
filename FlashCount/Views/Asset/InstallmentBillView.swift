@@ -193,7 +193,9 @@ struct InstallmentBillView: View {
             Button(role: .destructive) {
                 bill.isArchived = true
                 bill.updatedAt = Date()
-                try? modelContext.save()
+                if let error = safeSave(modelContext) {
+                    saveError = error
+                }
             } label: {
                 Label("归档", systemImage: "archivebox")
             }

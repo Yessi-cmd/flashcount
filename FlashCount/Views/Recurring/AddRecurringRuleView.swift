@@ -14,6 +14,8 @@ struct AddRecurringRuleView: View {
     @State private var amountText = ""
     @State private var frequency: RecurringFrequency = .monthly
     @State private var nextDueDate = Date()
+    @State private var hasEndDate = false
+    @State private var endDate = Date()
     @State private var selectedCategory: Category?
     @State private var selectedLedger: Ledger?
     @State private var isExpense = true
@@ -76,6 +78,13 @@ struct AddRecurringRuleView: View {
                             TextField("例如：房租、话费、Netflix", text: $title).font(.body).foregroundStyle(DesignSystem.textPrimary)
                                 .padding(12).background(DesignSystem.softFill)
                                 .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                        }
+
+                        VStack(alignment: .leading, spacing: 8) {
+                            Toggle("设置结束日期", isOn: $hasEndDate)
+                            if hasEndDate {
+                                DatePicker("结束日期", selection: $endDate, in: nextDueDate..., displayedComponents: .date)
+                            }
                         }
 
                         // 金额
@@ -238,6 +247,10 @@ struct AddRecurringRuleView: View {
             amountText = NSDecimalNumber(decimal: editRule.amount).stringValue
             frequency = editRule.frequency
             nextDueDate = editRule.nextDueDate
+            if let existingEndDate = editRule.endDate {
+                hasEndDate = true
+                endDate = existingEndDate
+            }
             selectedCategory = editRule.category
             selectedLedger = editRule.ledger
             isExpense = editRule.isExpense
@@ -257,6 +270,7 @@ struct AddRecurringRuleView: View {
             rule.isExpense = isExpense
             rule.frequency = frequency
             rule.nextDueDate = nextDueDate
+            rule.endDate = hasEndDate ? endDate : nil
             rule.category = selectedCategory
             rule.ledger = selectedLedger
         } else {
@@ -266,6 +280,7 @@ struct AddRecurringRuleView: View {
                 isExpense: isExpense,
                 frequency: frequency,
                 nextDueDate: nextDueDate,
+                endDate: hasEndDate ? endDate : nil,
                 category: selectedCategory,
                 ledger: selectedLedger
             )

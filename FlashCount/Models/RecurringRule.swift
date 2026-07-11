@@ -8,19 +8,53 @@ enum RecurringFrequency: String, Codable, CaseIterable {
     case monthly = "每月"
     case yearly = "每年"
 
-    /// 计算下一个到期日
-    func nextDate(from date: Date) -> Date {
-        let calendar = Calendar.current
+    /// 计算下一个到期日（nil = 已超出日历支持范围）。
+    /// 月/年规则使用首次设置的日期作为锚点，短月份只临时夹到月末。
+    func nextDate(
+        from date: Date,
+        anchorDay: Int? = nil,
+        calendar: Calendar = .current
+    ) -> Date? {
         switch self {
         case .daily:
-            return calendar.date(byAdding: .day, value: 1, to: date)!
+            return calendar.date(byAdding: .day, value: 1, to: date)
         case .weekly:
-            return calendar.date(byAdding: .weekOfYear, value: 1, to: date)!
+            return calendar.date(byAdding: .weekOfYear, value: 1, to: date)
         case .monthly:
-            return calendar.date(byAdding: .month, value: 1, to: date)!
+            return anchoredDate(
+                byAdding: .month,
+                to: date,
+                anchorDay: anchorDay,
+                calendar: calendar
+            )
         case .yearly:
-            return calendar.date(byAdding: .year, value: 1, to: date)!
+            return anchoredDate(
+                byAdding: .year,
+                to: date,
+                anchorDay: anchorDay,
+                calendar: calendar
+            )
         }
+    }
+
+    private func anchoredDate(
+        byAdding component: Calendar.Component,
+        to date: Date,
+        anchorDay: Int?,
+        calendar: Calendar
+    ) -> Date? {
+        guard let target = calendar.date(byAdding: component, value: 1, to: date),
+              let dayRange = calendar.range(of: .day, in: .month, for: target) else {
+            return nil
+        }
+
+        let requestedDay = anchorDay ?? calendar.component(.day, from: date)
+        var components = calendar.dateComponents(
+            [.era, .year, .month, .hour, .minute, .second, .nanosecond],
+            from: target
+        )
+        components.day = min(max(requestedDay, 1), dayRange.count)
+        return calendar.date(from: components)
     }
 }
 
@@ -39,6 +73,9 @@ final class RecurringRule {
     var isExpense: Bool
     var frequency: RecurringFrequency
     var nextDueDate: Date
+    /// 月/年规则的原始日期锚点。可选类型兼容已有 SwiftData 数据。
+    var anchorDay: Int?
+    var endDate: Date?
     var isActive: Bool
     var note: String
     var createdAt: Date
@@ -56,6 +93,7 @@ final class RecurringRule {
         isExpense: Bool = true,
         frequency: RecurringFrequency = .monthly,
         nextDueDate: Date,
+        endDate: Date? = nil,
         note: String = "",
         category: Category? = nil,
         ledger: Ledger? = nil
@@ -66,6 +104,10 @@ final class RecurringRule {
         self.isExpense = isExpense
         self.frequency = frequency
         self.nextDueDate = nextDueDate
+        self.anchorDay = frequency == .monthly || frequency == .yearly
+            ? Calendar.current.component(.day, from: nextDueDate)
+            : nil
+        self.endDate = endDate
         self.isActive = true
         self.note = note
         self.createdAt = Date()

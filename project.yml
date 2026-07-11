@@ -30,3 +30,16 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
         TARGETED_DEVICE_FAMILY: "1"
+      configs:
+        Debug:
+          DEVELOPMENT_TEAM: ""
+        Release:
+          DEVELOPMENT_TEAM: "66WCCRKRLC"
+          PROVISIONING_PROFILE_SPECIFIER: ""
+  FlashCountTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: FlashCountTests
+    dependencies:
+      - target: FlashCount

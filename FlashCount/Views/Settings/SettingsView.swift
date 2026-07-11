@@ -12,13 +12,17 @@ struct SettingsView: View {
     @State private var showRecurringRules = false
     @State private var showReminders = false
     @State private var showTemplates = false
+    @State private var showOnboarding = false
     @State private var repairResult: String?
     @State private var showRepairResult = false
     @State private var showExportShare = false
     @State private var exportFileURL: URL?
     @State private var showImportPicker = false
+    @State private var showCSVImportPicker = false
     @State private var importResult: String?
     @State private var showImportResult = false
+    @State private var pendingImportURL: URL?
+    @State private var importPreview: DataBackupService.BackupPreview?
 
     private var appVersionText: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "-"
@@ -91,6 +95,19 @@ struct SettingsView: View {
                             }
                         }
                         Button {
+                            showOnboarding = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "sparkles").foregroundStyle(DesignSystem.primaryColor)
+                                VStack(alignment: .leading) {
+                                    Text("首次引导").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
+                                    Text("FlashCount 功能亮点一览").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                            }
+                        }
+                        Button {
                             showRecurringRules = true
                         } label: {
                             HStack {
@@ -146,6 +163,16 @@ struct SettingsView: View {
                             }
                         }
                         Button {
+                            exportCSV()
+                        } label: {
+                            Label("导出账单 CSV", systemImage: "tablecells")
+                        }
+                        Button {
+                            showCSVImportPicker = true
+                        } label: {
+                            Label("导入账单 CSV", systemImage: "tablecells.badge.ellipsis")
+                        }
+                        Button {
                             let service = DataRepairService(modelContext: modelContext)
                             let report = service.runRepair()
                             repairResult = report.summary
@@ -182,11 +209,13 @@ struct SettingsView: View {
                             Spacer()
                             Text("Yessi").foregroundStyle(DesignSystem.textTertiary)
                         }
-                        Link(destination: URL(string: "https://github.com/Yessi-cmd/flashcount")!) {
-                            HStack {
-                                Text("GitHub 仓库").foregroundStyle(DesignSystem.textPrimary)
-                                Spacer()
-                                Image(systemName: "arrow.up.right.square").foregroundStyle(DesignSystem.textTertiary)
+                        if let url = URL(string: "https://github.com/Yessi-cmd/flashcount") {
+                            Link(destination: url) {
+                                HStack {
+                                    Text("GitHub 仓库").foregroundStyle(DesignSystem.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right.square").foregroundStyle(DesignSystem.textTertiary)
+                                }
                             }
                         }
                     } header: {
@@ -207,6 +236,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showTutorial) {
                 TutorialView()
             }
+            .sheet(isPresented: $showOnboarding) {
+                OnboardingView(isPresented: $showOnboarding)
+            }
             .sheet(isPresented: $showRecurringRules) {
                 NavigationStack {
                     RecurringRulesView()
@@ -226,7 +258,20 @@ struct SettingsView: View {
                 }
             }
             .fileImporter(isPresented: $showImportPicker, allowedContentTypes: [.json]) { result in
-                importData(result: result)
+                previewImport(result: result)
+            }
+            .fileImporter(isPresented: $showCSVImportPicker, allowedContentTypes: [.commaSeparatedText]) { result in
+                importCSV(result: result)
+            }
+            .confirmationDialog("导入备份", isPresented: Binding(
+                get: { pendingImportURL != nil },
+                set: { if !$0 { pendingImportURL = nil; importPreview = nil } }
+            ), titleVisibility: .visible) {
+                Button("合并导入") { performPendingImport(mode: .merge) }
+                Button("替换全部本地数据", role: .destructive) { performPendingImport(mode: .replace) }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("\(importPreview?.summary ?? "")。合并保留本地数据；替换会删除当前所有本地数据。")
             }
             .alert("数据自检结果", isPresented: $showRepairResult) {
                 Button("好的", role: .cancel) {}
@@ -254,7 +299,32 @@ struct SettingsView: View {
         }
     }
 
-    private func importData(result: Result<URL, Error>) {
+    private func exportCSV() {
+        do {
+            exportFileURL = try CSVTransactionService(modelContext: modelContext).exportToFile()
+            showExportShare = true
+        } catch {
+            importResult = "CSV 导出失败：\(error.localizedDescription)"; showImportResult = true
+        }
+    }
+
+    private func importCSV(result: Result<URL, Error>) {
+        guard case .success(let url) = result else {
+            importResult = "CSV 文件选择失败"; showImportResult = true; return
+        }
+        guard url.startAccessingSecurityScopedResource() else {
+            importResult = "无法访问 CSV 文件"; showImportResult = true; return
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+        do {
+            let count = try CSVTransactionService(modelContext: modelContext).importCSV(from: url)
+            importResult = "已导入 \(count) 笔账单"; showImportResult = true
+        } catch {
+            importResult = "CSV 导入失败：\(error.localizedDescription)"; showImportResult = true
+        }
+    }
+
+    private func previewImport(result: Result<URL, Error>) {
         switch result {
         case .success(let url):
             guard url.startAccessingSecurityScopedResource() else {
@@ -264,18 +334,34 @@ struct SettingsView: View {
             }
             defer { url.stopAccessingSecurityScopedResource() }
 
-            let service = DataBackupService(modelContext: modelContext)
             do {
-                let report = try service.importJSON(from: url)
-                importResult = report.summary
-                showImportResult = true
-                HapticManager.success()
+                importPreview = try DataBackupService(modelContext: modelContext).previewJSON(from: url)
+                pendingImportURL = url
             } catch {
-                importResult = "导入失败：\(error.localizedDescription)"
+                importResult = "备份读取失败：\(error.localizedDescription)"
                 showImportResult = true
             }
         case .failure(let error):
             importResult = "文件选择失败：\(error.localizedDescription)"
+            showImportResult = true
+        }
+    }
+
+    private func performPendingImport(mode: DataBackupService.ImportMode) {
+        guard let url = pendingImportURL else { return }
+        pendingImportURL = nil
+        importPreview = nil
+        guard url.startAccessingSecurityScopedResource() else {
+            importResult = "无法访问文件"; showImportResult = true; return
+        }
+        defer { url.stopAccessingSecurityScopedResource() }
+        do {
+            let report = try DataBackupService(modelContext: modelContext).importJSON(from: url, mode: mode)
+            importResult = report.summary
+            showImportResult = true
+            HapticManager.success()
+        } catch {
+            importResult = "导入失败：\(error.localizedDescription)"
             showImportResult = true
         }
     }

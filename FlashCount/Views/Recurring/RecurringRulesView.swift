@@ -119,6 +119,11 @@ struct RecurringRulesView: View {
 
                     Menu {
                         Button {
+                            skipNext(rule)
+                        } label: {
+                            Label("跳过本期", systemImage: "forward.end")
+                        }
+                        Button {
                             if hidesPrivateIncome {
                                 Task { _ = await privacyLock.unlock() }
                             } else {
@@ -171,6 +176,13 @@ struct RecurringRulesView: View {
                 Label("删除", systemImage: "trash")
             }
         }
+    }
+
+    private func skipNext(_ rule: RecurringRule) {
+        guard let nextDate = rule.frequency.nextDate(from: rule.nextDueDate) else { return }
+        rule.nextDueDate = nextDate
+        if let endDate = rule.endDate, nextDate > endDate { rule.isActive = false }
+        if let error = safeSave(modelContext) { saveError = error }
     }
 
     private var emptyState: some View {

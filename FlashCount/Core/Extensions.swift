@@ -1,5 +1,61 @@
 import SwiftUI
 
+private enum DisplayFormatter {
+    static let currency: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencySymbol = "¥"
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+
+    static let decimal: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+
+    static let compactDecimal: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 1
+        return formatter
+    }()
+
+    static let scientific: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .scientific
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 1
+        return formatter
+    }()
+
+    static let shortDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "MM/dd"
+        return formatter
+    }()
+
+    static let fullDate: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年MM月dd日"
+        return formatter
+    }()
+
+    static let monthYear: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.dateFormat = "yyyy年MM月"
+        return formatter
+    }()
+}
+
 /// 颜色辅助扩展
 extension Color {
     init(hex: String) {
@@ -30,41 +86,41 @@ extension Color {
 /// 金额格式化
 extension Decimal {
     var formattedCurrency: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.currencySymbol = "¥"
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: self as NSDecimalNumber) ?? "¥0.00"
+        DisplayFormatter.currency.string(from: self as NSDecimalNumber) ?? "¥0.00"
     }
 
     var formattedAmount: String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: self as NSDecimalNumber) ?? "0.00"
+        DisplayFormatter.decimal.string(from: self as NSDecimalNumber) ?? "0.00"
+    }
+
+    /// 用于紧凑列表，防止异常大的金额破坏交易行布局；详情页仍保留完整金额。
+    var formattedCompactAmount: String {
+        let magnitude = abs(self)
+        switch magnitude {
+        case ..<10_000:
+            return formattedAmount
+        case ..<100_000_000:
+            return "\(DisplayFormatter.compactDecimal.string(from: (self / 10_000) as NSDecimalNumber) ?? "0")万"
+        case ..<10_000_000_000_000_000:
+            return "\(DisplayFormatter.compactDecimal.string(from: (self / 100_000_000) as NSDecimalNumber) ?? "0")亿"
+        default:
+            return DisplayFormatter.scientific.string(from: self as NSDecimalNumber) ?? formattedAmount
+        }
     }
 }
 
 /// 日期格式化
 extension Date {
     var shortDateString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd"
-        return formatter.string(from: self)
+        DisplayFormatter.shortDate.string(from: self)
     }
 
     var fullDateString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日"
-        return formatter.string(from: self)
+        DisplayFormatter.fullDate.string(from: self)
     }
 
     var monthYearString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月"
-        return formatter.string(from: self)
+        DisplayFormatter.monthYear.string(from: self)
     }
 
     var isToday: Bool {

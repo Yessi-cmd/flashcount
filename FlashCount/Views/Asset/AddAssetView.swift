@@ -12,6 +12,7 @@ struct AddAssetView: View {
     @State private var type: AssetType = .bankCard
     @State private var balanceText = ""
     @State private var selectedColor = "#667EEA"
+    @State private var saveError: String?
 
     private var isEditing: Bool { editAsset != nil }
 
@@ -106,6 +107,7 @@ struct AddAssetView: View {
                     selectedColor = asset.colorHex
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -121,7 +123,10 @@ struct AddAssetView: View {
             let asset = Asset(name: name, type: type, balance: balance, colorHex: selectedColor)
             modelContext.insert(asset)
         }
-        try? modelContext.save()
-        dismiss()
+        if let error = safeSave(modelContext) {
+            saveError = error
+        } else {
+            dismiss()
+        }
     }
 }

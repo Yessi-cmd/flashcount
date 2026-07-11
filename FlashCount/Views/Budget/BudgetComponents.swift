@@ -4,6 +4,7 @@ import SwiftData
 /// 预算概览卡片 - 进度条 + 百分比
 struct BudgetOverviewCard: View {
     let analysis: BudgetAnalysis
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 16) {
@@ -25,7 +26,7 @@ struct BudgetOverviewCard: View {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(progressGradient)
                             .frame(width: min(geo.size.width * CGFloat(min(analysis.usagePercent, 1.0)), geo.size.width), height: 12)
-                            .animation(.spring(response: 0.8), value: analysis.usagePercent)
+                            .animation(reduceMotion ? nil : DesignSystem.emphasisAnimation, value: analysis.usagePercent)
                     }
                 }
                 .frame(height: 12)
@@ -52,7 +53,7 @@ struct BudgetOverviewCard: View {
                 budgetPill(title: "今日可花", value: analysis.dailyAllowance.formattedCurrency, color: DesignSystem.primaryColor)
             }
         }
-        .glassCard()
+        .heroCard(accent: alertColor)
     }
 
     private func budgetPill(title: String, value: String, color: Color) -> some View {

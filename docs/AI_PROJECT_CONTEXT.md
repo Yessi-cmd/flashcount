@@ -1,7 +1,7 @@
 # FlashCount AI Project Context
 
 Last scanned: 2026-06-28
-Last updated after implementation: 2026-06-28
+Last updated after implementation: 2026-07-11
 Repository: `/Users/zhongyan/Code/Playground/flashcount`
 Current branch at scan time: `main`
 
@@ -40,13 +40,13 @@ open FlashCount.xcodeproj
 
 Observed with `xcodebuild -list -project FlashCount.xcodeproj`:
 
-- Target: `FlashCount`
+- Targets: `FlashCount`, `FlashCountTests`
 - Scheme: `FlashCount`
 - Build configurations: `Debug`, `Release`
 
 Important: `FlashCountWidget/` exists, but it is not referenced by `project.yml` or `FlashCount.xcodeproj` at scan time. `xcodebuild -list` reports only the main app target. If implementing or fixing Widget behavior, first add a Widget Extension target to `project.yml` and regenerate the Xcode project.
 
-There are no test targets or test files in the repository at scan time.
+`FlashCountTests/FinanceDomainTests.swift` provides regression coverage for budget/pay-cycle calculations, recurring processing and month-end anchors, CSV financial consistency, and backup replace/version compatibility.
 
 ## Worktree State At Scan Time
 
@@ -194,8 +194,8 @@ File: `FlashCount/Services/RecurringService.swift`
 
 - Fetches active recurring rules.
 - Generates missing transactions while `nextDueDate <= now`.
-- Advances `nextDueDate` by rule frequency.
-- Saves once at the end.
+- Advances `nextDueDate` by rule frequency while preserving the original month-end anchor day.
+- Saves each generated transaction, cash-pool delta, and rule cursor atomically.
 
 Current behavior: this service is called by `DefaultDataService` during app startup.
 
@@ -205,7 +205,7 @@ File: `FlashCount/Services/BudgetAnalyzer.swift`
 
 - Pure calculation helper for monthly budget analytics.
 - Computes elapsed days, remaining days, daily average, projected total, remaining budget, daily allowance, usage percentage, and alert level.
-- Good candidate for unit tests if tests are added.
+- Covered by a projected-overspend unit test.
 
 ### ReportService
 
@@ -220,9 +220,10 @@ File: `FlashCount/Services/ReportService.swift`
 File: `FlashCount/Services/DataBackupService.swift`
 
 - Exports/imports full app data as JSON.
-- Backup schema version currently `1.2.0`.
-- DTOs convert `Decimal` to `Double`, so be careful if exact decimal precision becomes a product requirement.
-- Import order: categories and ledgers first, then transactions, assets, physical assets, recurring rules, budgets.
+- Backup schema version is `1.6.0`; money is encoded as decimal strings while legacy numeric values remain readable.
+- Imports validate the supported backup version before mutation.
+- Replace mode stages deletion, import, default-data repair, and single-ledger consolidation in one SwiftData save.
+- Import order: categories and ledgers first, then transactions, assets, physical assets, recurring rules, budgets, cash-pool data, installments, savings goals, and templates.
 
 ### ErrorHandling And Data Repair
 
@@ -429,18 +430,13 @@ Preserve these assumptions unless the user explicitly asks for cloud/network fea
 
 Latest verification:
 
-- `xcodegen generate` completed.
-- `xcrun swiftc -typecheck ...` completed successfully outside the sandbox, required because SwiftData macros need the Swift plugin server.
-- `git diff --check` completed.
-- `xcodebuild -list -project FlashCount.xcodeproj` completed and reported target/scheme `FlashCount`.
-- Full `xcodebuild ... build` reached the project but failed in asset catalog compilation due local CoreSimulator/actool environment errors: `No available simulator runtimes for platform iphonesimulator`.
+- Unsigned generic iOS `xcodebuild ... build` completed successfully.
+- The iPhone 17 Pro simulator test run completed 8 tests with 0 failures.
 
 Known verification gaps:
 
-- No automated tests exist.
 - Widget target is not wired, so Widget source is not covered by the current project target.
-- Recurring-rule processing needs manual or test verification after startup-flow changes.
-- Backup import/export should be tested with duplicate categories, duplicate ledgers, missing ledger IDs, and existing transaction IDs.
+- Backup and CSV tests use in-memory SwiftData, but filesystem failure injection and very large import performance are not covered.
 - Reminder notifications need device testing because local notification delivery depends on iOS notification settings and Focus modes.
 
 ## Suggested High-Value Next Improvements
@@ -449,7 +445,7 @@ If asked to improve the project further, good next candidates are:
 
 1. Connect App Intent / Widget / deep link behavior so shortcuts open quick entry directly.
 2. Add the Widget Extension target to `project.yml` or remove stale Widget references if not planned.
-3. Add unit tests for `BudgetAnalyzer`, `BudgetReminderService`, `RecurringFrequency.nextDate`, physical asset sale math, and backup import de-duplication.
+3. Extend tests to `BudgetReminderService`, physical asset sale math, reminder file failures, and large backup/CSV imports.
 4. Add full custom category management.
 5. Add edit/delete support for recurring rules.
 6. Add optional reminder repeat rules or snooze actions if reminders become a core workflow.

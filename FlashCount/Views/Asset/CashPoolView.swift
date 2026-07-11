@@ -248,7 +248,9 @@ struct CashPoolView: View {
             Button(role: .destructive) {
                 item.isArchived = true
                 item.updatedAt = Date()
-                try? modelContext.save()
+                if let error = safeSave(modelContext) {
+                    saveError = error
+                }
             } label: {
                 Label("归档", systemImage: "archivebox")
             }

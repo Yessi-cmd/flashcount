@@ -6,13 +6,39 @@ import Charts
 struct ReportView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedPeriod: ReportPeriod = .weekly
     @State private var reportData: ReportData?
+    @State private var reportError: String?
+    @Query private var recentTransactions: [Transaction]
+
+    init() {
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -90, to: calendar.startOfDay(for: Date())) ?? .distantPast
+        _recentTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: \Transaction.date,
+            order: .reverse
+        )
+    }
+
+    /// 用于触发报表刷新。保持值类型摘要，避免为全部交易分配大型拼接字符串。
+    private var transactionDigest: Int {
+        var hasher = Hasher()
+        for transaction in recentTransactions {
+            hasher.combine(transaction.id)
+            hasher.combine(transaction.amount)
+            hasher.combine(transaction.isExpense)
+            hasher.combine(transaction.date)
+            hasher.combine(transaction.category?.id)
+        }
+        return hasher.finalize()
+    }
 
     var body: some View {
         NavigationStack {
             ZStack {
-                DesignSystem.surfaceBackground.ignoresSafeArea()
+                AmbientBackground(accent: DesignSystem.primaryColor)
 
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
@@ -42,6 +68,15 @@ struct ReportView: View {
             .onAppear { generateReport() }
             .onChange(of: selectedPeriod) { generateReport() }
             .onChange(of: privacyLock.isUnlocked) { generateReport() }
+            .onChange(of: transactionDigest) { generateReport() }
+            .alert("报表读取失败", isPresented: Binding(
+                get: { reportError != nil },
+                set: { if !$0 { reportError = nil } }
+            )) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(reportError ?? "")
+            }
         }
     }
 
@@ -49,8 +84,13 @@ struct ReportView: View {
 
     private func generateReport() {
         let service = ReportService(modelContext: modelContext)
-        withAnimation(.easeInOut(duration: 0.3)) {
-            reportData = service.generateReport(period: selectedPeriod, includePrivateIncome: privacyLock.isUnlocked)
+        do {
+            let data = try service.generateReport(period: selectedPeriod, includePrivateIncome: privacyLock.isUnlocked)
+            withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
+                reportData = data
+            }
+        } catch {
+            reportError = error.localizedDescription
         }
     }
 
@@ -60,7 +100,7 @@ struct ReportView: View {
         HStack(spacing: 0) {
             ForEach(ReportPeriod.allCases, id: \.self) { period in
                 Button {
-                    withAnimation(.spring(response: 0.3)) { selectedPeriod = period }
+                    withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) { selectedPeriod = period }
                 } label: {
                     Text(period.rawValue)
                         .font(.subheadline.weight(.semibold))
@@ -102,18 +142,30 @@ struct ReportView: View {
     // MARK: - 概览卡片
 
     private func summaryCard(data: ReportData) -> some View {
-        HStack(spacing: 0) {
-            summaryItem(title: "支出", amount: data.totalExpense, color: DesignSystem.expenseColor, change: data.expenseChange)
-            summaryItem(title: "收入", amount: data.totalIncome, color: DesignSystem.incomeColor, change: data.incomeChange, masked: data.hasHiddenPrivateIncome)
-            VStack(spacing: 4) {
-                Text("结余").font(.caption).foregroundStyle(DesignSystem.textTertiary)
-                Text(data.hasHiddenPrivateIncome ? privacyLock.maskedText : data.netChange.formattedCurrency)
-                    .font(.subheadline.weight(.bold).monospacedDigit())
+        VStack(alignment: .leading, spacing: DesignSystem.space16) {
+            HStack {
+                Text(data.period == .weekly ? "本周资金概览" : "本月资金概览")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(DesignSystem.textSecondary)
+                Spacer()
+                Label(data.netChange >= 0 ? "有结余" : "需关注", systemImage: data.netChange >= 0 ? "arrow.up.right" : "exclamationmark.triangle.fill")
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
             }
-            .frame(maxWidth: .infinity)
+
+            HStack(spacing: 0) {
+                summaryItem(title: "支出", amount: data.totalExpense, color: DesignSystem.expenseColor, change: data.expenseChange)
+                summaryItem(title: "收入", amount: data.totalIncome, color: DesignSystem.incomeColor, change: data.incomeChange, masked: data.hasHiddenPrivateIncome)
+                VStack(spacing: 4) {
+                    Text("结余").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                    Text(data.hasHiddenPrivateIncome ? privacyLock.maskedText : data.netChange.formattedCurrency)
+                        .font(.subheadline.weight(.bold).monospacedDigit())
+                        .foregroundStyle(data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
-        .glassCard()
+        .heroCard(accent: data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
         .overlay(alignment: .bottom) {
             if data.hasHiddenPrivateIncome {
                 Button {

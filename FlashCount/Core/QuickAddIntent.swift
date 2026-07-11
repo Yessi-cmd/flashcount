@@ -1,5 +1,9 @@
 import AppIntents
 
+enum QuickEntryRoute {
+    static let requestKey = "shouldShowQuickEntry"
+}
+
 /// 快速记账 App Intent
 /// 用于 Siri / iOS Shortcuts / Back Tap / 锁屏 Widget
 struct QuickAddExpenseIntent: AppIntent {
@@ -8,7 +12,7 @@ struct QuickAddExpenseIntent: AppIntent {
     static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
-        // 打开 App 后由 MainTabView 处理显示快速记账页面
+        UserDefaults.standard.set(true, forKey: QuickEntryRoute.requestKey)
         return .result()
     }
 }

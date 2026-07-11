@@ -43,7 +43,7 @@ final class ReportService {
     }
 
     /// 生成报表
-    func generateReport(period: ReportPeriod, includePrivateIncome: Bool = true) -> ReportData {
+    func generateReport(period: ReportPeriod, includePrivateIncome: Bool = true) throws -> ReportData {
         let calendar = Calendar.current
         let now = Date()
 
@@ -51,8 +51,8 @@ final class ReportService {
         let (currentStart, currentEnd, previousStart, previousEnd) = dateRanges(for: period, from: now, calendar: calendar)
 
         // 获取交易
-        let currentTransactions = fetchTransactions(from: currentStart, to: currentEnd)
-        let previousTransactions = fetchTransactions(from: previousStart, to: previousEnd)
+        let currentTransactions = try fetchTransactions(from: currentStart, to: currentEnd)
+        let previousTransactions = try fetchTransactions(from: previousStart, to: previousEnd)
         let hasHiddenPrivateIncome = !includePrivateIncome && currentTransactions.contains { $0.isProtectedIncome }
         let incomeTransactions = currentTransactions.filter { !$0.isExpense && (includePrivateIncome || !$0.isProtectedIncome) }
         let previousIncomeTransactions = previousTransactions.filter { !$0.isExpense && (includePrivateIncome || !$0.isProtectedIncome) }
@@ -83,14 +83,15 @@ final class ReportService {
         )
 
         // 连续记账天数
-        let streakDays = calculateStreak(calendar: calendar)
+        let streakDays = try calculateStreak(calendar: calendar)
 
         // 消费洞察
         let insights = generateInsights(
             categoryBreakdown: categoryBreakdown,
             totalExpense: totalExpense,
             expenseChange: expenseChange,
-            period: period
+            period: period,
+            transactions: currentTransactions.filter(\.isExpense)
         )
 
         return ReportData(
@@ -113,25 +114,32 @@ final class ReportService {
     private func dateRanges(for period: ReportPeriod, from date: Date, calendar: Calendar) -> (Date, Date, Date, Date) {
         switch period {
         case .weekly:
-            let weekStart = calendar.dateInterval(of: .weekOfYear, for: date)!.start
-            let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart)!
-            let prevStart = calendar.date(byAdding: .day, value: -7, to: weekStart)!
-            return (weekStart, weekEnd, prevStart, weekStart)
+            guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date),
+                  let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekInterval.start),
+                  let prevStart = calendar.date(byAdding: .day, value: -7, to: weekInterval.start)
+            else {
+                let today = Date()
+                return (today, today, today, today)
+            }
+            return (weekInterval.start, weekEnd, prevStart, weekInterval.start)
         case .monthly:
-            let monthStart = calendar.dateInterval(of: .month, for: date)!.start
-            let monthEnd = calendar.dateInterval(of: .month, for: date)!.end
-            let prevMonthStart = calendar.date(byAdding: .month, value: -1, to: monthStart)!
-            return (monthStart, monthEnd, prevMonthStart, monthStart)
+            guard let monthInterval = calendar.dateInterval(of: .month, for: date),
+                  let prevMonthStart = calendar.date(byAdding: .month, value: -1, to: monthInterval.start)
+            else {
+                let today = Date()
+                return (today, today, today, today)
+            }
+            return (monthInterval.start, monthInterval.end, prevMonthStart, monthInterval.start)
         }
     }
 
-    private func fetchTransactions(from start: Date, to end: Date) -> [Transaction] {
+    private func fetchTransactions(from start: Date, to end: Date) throws -> [Transaction] {
         let descriptor = FetchDescriptor<Transaction>(
             predicate: #Predicate<Transaction> { t in
                 t.date >= start && t.date < end
             }
         )
-        return (try? modelContext.fetch(descriptor)) ?? []
+        return try modelContext.fetch(descriptor)
     }
 
     private func buildCategoryBreakdown(transactions: [Transaction], totalExpense: Decimal, previousTransactions: [Transaction]) -> [CategorySpending] {
@@ -157,6 +165,12 @@ final class ReportService {
     }
 
     private func buildDailyExpenses(transactions: [Transaction], start: Date, end: Date, period: ReportPeriod, calendar: Calendar) -> [(String, Decimal)] {
+        var totalsByDay: [Date: Decimal] = [:]
+        for transaction in transactions {
+            let day = calendar.startOfDay(for: transaction.date)
+            totalsByDay[day, default: 0] += transaction.amount
+        }
+
         var result: [(String, Decimal)] = []
         var current = start
         let formatter = DateFormatter()
@@ -164,19 +178,16 @@ final class ReportService {
         formatter.dateFormat = period == .weekly ? "E" : "d"
 
         while current < end {
-            let dayEnd = calendar.date(byAdding: .day, value: 1, to: current)!
-            let dayTotal = transactions
-                .filter { $0.date >= current && $0.date < dayEnd }
-                .reduce(Decimal(0)) { $0 + $1.amount }
-            result.append((formatter.string(from: current), dayTotal))
-            current = dayEnd
+            result.append((formatter.string(from: current), totalsByDay[current, default: 0]))
+            current = calendar.date(byAdding: .day, value: 1, to: current)!
         }
         return result
     }
 
-    private func calculateStreak(calendar: Calendar) -> Int {
+    private func calculateStreak(calendar: Calendar) throws -> Int {
         let descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\.date, order: .reverse)])
-        guard let transactions = try? modelContext.fetch(descriptor), !transactions.isEmpty else { return 0 }
+        let transactions = try modelContext.fetch(descriptor)
+        guard !transactions.isEmpty else { return 0 }
 
         let loggedDays = Set(transactions.map { calendar.startOfDay(for: $0.date) })
         var streak = 0
@@ -192,7 +203,7 @@ final class ReportService {
         return streak
     }
 
-    private func generateInsights(categoryBreakdown: [CategorySpending], totalExpense: Decimal, expenseChange: Double?, period: ReportPeriod) -> [String] {
+    private func generateInsights(categoryBreakdown: [CategorySpending], totalExpense: Decimal, expenseChange: Double?, period: ReportPeriod, transactions: [Transaction]) -> [String] {
         var insights: [String] = []
         let periodName = period == .weekly ? "本周" : "本月"
 
@@ -223,6 +234,15 @@ final class ReportService {
                 let pct = Int(abs(change) * 100)
                 let arrow = change > 0 ? "↑" : "↓"
                 insights.append("🔍 \(cat.categoryName) \(arrow) \(pct)%（对比上期）")
+            }
+        }
+
+        let amounts = transactions.map(\.amount).sorted()
+        if amounts.count >= 4 {
+            let median = amounts[amounts.count / 2]
+            if let unusual = transactions.max(by: { $0.amount < $1.amount }), median > 0, unusual.amount >= median * 3 {
+                let name = unusual.category?.reportDisplayName ?? "未分类"
+                insights.append("🔔 发现一笔较平时偏高的\(name)支出：\(unusual.amount.formattedCurrency)")
             }
         }
 

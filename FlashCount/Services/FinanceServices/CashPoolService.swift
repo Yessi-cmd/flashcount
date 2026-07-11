@@ -22,8 +22,16 @@ final class CashPoolService {
     }
 
     func state() -> CashPoolState {
-        if let existing = try? modelContext.fetch(FetchDescriptor<CashPoolState>()).first {
-            return existing
+        let descriptor = FetchDescriptor<CashPoolState>(
+            sortBy: [SortDescriptor(\CashPoolState.updatedAt, order: .reverse)]
+        )
+        if let states = try? modelContext.fetch(descriptor), let primary = states.first {
+            // Historical imports could create more than one state. Consolidate
+            // the duplicates into the newest record before any further mutation.
+            for duplicate in states.dropFirst() {
+                modelContext.delete(duplicate)
+            }
+            return primary
         }
         let state = CashPoolState()
         modelContext.insert(state)
@@ -56,5 +64,13 @@ final class CashPoolService {
         let currentState = state()
         currentState.transactionDelta = targetAmount - manualTotal(items: items) + installmentLiability
         currentState.updatedAt = Date()
+    }
+
+    /// Applies deltas for newly imported transactions when merging a backup
+    /// into an existing local data set. A complete restore imports the saved
+    /// state instead, so this deliberately accepts an explicit aggregate.
+    func applyImportedTransactionDeltas(_ delta: Decimal) {
+        guard delta != 0 else { return }
+        apply(delta: delta)
     }
 }

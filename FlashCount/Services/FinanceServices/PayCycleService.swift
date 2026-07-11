@@ -18,8 +18,7 @@ struct PayCycle {
 }
 
 enum PayCycleService {
-    static func cycle(containing date: Date = Date(), payday: Int) -> PayCycle {
-        let calendar = Calendar.current
+    static func cycle(containing date: Date = Date(), payday: Int, calendar: Calendar = .current) -> PayCycle {
         let normalizedPayday = min(max(payday, 1), 31)
         let dayStart = calendar.startOfDay(for: date)
         let components = calendar.dateComponents([.year, .month], from: dayStart)

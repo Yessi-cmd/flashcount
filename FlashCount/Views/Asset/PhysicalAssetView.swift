@@ -9,6 +9,8 @@ struct PhysicalAssetView: View {
     @State private var showAddAsset = false
     @State private var editingAsset: PhysicalAsset?
     @State private var sellingAsset: PhysicalAsset?
+    @State private var confirmDeleteAsset: PhysicalAsset?
+    @State private var saveError: String?
     @AppStorage("hideAssetBalance") private var hideAssetBalance = true
 
     private var activeAssets: [PhysicalAsset] { assets.filter { !$0.isArchived } }
@@ -67,6 +69,27 @@ struct PhysicalAssetView: View {
             }
             .sheet(item: $sellingAsset) { asset in
                 SellPhysicalAssetView(asset: asset)
+            }
+            .saveErrorAlert($saveError)
+            .alert("确认删除", isPresented: .init(
+                get: { confirmDeleteAsset != nil },
+                set: { if !$0 { confirmDeleteAsset = nil } }
+            )) {
+                Button("取消", role: .cancel) { confirmDeleteAsset = nil }
+                Button("删除", role: .destructive) {
+                    if let asset = confirmDeleteAsset {
+                        withAnimation {
+                            modelContext.delete(asset)
+                            if let error = safeSave(modelContext) {
+                                // 静默处理：资产页面没有单独的 saveError state
+                                print("删除实物资产失败: \(error)")
+                            }
+                        }
+                    }
+                    confirmDeleteAsset = nil
+                }
+            } message: {
+                Text("删除后无法恢复，确定要删除「\(confirmDeleteAsset?.name ?? "")」吗？")
             }
         }
     }
@@ -127,17 +150,14 @@ struct PhysicalAssetView: View {
                             Label("出售", systemImage: "yensign.circle")
                         }
                         Button(role: .destructive) {
-                            withAnimation {
-                                modelContext.delete(asset)
-                                try? modelContext.save()
-                            }
+                            confirmDeleteAsset = asset
                         } label: {
                             Label("删除", systemImage: "trash")
                         }
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
-                            modelContext.delete(asset); try? modelContext.save()
+                            confirmDeleteAsset = asset
                         } label: { Label("删除", systemImage: "trash") }
                     }
                     .swipeActions(edge: .leading) {
@@ -184,15 +204,14 @@ struct PhysicalAssetView: View {
                         asset.isArchived = false
                         asset.soldPrice = nil
                         asset.soldDate = nil
-                        try? modelContext.save()
+                        if let error = safeSave(modelContext) {
+                            saveError = error
+                        }
                     } label: {
                         Label("恢复为持有中", systemImage: "arrow.uturn.backward")
                     }
                     Button(role: .destructive) {
-                        withAnimation {
-                            modelContext.delete(asset)
-                            try? modelContext.save()
-                        }
+                        confirmDeleteAsset = asset
                     } label: {
                         Label("删除", systemImage: "trash")
                     }
@@ -329,6 +348,7 @@ struct AddPhysicalAssetView: View {
     @State private var salvageValueText = ""
     @State private var targetDailyCostText = ""
     @State private var note = ""
+    @State private var saveError: String?
 
     var isEditing: Bool { editAsset != nil }
 
@@ -447,6 +467,7 @@ struct AddPhysicalAssetView: View {
                 }
             }
             .onAppear { loadEditData() }
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -503,8 +524,11 @@ struct AddPhysicalAssetView: View {
             )
             modelContext.insert(asset)
         }
-        try? modelContext.save()
-        dismiss()
+        if let error = safeSave(modelContext) {
+            saveError = error
+        } else {
+            dismiss()
+        }
     }
 }
 
@@ -518,6 +542,7 @@ struct SellPhysicalAssetView: View {
     @State private var soldPriceText: String
     @State private var soldDate: Date
     @State private var note: String
+    @State private var saveError: String?
 
     init(asset: PhysicalAsset) {
         self.asset = asset
@@ -631,6 +656,7 @@ struct SellPhysicalAssetView: View {
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
+            .saveErrorAlert($saveError)
         }
     }
 
@@ -640,7 +666,10 @@ struct SellPhysicalAssetView: View {
         asset.soldDate = soldDate
         asset.note = note
         asset.isArchived = true
-        try? modelContext.save()
-        dismiss()
+        if let error = safeSave(modelContext) {
+            saveError = error
+        } else {
+            dismiss()
+        }
     }
 }

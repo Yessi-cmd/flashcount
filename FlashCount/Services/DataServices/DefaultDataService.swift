@@ -11,17 +11,29 @@ final class DefaultDataService {
     }
 
     func prepareAppData() {
-        ensureDefaultLedgers()
-        ensureDefaultCategories()
-        ensureDefaultTemplates()
-        try? modelContext.save()
+        do {
+            try stageDefaultData()
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            print("默认数据初始化失败: \(error.localizedDescription)")
+            return
+        }
 
         let recurringService = RecurringService(modelContext: modelContext)
         recurringService.processAllDueRules()
     }
 
-    private func ensureDefaultLedgers() {
-        let existing = (try? modelContext.fetch(FetchDescriptor<Ledger>())) ?? []
+    /// 在当前 ModelContext 中准备默认数据，但不主动保存。
+    /// 供备份恢复将删除、导入和单账本整理放进同一次数据库提交。
+    func stageDefaultData() throws {
+        try ensureDefaultLedgers()
+        try ensureDefaultCategories()
+        try ensureDefaultTemplates()
+    }
+
+    private func ensureDefaultLedgers() throws {
+        let existing = try modelContext.fetch(FetchDescriptor<Ledger>())
         let existingNames = Set(existing.map(\.name))
         let appendMode = !existing.isEmpty
         var nextSortOrder = ((existing.map(\.sortOrder).max()) ?? -1) + 1
@@ -34,21 +46,26 @@ final class DefaultDataService {
             modelContext.insert(ledger)
         }
 
-        let refreshed = (try? modelContext.fetch(FetchDescriptor<Ledger>())) ?? existing
-        if !refreshed.contains(where: \.isDefault), let preferred = refreshed.first(where: { $0.name == "生活" }) ?? refreshed.first {
-            preferred.isDefault = true
-        }
+        let refreshed = try modelContext.fetch(FetchDescriptor<Ledger>())
+        guard let primary = refreshed.first(where: { $0.name == "生活" }) ?? refreshed.first else { return }
+        primary.isDefault = true
+        primary.isArchived = false
 
-        for ledger in refreshed where ledger.name == "生意" && ledger.transactions.isEmpty && ledger.budgets.isEmpty && ledger.recurringRules.isEmpty {
+        // The product is single-ledger. Preserve historical records by moving
+        // them to the primary ledger before deleting legacy containers.
+        for ledger in refreshed where ledger.id != primary.id {
+            for transaction in ledger.transactions { transaction.ledger = primary }
+            for budget in ledger.budgets { budget.ledger = primary }
+            for rule in ledger.recurringRules { rule.ledger = primary }
             modelContext.delete(ledger)
         }
     }
 
-    private func ensureDefaultCategories() {
-        let existing = (try? modelContext.fetch(FetchDescriptor<Category>())) ?? []
+    private func ensureDefaultCategories() throws {
+        let existing = try modelContext.fetch(FetchDescriptor<Category>())
         ensureCategories(Category.defaultExpenseCategories(), isExpense: true, existing: existing)
         ensureCategories(Category.defaultIncomeCategories(), isExpense: false, existing: existing)
-        archiveLegacyExpenseCategories()
+        try archiveLegacyExpenseCategories()
     }
 
     private func ensureCategories(_ defaults: [Category], isExpense: Bool, existing: [Category]) {
@@ -69,17 +86,17 @@ final class DefaultDataService {
         }
     }
 
-    private func archiveLegacyExpenseCategories() {
+    private func archiveLegacyExpenseCategories() throws {
         let legacyNames = Category.archivedLegacyExpenseCategoryNames()
-        let categories = (try? modelContext.fetch(FetchDescriptor<Category>())) ?? []
+        let categories = try modelContext.fetch(FetchDescriptor<Category>())
 
         for category in categories where category.isExpense && legacyNames.contains(category.name) {
             category.isArchived = true
         }
     }
 
-    private func ensureDefaultTemplates() {
-        let existing = (try? modelContext.fetch(FetchDescriptor<TransactionTemplate>())) ?? []
+    private func ensureDefaultTemplates() throws {
+        let existing = try modelContext.fetch(FetchDescriptor<TransactionTemplate>())
         guard existing.isEmpty else { return } // 只首次安装时写入
         for template in TransactionTemplate.defaultTemplates() {
             modelContext.insert(template)

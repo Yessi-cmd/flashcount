@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		009547089DC9F725E34E80F1 /* Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B517332913BF860F9A5593AC /* Budget.swift */; };
+		034521543E79940405F4C51F /* CSVTransactionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */; };
 		053C79ED47833B74864A2F20 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF30FA16DCE6E0385B858671 /* OnboardingView.swift */; };
 		06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA07EB27C4CAF30E53F187FB /* LedgerView.swift */; };
 		0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */; };
@@ -21,6 +22,7 @@
 		25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */; };
 		29A922DE0C8EC201C201181D /* InstallmentBillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62F04AD8E1487702754644DD /* InstallmentBillView.swift */; };
 		2B5D41A4F0E108AF9B69568C /* FlashCountApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5135CC79D6F54B517077FC78 /* FlashCountApp.swift */; };
+		32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */; };
 		33AC277FE5E36B92BDAEDFF2 /* InstallmentBill.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44850532ED0D315BFCB16D9 /* InstallmentBill.swift */; };
 		3598F1C79B571778BC11A2E3 /* PayCycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8FC52EA4884A4B39278E912 /* PayCycleService.swift */; };
 		37313D9C291DC910A0373683 /* BudgetReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8000784A9F364513ECB6E916 /* BudgetReminderService.swift */; };
@@ -60,6 +62,16 @@
 		FD22C948714225832CA36F1E /* ReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E84B09AC458C202DD5AB64A /* ReportService.swift */; };
 		FE3F5BF744046B84CA2050D6 /* CashPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D00BC2D91830E9EF101E56 /* CashPool.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		506DDBACC373561A23CCD4BC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2A0D6562311AC34A1F3D04EB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = CEA7B1E343522F154C31F430;
+			remoteInfo = FlashCount;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		01515A08E90F3CA3A92FB9E9 /* ReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderNotificationService.swift; sourceTree = "<group>"; };
@@ -107,12 +119,15 @@
 		C8FC52EA4884A4B39278E912 /* PayCycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayCycleService.swift; sourceTree = "<group>"; };
 		CA07EB27C4CAF30E53F187FB /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerView.swift; sourceTree = "<group>"; };
 		D4F8BA17A1077C74363D442E /* DefaultDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultDataService.swift; sourceTree = "<group>"; };
+		DAD6025983922DA094678787 /* FlashCountTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FlashCountTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DC429AB33ED6D42759B6E578 /* ReminderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderStore.swift; sourceTree = "<group>"; };
 		DF30FA16DCE6E0385B858671 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateBarView.swift; sourceTree = "<group>"; };
 		E44850532ED0D315BFCB16D9 /* InstallmentBill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBill.swift; sourceTree = "<group>"; };
 		EE30225D24B9028D99C97465 /* ReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderView.swift; sourceTree = "<group>"; };
 		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceDomainTests.swift; sourceTree = "<group>"; };
+		F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionService.swift; sourceTree = "<group>"; };
 		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
 		FBFD2135FE36029863FB0A1A /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -158,6 +173,7 @@
 			isa = PBXGroup;
 			children = (
 				5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */,
+				DAD6025983922DA094678787 /* FlashCountTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -174,6 +190,7 @@
 		24A4F862F259E8E002ED6E13 /* DataServices */ = {
 			isa = PBXGroup;
 			children = (
+				F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */,
 				833EE24295DF6CB4E0ADCD9E /* DataBackupService.swift */,
 				D4F8BA17A1077C74363D442E /* DefaultDataService.swift */,
 				DC429AB33ED6D42759B6E578 /* ReminderStore.swift */,
@@ -210,6 +227,14 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		3B31798344ABC690FC721EAD /* FlashCountTests */ = {
+			isa = PBXGroup;
+			children = (
+				F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */,
+			);
+			path = FlashCountTests;
+			sourceTree = "<group>";
+		};
 		47673916186769F67FFA8A09 /* SystemServices */ = {
 			isa = PBXGroup;
 			children = (
@@ -231,6 +256,7 @@
 			isa = PBXGroup;
 			children = (
 				18C415E3AE708EE698FBE5FC /* FlashCount */,
+				3B31798344ABC690FC721EAD /* FlashCountTests */,
 				1A35A800111501BFB954938B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -374,6 +400,24 @@
 			productReference = 5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */;
 			productType = "com.apple.product-type.application";
 		};
+		ED8C58C12CCC585C389EF23F /* FlashCountTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4F21CD3E9BCB24298660F23D /* Build configuration list for PBXNativeTarget "FlashCountTests" */;
+			buildPhases = (
+				0692B864A377C1B75BE228D4 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				572C6DF40D83E3A5FEDF990A /* PBXTargetDependency */,
+			);
+			name = FlashCountTests;
+			packageProductDependencies = (
+			);
+			productName = FlashCountTests;
+			productReference = DAD6025983922DA094678787 /* FlashCountTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -398,6 +442,7 @@
 			projectRoot = "";
 			targets = (
 				CEA7B1E343522F154C31F430 /* FlashCount */,
+				ED8C58C12CCC585C389EF23F /* FlashCountTests */,
 			);
 		};
 /* End PBXProject section */
@@ -414,6 +459,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		0692B864A377C1B75BE228D4 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BCDAF86C124A45FAD721FC35 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -427,6 +480,7 @@
 				DF3833A27A9AC1A6E0042549 /* BudgetComponents.swift in Sources */,
 				37313D9C291DC910A0373683 /* BudgetReminderService.swift in Sources */,
 				E5F01D6D9E75A893B253FD5F /* BudgetView.swift in Sources */,
+				034521543E79940405F4C51F /* CSVTransactionService.swift in Sources */,
 				A13EA735400140C43507A11A /* CalendarView.swift in Sources */,
 				FE3F5BF744046B84CA2050D6 /* CashPool.swift in Sources */,
 				13AC61775C4DCB3F2B84C126 /* CashPoolService.swift in Sources */,
@@ -474,6 +528,14 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		572C6DF40D83E3A5FEDF990A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = CEA7B1E343522F154C31F430 /* FlashCount */;
+			targetProxy = 506DDBACC373561A23CCD4BC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
 		0F188CD2445B0EB99A852CC2 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -481,6 +543,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 66WCCRKRLC;
 				INFOPLIST_KEY_CFBundleDisplayName = FlashCount;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "用于解锁工资、资金池、储蓄目标和分期账单等隐私金额";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -492,6 +555,7 @@
 					"@executable_path/Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.app;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = 1;
@@ -629,6 +693,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = "";
 				INFOPLIST_KEY_CFBundleDisplayName = FlashCount;
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "用于解锁工资、资金池、储蓄目标和分期账单等隐私金额";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -646,9 +711,50 @@
 			};
 			name = Debug;
 		};
+		E9B881A005B2B71A8CC27833 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.FlashCountTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FlashCount.app/FlashCount";
+			};
+			name = Debug;
+		};
+		EE654D267DD717A4276B1A2D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.flashcount.FlashCountTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/FlashCount.app/FlashCount";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		4F21CD3E9BCB24298660F23D /* Build configuration list for PBXNativeTarget "FlashCountTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E9B881A005B2B71A8CC27833 /* Debug */,
+				EE654D267DD717A4276B1A2D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		B477BC4F0AE3344E77BB30CB /* Build configuration list for PBXNativeTarget "FlashCount" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
