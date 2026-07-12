@@ -1,60 +1,12 @@
 import SwiftUI
 import SwiftData
 
-enum LedgerPeriodFilter: String, CaseIterable {
-    case today = "今天"
-    case thisWeek = "本周"
-    case payCycle = "本周期"
-    case thisMonth = "本月"
-    case all = "全部"
-    case custom = "自定义"
-
-    var metricPrefix: String {
-        switch self {
-        case .today: return "今日"
-        case .thisWeek: return "本周"
-        case .payCycle: return "本周期"
-        case .thisMonth: return "本月"
-        case .all: return "全部"
-        case .custom: return "所选范围"
-        }
-    }
-
-    func dateRange(
-        referenceDate: Date,
-        payday: Int,
-        customStart: Date,
-        customEnd: Date,
-        calendar: Calendar = .current
-    ) -> Range<Date>? {
-        switch self {
-        case .all:
-            return nil
-        case .today:
-            let start = calendar.startOfDay(for: referenceDate)
-            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? referenceDate
-            return start..<end
-        case .thisWeek:
-            return calendar.dateInterval(of: .weekOfYear, for: referenceDate).map { $0.start..<$0.end }
-        case .payCycle:
-            let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday, calendar: calendar)
-            return cycle.start..<cycle.end
-        case .thisMonth:
-            return calendar.dateInterval(of: .month, for: referenceDate).map { $0.start..<$0.end }
-        case .custom:
-            let start = calendar.startOfDay(for: customStart)
-            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: customEnd)) ?? start
-            return min(start, end)..<max(start, end)
-        }
-    }
-}
-
 /// 账本主页面 - 展示当前账本的交易列表和统计
 struct LedgerView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("payday") private var payday = 1
-    @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
+    @Query private var allTransactions: [Transaction]
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
 
     @Query(
@@ -89,8 +41,25 @@ struct LedgerView: View {
     @State private var sortField: TransactionSortField = .date
     @State private var sortDirection: TransactionSortDirection = .descending
     @State private var visibleTransactionLimit = 200
+    @State private var historicalTransactions: [Transaction] = []
 
     private let transactionPageSize = 200
+    private let recentCutoff: Date
+
+    init() {
+        let calendar = Calendar.current
+        let cutoff = calendar.date(byAdding: .day, value: -120, to: calendar.startOfDay(for: Date())) ?? .distantPast
+        recentCutoff = cutoff
+        _allTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: \Transaction.date,
+            order: .reverse
+        )
+    }
+
+    private var presentationTransactions: [Transaction] {
+        historicalTransactions + allTransactions
+    }
 
     /// 单次渲染所需的交易数据。筛选、月度统计、按日分组在同一遍历中完成。
     private struct LedgerPresentation {
@@ -144,7 +113,7 @@ struct LedgerView: View {
         var netTotalsByDay: [Date: Decimal] = [:]
         var hiddenIncomeByDay: Set<Date> = []
 
-        for transaction in allTransactions {
+        for transaction in presentationTransactions {
             guard range?.contains(transaction.date) ?? true,
                   selectedExpenseType.map({ transaction.isExpense == $0 }) ?? true,
                   categoryRootName.map({ transaction.category?.rootCategoryName == $0 }) ?? true,
@@ -572,6 +541,9 @@ struct LedgerView: View {
                 try? await Task.sleep(nanoseconds: 300_000_000)
                 debouncedSearchText = searchText
             }
+            .task(id: historyQueryID) {
+                loadHistoricalTransactionsIfNeeded()
+            }
             .onChange(of: debouncedSearchText) { resetVisibleTransactionLimit() }
             .onChange(of: dateFilter) { resetVisibleTransactionLimit() }
             .onChange(of: typeFilter) { resetVisibleTransactionLimit() }
@@ -587,6 +559,41 @@ struct LedgerView: View {
 
     private func resetVisibleTransactionLimit() {
         visibleTransactionLimit = transactionPageSize
+    }
+
+    private var historyQueryID: String {
+        "\(dateFilter.rawValue)-\(customStartDate.timeIntervalSinceReferenceDate)-\(customEndDate.timeIntervalSinceReferenceDate)"
+    }
+
+    private func loadHistoricalTransactionsIfNeeded() {
+        let requiresHistory = dateFilter == .all
+            || (dateFilter == .custom && min(customStartDate, customEndDate) < recentCutoff)
+        guard requiresHistory else {
+            historicalTransactions = []
+            return
+        }
+
+        let upperBound = recentCutoff
+        let descriptor: FetchDescriptor<Transaction>
+        if dateFilter == .custom {
+            let calendar = Calendar.current
+            let start = calendar.startOfDay(for: min(customStartDate, customEndDate))
+            descriptor = FetchDescriptor(
+                predicate: #Predicate<Transaction> { $0.date >= start && $0.date < upperBound },
+                sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
+            )
+        } else {
+            descriptor = FetchDescriptor(
+                predicate: #Predicate<Transaction> { $0.date < upperBound },
+                sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
+            )
+        }
+        do {
+            historicalTransactions = try modelContext.fetch(descriptor)
+        } catch {
+            historicalTransactions = []
+            deleteError = error.localizedDescription
+        }
     }
 
     // MARK: - Components
@@ -1059,120 +1066,13 @@ struct LedgerView: View {
 
         if let error = safeSave(modelContext) {
             deleteError = error
+            HapticManager.error()
+            return
         }
 
         withAnimation(.spring(response: 0.3)) {
             undoInfo = nil
         }
         HapticManager.success()
-    }
-}
-
-// MARK: - 撤销删除信息
-private struct UndoDeleteInfo {
-    let amount: Decimal
-    let isExpense: Bool
-    let note: String
-    let date: Date
-    let isPrivateIncome: Bool
-    let cashPoolDelta: Decimal?
-    let dailyBudgetOverride: Bool?
-    let category: Category?
-    let ledger: Ledger?
-    let recurringRule: RecurringRule?
-}
-
-/// 单笔交易行
-struct TransactionRow: View {
-    let transaction: Transaction
-    var revealsPrivateIncome = true
-    var hidesIncome = false
-
-    private var hidesPrivateIncome: Bool {
-        transaction.isProtectedIncome && !revealsPrivateIncome
-    }
-
-    private var hidesIncomeAmount: Bool {
-        hidesPrivateIncome || (hidesIncome && !transaction.isExpense)
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // 分类图标
-            ZStack {
-                Circle()
-                    .fill(rowColor.opacity(0.15))
-                    .frame(width: 40, height: 40)
-                Image(systemName: hidesPrivateIncome ? "lock.fill" : transaction.category?.icon ?? "questionmark")
-                    .font(.subheadline)
-                    .foregroundStyle(rowColor)
-            }
-
-            // 分类名和备注
-            VStack(alignment: .leading, spacing: 2) {
-                Text(hidesPrivateIncome ? "隐私收入" : transaction.category?.entryDisplayName ?? "未分类")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(DesignSystem.textPrimary)
-                if !hidesPrivateIncome && !transaction.note.isEmpty {
-                    Text(transaction.note)
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textTertiary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            // 金额
-            Text(hidesIncomeAmount ? "****" : "\(transaction.isExpense ? "-" : "+")\(transaction.amount.formattedCompactAmount)")
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(
-                    transaction.isExpense
-                    ? DesignSystem.expenseColor
-                    : DesignSystem.incomeColor
-                )
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-                .allowsTightening(true)
-        }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
-    }
-
-    private var rowColor: Color {
-        hidesPrivateIncome ? DesignSystem.textTertiary : Color(hex: transaction.category?.colorHex ?? "#667EEA")
-    }
-}
-
-// MARK: - 筛选条件标签
-
-struct FilterChip: View {
-    let label: String
-    let color: Color
-    let onRemove: () -> Void
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Text(label)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(color)
-            Button {
-                withAnimation(.spring(response: 0.3)) { onRemove() }
-                HapticManager.selection()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(color)
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 5)
-        .background(color.opacity(0.12))
-        .clipShape(Capsule())
-        .overlay(
-            Capsule()
-                .stroke(color.opacity(0.2), lineWidth: 1)
-        )
-        .transition(.scale.combined(with: .opacity))
     }
 }

@@ -463,77 +463,11 @@ struct QuickEntryView: View {
     }
 
     private var numberPad: some View {
-        let buttons = [
-            ["7", "8", "9", "⌫"],
-            ["4", "5", "6", "收入"],
-            ["1", "2", "3", "支出"],
-            [".", "0", "00", ""]
-        ]
-
-        return VStack(spacing: 6) {
-            ForEach(buttons, id: \.self) { row in
-                HStack(spacing: 6) {
-                    ForEach(row, id: \.self) { button in
-                        if button.isEmpty {
-                            Color.clear.frame(height: 42)
-                        } else {
-                            Button {
-                                handleKeyPress(button)
-                            } label: {
-                                Text(button)
-                                    .font(button == "收入" || button == "支出" ? .caption2.weight(.semibold) : .body.weight(.medium))
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 42)
-                                    .background(button == "收入" ? DesignSystem.incomeColor.opacity(0.12)
-                                        : button == "支出" ? DesignSystem.expenseColor.opacity(0.12)
-                                        : DesignSystem.softFill)
-                                    .foregroundStyle(
-                                        button == "⌫" ? DesignSystem.textSecondary
-                                        : button == "收入" ? DesignSystem.incomeColor
-                                        : button == "支出" ? DesignSystem.expenseColor
-                                        : DesignSystem.textPrimary
-                                    )
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .overlay(
-                                        Group {
-                                            if button == "收入" || button == "支出" {
-                                                RoundedRectangle(cornerRadius: 8)
-                                                    .stroke(
-                                                        button == "收入" ? DesignSystem.incomeColor.opacity(0.3) : DesignSystem.expenseColor.opacity(0.3),
-                                                        lineWidth: 1
-                                                    )
-                                            }
-                                        }
-                                    )
-                            }
-                            .buttonStyle(PressableButtonStyle())
-                        }
-                    }
-                }
-            }
-        }
+        QuickEntryNumberPad(onKeyPress: handleKeyPress)
     }
 
     private var submitButton: some View {
-        Button {
-            saveTransaction()
-        } label: {
-            Text("保存")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 44)
-                .background(
-                    amountText.isEmpty
-                    ? AnyShapeStyle(.gray.opacity(0.3))
-                    : isExpense
-                        ? AnyShapeStyle(DesignSystem.expenseGradient)
-                        : AnyShapeStyle(DesignSystem.incomeGradient)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
-        }
-        .disabled(amountText.isEmpty)
-        .buttonStyle(PressableButtonStyle())
+        QuickEntrySubmitButton(isEnabled: !amountText.isEmpty, isExpense: isExpense, action: saveTransaction)
     }
 
     private var successOverlay: some View {
