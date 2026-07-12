@@ -63,6 +63,7 @@ private struct AppRootView: View {
             }
         }
         .tint(DesignSystem.primaryColor)
+        .fontDesign(.rounded)
         .preferredColorScheme(AppearancePreference(rawValue: appearance)?.colorScheme)
         .overlay {
             if scenePhase != .active {

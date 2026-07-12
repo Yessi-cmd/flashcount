@@ -110,7 +110,7 @@ struct EditTransactionView: View {
                                         circleSize: 44,
                                         minHeight: 74,
                                         onSelect: { _ in selectCategory(category) },
-                                        onLongPress: { sourceFrame in
+                                        onOpenChildren: { sourceFrame in
                                             showWheel(for: category, sourceFrame: sourceFrame)
                                         }
                                     )
@@ -298,7 +298,6 @@ struct EditTransactionView: View {
             selectCategory(category)
             return
         }
-        HapticManager.impact(.soft)
         wheelSourceFrame = sourceFrame
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category

@@ -137,7 +137,7 @@ struct AddRecurringRuleView: View {
                                         circleSize: 44,
                                         minHeight: 66,
                                         onSelect: { _ in selectCategory(category) },
-                                        onLongPress: { sourceFrame in
+                                        onOpenChildren: { sourceFrame in
                                             showWheel(for: category, sourceFrame: sourceFrame)
                                         }
                                     )
@@ -202,7 +202,6 @@ struct AddRecurringRuleView: View {
             selectCategory(category)
             return
         }
-        HapticManager.impact(.soft)
         wheelSourceFrame = sourceFrame
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category
