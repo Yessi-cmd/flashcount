@@ -11,7 +11,6 @@ struct PhysicalAssetView: View {
     @State private var sellingAsset: PhysicalAsset?
     @State private var confirmDeleteAsset: PhysicalAsset?
     @State private var saveError: String?
-    @AppStorage("hideAssetBalance") private var hideAssetBalance = true
 
     private var activeAssets: [PhysicalAsset] { assets.filter { !$0.isArchived } }
     private var archivedAssets: [PhysicalAsset] { assets.filter { $0.isArchived } }
@@ -33,7 +32,7 @@ struct PhysicalAssetView: View {
     }
 
     private var hidesMoney: Bool {
-        hideAssetBalance || !privacyLock.isUnlocked
+        PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
     }
 
     var body: some View {
@@ -57,6 +56,9 @@ struct PhysicalAssetView: View {
             .navigationTitle("实物资产")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    PrivacyVisibilityButton()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showAddAsset = true } label: {
                         Image(systemName: "plus.circle.fill").foregroundStyle(DesignSystem.primaryColor)
@@ -116,7 +118,7 @@ struct PhysicalAssetView: View {
                     Text("平均日成本").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                     Text(hidesMoney ? privacyLock.maskedText : averageDailyCost.formattedCurrency)
                         .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(DesignSystem.primaryColor)
                 }
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 30)
                 VStack(spacing: 4) {
@@ -135,19 +137,19 @@ struct PhysicalAssetView: View {
     private var activeAssetList: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("持有中").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
-            ForEach(activeAssets.sorted { $0.dailyCost > $1.dailyCost }, id: \.id) { asset in
+            ForEach(hidesMoney ? activeAssets : activeAssets.sorted { $0.dailyCost > $1.dailyCost }, id: \.id) { asset in
                 PhysicalAssetCard(asset: asset, hidesMoney: hidesMoney, maskedText: privacyLock.maskedText)
-                    .onTapGesture { editingAsset = asset }
+                    .onTapGesture { revealOrPerform { editingAsset = asset } }
                     .contextMenu {
                         Button {
-                            editingAsset = asset
+                            revealOrPerform { editingAsset = asset }
                         } label: {
-                            Label("编辑", systemImage: "pencil")
+                            Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
                         }
                         Button {
-                            sellingAsset = asset
+                            revealOrPerform { sellingAsset = asset }
                         } label: {
-                            Label("出售", systemImage: "yensign.circle")
+                            Label(hidesMoney ? "验证后出售" : "出售", systemImage: hidesMoney ? "lock.open" : "yensign.circle")
                         }
                         Button(role: .destructive) {
                             confirmDeleteAsset = asset
@@ -162,7 +164,7 @@ struct PhysicalAssetView: View {
                     }
                     .swipeActions(edge: .leading) {
                         Button {
-                            sellingAsset = asset
+                            revealOrPerform { sellingAsset = asset }
                         } label: { Label("出售", systemImage: "yensign.circle") }
                         .tint(.green)
                     }
@@ -188,17 +190,17 @@ struct PhysicalAssetView: View {
                     if let profit = asset.actualProfit {
                         Text(hidesMoney ? privacyLock.maskedText : (profit >= 0 ? "+" : "") + profit.formattedCurrency)
                             .font(.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(profit >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                            .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (profit >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
                     }
                 }
                 .padding(.vertical, 4)
                 .contentShape(Rectangle())
-                .onTapGesture { editingAsset = asset }
+                .onTapGesture { revealOrPerform { editingAsset = asset } }
                 .contextMenu {
                     Button {
-                        editingAsset = asset
+                        revealOrPerform { editingAsset = asset }
                     } label: {
-                        Label("编辑", systemImage: "pencil")
+                        Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
                     }
                     Button {
                         asset.isArchived = false
@@ -221,6 +223,14 @@ struct PhysicalAssetView: View {
         .glassCard()
     }
 
+    private func revealOrPerform(_ action: () -> Void) {
+        guard privacyLock.isUnlocked else {
+            privacyLock.requestReveal()
+            return
+        }
+        action()
+    }
+
     private func soldSummary(for asset: PhysicalAsset) -> String {
         let soldText = asset.soldPrice.map { "卖出 \(hidesMoney ? privacyLock.maskedText : $0.formattedCurrency)" } ?? "未记录售价"
         let dailyText = asset.actualDailyCost.map { "实际日均 \(hidesMoney ? privacyLock.maskedText : $0.formattedCurrency)" } ?? "持有 \(asset.daysHeld) 天"
@@ -233,9 +243,10 @@ struct PhysicalAssetView: View {
             Text("追踪你的实物资产").font(.headline).foregroundStyle(DesignSystem.textSecondary)
             Text("记录电子产品、汽车等，看看每天花多少钱").font(.subheadline).foregroundStyle(DesignSystem.textTertiary)
             Button { showAddAsset = true } label: {
-                Text("添加资产").font(.subheadline.weight(.semibold)).foregroundStyle(DesignSystem.textPrimary)
+                Text("添加资产").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                     .padding(.horizontal, 24).padding(.vertical, 12)
-                    .background(DesignSystem.primaryGradient).clipShape(Capsule())
+                    .background(DesignSystem.primaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
         }.padding(.vertical, 60)
     }
@@ -274,7 +285,7 @@ struct PhysicalAssetCard: View {
                         .foregroundStyle(DesignSystem.textSecondary)
                     Text("日均 \(hidesMoney ? maskedText : asset.dailyCost.formattedCurrency)")
                         .font(.subheadline.weight(.bold).monospacedDigit())
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
 
@@ -296,14 +307,18 @@ struct PhysicalAssetCard: View {
                     HStack {
                         Text(hidesMoney ? maskedText : "\(Int(asset.progressToTarget * 100))%")
                             .font(.caption2.weight(.medium).monospacedDigit())
-                            .foregroundStyle(progressColor)
+                            .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : progressColor)
                         Spacer()
-                        if let remaining = asset.daysToTarget, remaining > 0 {
-                            Text("还需 \(remaining) 天达标 🎯")
+                        if hidesMoney {
+                            Text("验证后显示目标进度")
+                                .font(.caption2)
+                                .foregroundStyle(DesignSystem.textTertiary)
+                        } else if let remaining = asset.daysToTarget, remaining > 0 {
+                            Text("还需 \(remaining) 天达标")
                                 .font(.caption2)
                                 .foregroundStyle(DesignSystem.textTertiary)
                         } else if asset.dailyCost <= asset.targetDailyCost {
-                            Text("已达到目标日成本 ✅")
+                            Text("已达到目标日成本")
                                 .font(.caption2)
                                 .foregroundStyle(DesignSystem.incomeColor)
                         }

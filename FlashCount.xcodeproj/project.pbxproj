@@ -17,6 +17,7 @@
 		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
 		14A503E907A93958C352D9F4 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */; };
 		1A452CBB6A09B051CE15209A /* DefaultDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F8BA17A1077C74363D442E /* DefaultDataService.swift */; };
+		1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82942383FFAC85D692A7031 /* MainInterfaceExplorationView.swift */; };
 		1F3FD337430E5786ADA03F40 /* TemplateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */; };
 		24353780EBC756092F19094F /* AddAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232747DAEE35358568E032BA /* AddAssetView.swift */; };
 		25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */; };
@@ -27,6 +28,7 @@
 		3598F1C79B571778BC11A2E3 /* PayCycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8FC52EA4884A4B39278E912 /* PayCycleService.swift */; };
 		37313D9C291DC910A0373683 /* BudgetReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8000784A9F364513ECB6E916 /* BudgetReminderService.swift */; };
 		38196E36BC568F0A62B77EA5 /* BudgetAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05285ADD9B6AC2660BBBF3E /* BudgetAnalyzer.swift */; };
+		4937879A4084BE8B7C3FB72A /* DailyBudgetScopeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C353AB5561EBD96657B182 /* DailyBudgetScopeView.swift */; };
 		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
 		6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */; };
 		767FEA5F7D91266230ECD27A /* FilterSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21D4CF12A83838BD6E0C22C /* FilterSheetView.swift */; };
@@ -49,6 +51,7 @@
 		B9810EFEB42E21055212EDE1 /* TransactionTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8839618ED5DD4131D896BC /* TransactionTemplate.swift */; };
 		C3C6B2BC947F3488E07D1D30 /* SavingsGoal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A56643F838FD8572D2C332 /* SavingsGoal.swift */; };
 		C6C6BAC0237D90145BE5A35E /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B6F38607655BC6FD7A32D2 /* DesignSystem.swift */; };
+		C8E5CB5BE7E12308E665826C /* VisualDirectionExplorationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC60DF27B6C57F670C432D9 /* VisualDirectionExplorationView.swift */; };
 		CD161CD39C37F8747F8F19D5 /* SavingsGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6FDA81436A9B8623D1B0EA /* SavingsGoalView.swift */; };
 		DE83E5479BD532D70F116869 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437BC90EE7A47F7AA13A5C1F /* Category.swift */; };
 		DF3833A27A9AC1A6E0042549 /* BudgetComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A051412B9C908E512258A73 /* BudgetComponents.swift */; };
@@ -79,6 +82,7 @@
 		03D1DAE410336C0B0B1944E7 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		07DB9D3D6E1549D61AC58249 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
+		1DC60DF27B6C57F670C432D9 /* VisualDirectionExplorationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualDirectionExplorationView.swift; sourceTree = "<group>"; };
 		1E27D09CD08C8BE96114E84E /* CategoryPickerComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryPickerComponents.swift; sourceTree = "<group>"; };
 		232747DAEE35358568E032BA /* AddAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAssetView.swift; sourceTree = "<group>"; };
 		26A56643F838FD8572D2C332 /* SavingsGoal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsGoal.swift; sourceTree = "<group>"; };
@@ -113,6 +117,7 @@
 		AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ledger.swift; sourceTree = "<group>"; };
 		B05285ADD9B6AC2660BBBF3E /* BudgetAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetAnalyzer.swift; sourceTree = "<group>"; };
 		B517332913BF860F9A5593AC /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
+		B82942383FFAC85D692A7031 /* MainInterfaceExplorationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainInterfaceExplorationView.swift; sourceTree = "<group>"; };
 		BE917E63B5B43B926D1745C8 /* PrivacyLockService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyLockService.swift; sourceTree = "<group>"; };
 		C21D4CF12A83838BD6E0C22C /* FilterSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSheetView.swift; sourceTree = "<group>"; };
 		C5E8F3236E0B0D21EDFE1D2E /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
@@ -124,6 +129,7 @@
 		DF30FA16DCE6E0385B858671 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateBarView.swift; sourceTree = "<group>"; };
 		E44850532ED0D315BFCB16D9 /* InstallmentBill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBill.swift; sourceTree = "<group>"; };
+		E6C353AB5561EBD96657B182 /* DailyBudgetScopeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBudgetScopeView.swift; sourceTree = "<group>"; };
 		EE30225D24B9028D99C97465 /* ReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderView.swift; sourceTree = "<group>"; };
 		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceDomainTests.swift; sourceTree = "<group>"; };
@@ -183,6 +189,7 @@
 			children = (
 				4A051412B9C908E512258A73 /* BudgetComponents.swift */,
 				7836FC4CCC50F8A05E62E77C /* BudgetView.swift */,
+				E6C353AB5561EBD96657B182 /* DailyBudgetScopeView.swift */,
 			);
 			path = Budget;
 			sourceTree = "<group>";
@@ -308,6 +315,15 @@
 			path = Recurring;
 			sourceTree = "<group>";
 		};
+		9B1ED934C626D22DDBB2365C /* VisualExploration */ = {
+			isa = PBXGroup;
+			children = (
+				B82942383FFAC85D692A7031 /* MainInterfaceExplorationView.swift */,
+				1DC60DF27B6C57F670C432D9 /* VisualDirectionExplorationView.swift */,
+			);
+			path = VisualExploration;
+			sourceTree = "<group>";
+		};
 		9B26B94CC2B56BCBFCD4FD5F /* AssetModels */ = {
 			isa = PBXGroup;
 			children = (
@@ -367,6 +383,7 @@
 				72F17CD168D8A096E055CA52 /* Reminder */,
 				F74E75DE5F12B4EC77AE8246 /* Report */,
 				00F686A4D12029D240B4088F /* Settings */,
+				9B1ED934C626D22DDBB2365C /* VisualExploration */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -487,6 +504,7 @@
 				9542F7F221B42C848E869513 /* CashPoolView.swift in Sources */,
 				DE83E5479BD532D70F116869 /* Category.swift in Sources */,
 				A437C73FD9A2A6A8BA0B9816 /* CategoryPickerComponents.swift in Sources */,
+				4937879A4084BE8B7C3FB72A /* DailyBudgetScopeView.swift in Sources */,
 				DFAA93C9FF21FE7B00ADBB2B /* DataBackupService.swift in Sources */,
 				1A452CBB6A09B051CE15209A /* DefaultDataService.swift in Sources */,
 				C6C6BAC0237D90145BE5A35E /* DesignSystem.swift in Sources */,
@@ -499,6 +517,7 @@
 				29A922DE0C8EC201C201181D /* InstallmentBillView.swift in Sources */,
 				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,
 				06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */,
+				1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */,
 				EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */,
 				053C79ED47833B74864A2F20 /* OnboardingView.swift in Sources */,
 				3598F1C79B571778BC11A2E3 /* PayCycleService.swift in Sources */,
@@ -523,6 +542,7 @@
 				78BE90FC010275086F0283C1 /* TemplateManagementView.swift in Sources */,
 				14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */,
 				B9810EFEB42E21055212EDE1 /* TransactionTemplate.swift in Sources */,
+				C8E5CB5BE7E12308E665826C /* VisualDirectionExplorationView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -545,7 +565,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 66WCCRKRLC;
 				INFOPLIST_KEY_CFBundleDisplayName = FlashCount;
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "用于解锁工资、资金池、储蓄目标和分期账单等隐私金额";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "用于在您确认后显示收入、资产和其他隐私金额";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -695,7 +715,7 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_KEY_CFBundleDisplayName = FlashCount;
-				INFOPLIST_KEY_NSFaceIDUsageDescription = "用于解锁工资、资金池、储蓄目标和分期账单等隐私金额";
+				INFOPLIST_KEY_NSFaceIDUsageDescription = "用于在您确认后显示收入、资产和其他隐私金额";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

@@ -5,15 +5,15 @@ struct OnboardingView: View {
     @Binding var isPresented: Bool
 
     private let features: [(icon: String, title: String, desc: String, color: Color)] = [
-        ("bolt.fill", "极速记账", "打开即记，3 秒搞定", .orange),
-        ("chart.bar.fill", "周报月报", "消费趋势、分类排行、智能洞察", Color(red: 0.4, green: 0.49, blue: 0.92)),
-        ("iphone.and.arrow.forward", "实物资产", "追踪日均成本，主打长期主义", .cyan),
-        ("eye.slash.fill", "隐私至上", "数据全在本地，余额一键隐藏", .green),
+        ("bolt.fill", "极速记账", "打开即记，3 秒搞定", DesignSystem.primaryColor),
+        ("chart.bar.fill", "周报月报", "消费趋势、分类排行、智能洞察", DesignSystem.primaryColor),
+        ("iphone.and.arrow.forward", "实物资产", "追踪日均成本，主打长期主义", DesignSystem.primaryColor),
+        ("eye.slash.fill", "隐私至上", "数据全在本地，余额一键隐藏", DesignSystem.primaryColor),
     ]
 
     var body: some View {
         ZStack {
-            DesignSystem.surfaceBackground.ignoresSafeArea()
+            AmbientBackground(accent: DesignSystem.primaryColor)
 
             VStack(spacing: 0) {
                 Spacer()
@@ -22,7 +22,7 @@ struct OnboardingView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "bolt.circle.fill")
                         .font(.system(size: 72))
-                        .foregroundStyle(DesignSystem.primaryGradient)
+                        .foregroundStyle(DesignSystem.primaryColor)
                     Text("FlashCount")
                         .font(.largeTitle.weight(.bold))
                         .foregroundStyle(DesignSystem.textPrimary)
@@ -63,16 +63,16 @@ struct OnboardingView: View {
                 // 快捷方式提示
                 VStack(spacing: 8) {
                     HStack(spacing: 4) {
-                        Image(systemName: "lightbulb.fill").font(.caption).foregroundStyle(.yellow)
-                        Text("小贴士").font(.caption.weight(.semibold)).foregroundStyle(.yellow)
+                        Image(systemName: "lightbulb.fill").font(.caption).foregroundStyle(DesignSystem.primaryColor)
+                        Text("小贴士").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.primaryColor)
                     }
-                    Text("添加锁屏 Widget 或设置 Back Tap\n让记账快人一步！进入 App 后点 ❓ 查看教程")
+                    Text("添加锁屏 Widget 或设置 Back Tap\n让记账快人一步；进入 App 后可在设置中查看教程")
                         .font(.caption)
                         .foregroundStyle(DesignSystem.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding()
-                .background(.yellow.opacity(0.06))
+                .background(DesignSystem.softFill)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 24)
 
@@ -84,13 +84,13 @@ struct OnboardingView: View {
                         isPresented = false
                     }
                 } label: {
-                    Text("开始使用 🚀")
+                    Text("开始使用")
                         .font(.headline)
-                        .foregroundStyle(DesignSystem.textPrimary)
+                        .foregroundStyle(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(DesignSystem.primaryGradient)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .background(DesignSystem.primaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 32)
@@ -125,7 +125,7 @@ struct TutorialView: View {
                     VStack(spacing: 20) {
                         // 头部
                         VStack(spacing: 8) {
-                            Text("⚡ 快捷记账指南")
+                            Text("快捷记账指南")
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(DesignSystem.textPrimary)
                             Text("让记账不再需要翻找 App")
@@ -170,7 +170,7 @@ struct TutorialView: View {
                         }
 
                         // 底部提示
-                        Text("设置完成后，记账只需 1 秒 ⚡")
+                        Text("设置完成后，记账只需 1 秒")
                             .font(.caption)
                             .foregroundStyle(DesignSystem.textTertiary)
                             .padding(.top, 8)

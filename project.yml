@@ -23,7 +23,7 @@ targets:
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
-        INFOPLIST_KEY_NSFaceIDUsageDescription: "用于解锁工资、资金池、储蓄目标和分期账单等隐私金额"
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "用于在您确认后显示收入、资产和其他隐私金额"
         INFOPLIST_KEY_CFBundleDisplayName: "FlashCount"
         PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon

@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
     @AppStorage("payday") private var payday = 1
     @State private var showTutorial = false
@@ -35,6 +36,41 @@ struct SettingsView: View {
             ZStack {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
                 List {
+                    Section {
+                        Button {
+                            if privacyLock.isUnlocked {
+                                privacyLock.lock()
+                                HapticManager.selection()
+                            } else {
+                                privacyLock.requestReveal()
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: privacyLock.isUnlocked ? "eye.fill" : "eye.slash.fill")
+                                    .foregroundStyle(privacyLock.isUnlocked ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                                VStack(alignment: .leading) {
+                                    Text(privacyLock.isUnlocked ? "隐私金额当前可见" : "隐私金额当前隐藏")
+                                        .font(.subheadline)
+                                        .foregroundStyle(DesignSystem.textPrimary)
+                                    Text(privacyLock.isUnlocked ? "点击立即隐藏收入和资产" : "确认并验证后，统一显示收入和资产")
+                                        .font(.caption)
+                                        .foregroundStyle(DesignSystem.textTertiary)
+                                }
+                                Spacer()
+                                Text(privacyLock.isUnlocked ? "隐藏" : "显示")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(DesignSystem.primaryColor)
+                            }
+                        }
+                    } header: {
+                        Text("隐私").foregroundStyle(DesignSystem.textSecondary)
+                    } footer: {
+                        Text("显示前会先确认，再使用 Face ID、Touch ID 或设备密码验证。App 进入后台后自动隐藏。")
+                            .font(.caption2)
+                            .foregroundStyle(DesignSystem.textTertiary)
+                    }
+                    .listRowBackground(DesignSystem.cardBackground)
+
                     // 外观
                     Section {
                         Picker("外观", selection: $appearance) {
@@ -85,7 +121,7 @@ struct SettingsView: View {
                             showTutorial = true
                         } label: {
                             HStack {
-                                Image(systemName: "questionmark.circle.fill").foregroundStyle(.orange)
+                                Image(systemName: "questionmark.circle.fill").foregroundStyle(DesignSystem.primaryColor)
                                 VStack(alignment: .leading) {
                                     Text("快捷记账教程").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
                                     Text("锁屏 Widget / Back Tap / Siri 设置方法").font(.caption).foregroundStyle(DesignSystem.textTertiary)
@@ -155,7 +191,7 @@ struct SettingsView: View {
                             showImportPicker = true
                         } label: {
                             HStack {
-                                Image(systemName: "square.and.arrow.down").foregroundStyle(.green)
+                                Image(systemName: "square.and.arrow.down").foregroundStyle(DesignSystem.primaryColor)
                                 VStack(alignment: .leading) {
                                     Text("导入数据 (JSON)").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
                                     Text("从备份文件恢复数据").font(.caption).foregroundStyle(DesignSystem.textTertiary)
@@ -182,7 +218,7 @@ struct SettingsView: View {
                             }
                         } label: {
                             HStack {
-                                Image(systemName: "wrench.and.screwdriver.fill").foregroundStyle(.orange)
+                                Image(systemName: "wrench.and.screwdriver.fill").foregroundStyle(DesignSystem.primaryColor)
                                 VStack(alignment: .leading) {
                                     Text("数据自检修复").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
                                     Text("检查并修复异常数据").font(.caption).foregroundStyle(DesignSystem.textTertiary)
@@ -192,8 +228,8 @@ struct SettingsView: View {
                     } header: {
                         Text("数据管理").foregroundStyle(DesignSystem.textSecondary)
                     } footer: {
-                        Text("⚠️ 卸载 App 会删除所有本地数据，建议定期导出备份")
-                            .font(.caption2).foregroundStyle(.orange.opacity(0.6))
+                        Text("卸载 App 会删除所有本地数据，建议定期导出备份")
+                            .font(.caption2).foregroundStyle(DesignSystem.warningColor)
                     }
                     .listRowBackground(DesignSystem.cardBackground)
 

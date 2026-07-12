@@ -9,14 +9,13 @@ struct SavingsGoalView: View {
     @State private var showAddGoal = false
     @State private var editingGoal: SavingsGoal?
     @State private var saveError: String?
-    @AppStorage("hideAssetBalance") private var hideAssetBalance = true
 
     private var activeGoals: [SavingsGoal] {
         goals.filter { !$0.isArchived }
     }
 
     private var hidesMoney: Bool {
-        hideAssetBalance || !privacyLock.isUnlocked
+        PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
     }
 
     var body: some View {
@@ -39,6 +38,9 @@ struct SavingsGoalView: View {
             .navigationTitle("储蓄目标")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    PrivacyVisibilityButton()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showAddGoal = true } label: {
                         Image(systemName: "plus.circle.fill")
@@ -74,8 +76,8 @@ struct SavingsGoalView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 22)
             .padding(.vertical, 11)
-            .background(DesignSystem.primaryGradient)
-            .clipShape(Capsule())
+            .background(DesignSystem.primaryColor)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
@@ -105,7 +107,7 @@ struct SavingsGoalView: View {
                     .fill(DesignSystem.dividerColor)
                     .overlay(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 5)
-                            .fill(DesignSystem.primaryGradient)
+                            .fill(DesignSystem.primaryColor)
                             .frame(width: hidesMoney ? 0 : geo.size.width * CGFloat(goal.progress))
                     }
             }
@@ -127,10 +129,10 @@ struct SavingsGoalView: View {
         }
         .glassCard()
         .contentShape(Rectangle())
-        .onTapGesture { editingGoal = goal }
+        .onTapGesture { revealOrPerform { editingGoal = goal } }
         .contextMenu {
-            Button { editingGoal = goal } label: {
-                Label("编辑", systemImage: "pencil")
+            Button { revealOrPerform { editingGoal = goal } } label: {
+                Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
             }
             Button {
                 goal.isCompleted.toggle()
@@ -152,6 +154,14 @@ struct SavingsGoalView: View {
             }
         }
         .opacity(goal.isCompleted ? 0.68 : 1)
+    }
+
+    private func revealOrPerform(_ action: () -> Void) {
+        guard privacyLock.isUnlocked else {
+            privacyLock.requestReveal()
+            return
+        }
+        action()
     }
 
     private func goalMetric(title: String, value: Decimal) -> some View {

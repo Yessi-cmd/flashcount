@@ -27,6 +27,7 @@ struct EditTransactionView: View {
     @State private var saveError: String?
     @State private var wheelCategory: Category?
     @State private var showDeleteConfirm = false
+    @State private var dailyBudgetOverride: Bool?
 
     init(transaction: Transaction) {
         self.transaction = transaction
@@ -36,6 +37,7 @@ struct EditTransactionView: View {
         _selectedDate = State(initialValue: transaction.date)
         _selectedCategory = State(initialValue: transaction.category)
         _selectedLedger = State(initialValue: transaction.ledger)
+        _dailyBudgetOverride = State(initialValue: transaction.dailyBudgetOverride)
     }
 
     private var currentCategories: [Category] {
@@ -58,6 +60,7 @@ struct EditTransactionView: View {
                             Button {
                                 withAnimation(.spring(response: 0.3)) { isExpense = true }
                                 selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
+                                dailyBudgetOverride = nil
                             } label: {
                                 Text("支出").font(.subheadline.weight(.semibold))
                                     .frame(maxWidth: .infinity).padding(.vertical, 10)
@@ -67,6 +70,7 @@ struct EditTransactionView: View {
                             Button {
                                 withAnimation(.spring(response: 0.3)) { isExpense = false }
                                 selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
+                                dailyBudgetOverride = nil
                             } label: {
                                 Text("收入").font(.subheadline.weight(.semibold))
                                     .frame(maxWidth: .infinity).padding(.vertical, 10)
@@ -124,6 +128,10 @@ struct EditTransactionView: View {
                             Text("日期").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                             DatePicker("", selection: $selectedDate, displayedComponents: .date)
                                 .datePickerStyle(.compact).labelsHidden()
+                        }
+
+                        if isExpense {
+                            dailyBudgetOption
                         }
 
                         // 删除按钮
@@ -209,12 +217,65 @@ struct EditTransactionView: View {
         }
     }
 
+    private var dailyBudgetOption: some View {
+        HStack(spacing: 12) {
+            Image(systemName: effectiveDailyBudgetValue ? "checkmark.circle.fill" : "minus.circle")
+                .font(.subheadline)
+                .foregroundStyle(effectiveDailyBudgetValue ? DesignSystem.primaryColor : DesignSystem.textTertiary)
+                .frame(width: 30, height: 30)
+                .background(DesignSystem.softFill)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("计入日常预算")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(DesignSystem.textPrimary)
+                Text(dailyBudgetOverride == nil ? "跟随所选分类的范围" : "仅覆盖这一笔支出")
+                    .font(.caption2)
+                    .foregroundStyle(DesignSystem.textTertiary)
+            }
+
+            Spacer(minLength: 6)
+
+            if dailyBudgetOverride != nil {
+                Button("恢复") {
+                    dailyBudgetOverride = nil
+                    HapticManager.selection()
+                }
+                .font(.caption.weight(.medium))
+                .foregroundStyle(DesignSystem.textSecondary)
+            }
+
+            Toggle("", isOn: Binding(
+                get: { effectiveDailyBudgetValue },
+                set: { value in
+                    dailyBudgetOverride = value
+                    HapticManager.selection()
+                }
+            ))
+            .labelsHidden()
+            .tint(DesignSystem.primaryColor)
+        }
+        .padding(12)
+        .background(DesignSystem.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius, style: .continuous)
+                .stroke(DesignSystem.borderColor, lineWidth: 1)
+        }
+    }
+
+    private var effectiveDailyBudgetValue: Bool {
+        dailyBudgetOverride ?? BudgetScope.includesCategory(selectedCategory)
+    }
+
     private func selectCategory(_ category: Category) {
         let target = category.name == category.rootCategoryName
             ? rootCategory(for: category.rootCategoryName, in: currentCategories) ?? category
             : category
         withAnimation(.spring(response: 0.3)) {
             selectedCategory = target
+            dailyBudgetOverride = nil
         }
         HapticManager.selection()
     }
@@ -222,6 +283,7 @@ struct EditTransactionView: View {
     private func selectExactCategory(_ category: Category) {
         withAnimation(.spring(response: 0.3)) {
             selectedCategory = category
+            dailyBudgetOverride = nil
             wheelCategory = nil
         }
     }
@@ -283,6 +345,7 @@ struct EditTransactionView: View {
         transaction.category = selectedCategory
         transaction.ledger = selectedLedger
         transaction.isPrivateIncome = !isExpense && selectedCategory?.isSalaryIncome == true
+        transaction.dailyBudgetOverride = isExpense ? dailyBudgetOverride : nil
         let newCashPoolDelta = CashPoolService.transactionDelta(for: transaction)
         transaction.cashPoolDelta = newCashPoolDelta
         CashPoolService(modelContext: modelContext).replace(oldDelta: oldCashPoolDelta, newDelta: newCashPoolDelta)

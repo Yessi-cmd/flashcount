@@ -17,9 +17,7 @@ struct AssetDashboardView: View {
     @State private var showAddCashPoolItem = false
     @State private var editingAsset: Asset?
     @State private var showTutorial = false
-    @State private var didRequestInitialUnlock = false
     @State private var confirmDeleteAsset: Asset?
-    @AppStorage("hideAssetBalance") private var hideBalance = true
 
     /// 单次遍历构建页面需要的资产快照，避免每个卡片再次 filter/reduce 同一批 SwiftData 结果。
     private struct DashboardSnapshot {
@@ -113,7 +111,9 @@ struct AssetDashboardView: View {
 
     /// 隐藏金额的占位符
     private var maskedText: String { "****" }
-    private var hidesAssetMoney: Bool { hideBalance || !privacyLock.isUnlocked }
+    private var hidesAssetMoney: Bool {
+        PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
+    }
 
     var body: some View {
         let snapshot = DashboardSnapshot(
@@ -146,7 +146,7 @@ struct AssetDashboardView: View {
                             NavigationLink {
                                 PhysicalAssetView()
                             } label: {
-                                toolRow(icon: "iphone.and.arrow.forward", color: .orange, title: "实物资产", subtitle: "手机、电脑、汽车的日均成本")
+                                toolRow(icon: "iphone.and.arrow.forward", color: DesignSystem.primaryColor, title: "实物资产", subtitle: "手机、电脑、汽车的日均成本")
                             }
                             NavigationLink {
                                 CashPoolView()
@@ -156,12 +156,12 @@ struct AssetDashboardView: View {
                             NavigationLink {
                                 InstallmentBillView()
                             } label: {
-                                toolRow(icon: "creditcard.trianglebadge.exclamationmark.fill", color: DesignSystem.expenseColor, title: "分期账单", subtitle: "记录每笔分期、期数与还款日")
+                                toolRow(icon: "creditcard.trianglebadge.exclamationmark.fill", color: DesignSystem.primaryColor, title: "分期账单", subtitle: "记录每笔分期、期数与还款日")
                             }
                             NavigationLink {
                                 SavingsGoalView()
                             } label: {
-                                toolRow(icon: "target", color: DesignSystem.incomeColor, title: "储蓄目标", subtitle: "手动追踪存钱计划")
+                                toolRow(icon: "target", color: DesignSystem.primaryColor, title: "储蓄目标", subtitle: "手动追踪存钱计划")
                             }
                         }
 
@@ -176,22 +176,7 @@ struct AssetDashboardView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        if privacyLock.isUnlocked {
-                            withAnimation(.spring(response: 0.3)) {
-                                hideBalance.toggle()
-                            }
-                        } else {
-                            Task {
-                                if await privacyLock.unlock() {
-                                    hideBalance = false
-                                }
-                            }
-                        }
-                    } label: {
-                        Image(systemName: hidesAssetMoney ? "eye.slash.fill" : "eye.fill")
-                            .foregroundStyle(DesignSystem.textSecondary)
-                    }
+                    PrivacyVisibilityButton()
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack(spacing: 12) {
@@ -211,10 +196,6 @@ struct AssetDashboardView: View {
             .sheet(isPresented: $showTutorial) { TutorialView() }
             .sheet(item: $editingAsset) { asset in
                 AddAssetView(editAsset: asset)
-            }
-            .task(id: isActive) {
-                guard isActive else { return }
-                await requestInitialUnlockIfNeeded()
             }
             .alert("确认删除", isPresented: .init(
                 get: { confirmDeleteAsset != nil },
@@ -267,7 +248,7 @@ struct AssetDashboardView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .heroCard(accent: snapshot.netWorth >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+        .heroCard(accent: hidesAssetMoney ? DesignSystem.primaryColor : (snapshot.netWorth >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
     }
 
     private func assetBreakdown(_ snapshot: DashboardSnapshot) -> some View {
@@ -276,7 +257,18 @@ struct AssetDashboardView: View {
                 Text("资产构成").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
             }
-            if !snapshot.assetItems.isEmpty {
+            if hidesAssetMoney {
+                VStack(spacing: 8) {
+                    Image(systemName: "lock.fill")
+                        .font(.title2)
+                        .foregroundStyle(DesignSystem.textTertiary)
+                    Text("验证后显示资产构成")
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.textTertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 150)
+            } else if !snapshot.assetItems.isEmpty {
                 Chart(snapshot.assetItems, id: \.id) { asset in
                     SectorMark(angle: .value(asset.name, NSDecimalNumber(decimal: asset.balance).doubleValue), innerRadius: .ratio(0.6))
                         .foregroundStyle(Color(hex: asset.colorHex))
@@ -407,12 +399,12 @@ struct AssetDashboardView: View {
                 }
                 .padding(.vertical, 4)
                 .contentShape(Rectangle())
-                .onTapGesture { editingAsset = asset }
+                .onTapGesture { revealOrPerform { editingAsset = asset } }
                 .contextMenu {
                     Button {
-                        editingAsset = asset
+                        revealOrPerform { editingAsset = asset }
                     } label: {
-                        Label("编辑", systemImage: "pencil")
+                        Label(hidesAssetMoney ? "验证后编辑" : "编辑", systemImage: hidesAssetMoney ? "lock.open" : "pencil")
                     }
                     Button(role: .destructive) {
                         confirmDeleteAsset = asset
@@ -432,9 +424,10 @@ struct AssetDashboardView: View {
             Text("暂无资产记录").font(.headline).foregroundStyle(DesignSystem.textSecondary)
             Text("先盘点现金、银行卡合计或可动用理财").font(.subheadline).foregroundStyle(DesignSystem.textTertiary)
             Button { showAddCashPoolItem = true } label: {
-                Text("添加资金项").font(.subheadline.weight(.semibold)).foregroundStyle(DesignSystem.textPrimary)
+                Text("添加资金项").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
                     .padding(.horizontal, 24).padding(.vertical, 12)
-                    .background(DesignSystem.primaryGradient).clipShape(Capsule())
+                    .background(DesignSystem.primaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
         }.padding(.vertical, 60)
     }
@@ -461,16 +454,12 @@ struct AssetDashboardView: View {
         .padding(.vertical, 4)
     }
 
-    private func requestInitialUnlockIfNeeded() async {
-        guard !didRequestInitialUnlock else { return }
-        didRequestInitialUnlock = true
-        guard !privacyLock.isUnlocked else {
-            hideBalance = false
+    private func revealOrPerform(_ action: () -> Void) {
+        guard privacyLock.isUnlocked else {
+            privacyLock.requestReveal()
             return
         }
-        if await privacyLock.unlock() {
-            hideBalance = false
-        }
+        action()
     }
 }
 
@@ -480,9 +469,9 @@ struct VirtualAssetListView: View {
         ZStack {
             DesignSystem.surfaceBackground.ignoresSafeArea()
             VStack(spacing: 16) {
-                Image(systemName: "sparkles").font(.system(size: 50)).foregroundStyle(.cyan.opacity(0.3))
+                Image(systemName: "sparkles").font(.system(size: 50)).foregroundStyle(DesignSystem.primaryColor.opacity(0.45))
                 Text("虚拟资产").font(.headline).foregroundStyle(DesignSystem.textSecondary)
-                Text("即将上线，敬请期待 🚀").font(.subheadline).foregroundStyle(DesignSystem.textTertiary)
+                Text("即将上线，敬请期待").font(.subheadline).foregroundStyle(DesignSystem.textTertiary)
             }
         }
         .navigationTitle("虚拟资产")

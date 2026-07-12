@@ -30,6 +30,9 @@ struct RecurringRulesView: View {
             .navigationTitle("周期账单")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    PrivacyVisibilityButton()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showAddRule = true } label: {
                         Image(systemName: "plus.circle.fill").foregroundStyle(DesignSystem.primaryColor)
@@ -73,7 +76,14 @@ struct RecurringRulesView: View {
     }
 
     private func ruleCard(_ rule: RecurringRule) -> some View {
-        let hidesPrivateIncome = rule.isProtectedIncome && !privacyLock.isUnlocked
+        let hidesIncome = PrivacyVisibilityPolicy.hidesIncome(
+            isExpense: rule.isExpense,
+            isUnlocked: privacyLock.isUnlocked
+        )
+        let hidesPrivateIncome = PrivacyVisibilityPolicy.hidesProtectedMetadata(
+            isProtectedIncome: rule.isProtectedIncome,
+            isUnlocked: privacyLock.isUnlocked
+        )
         return HStack(spacing: 12) {
             ZStack {
                 Circle().fill((hidesPrivateIncome ? DesignSystem.textTertiary : Color(hex: rule.category?.colorHex ?? "#667EEA")).opacity(0.15)).frame(width: 44, height: 44)
@@ -97,10 +107,10 @@ struct RecurringRulesView: View {
                 Text(rule.amount.formattedCurrency)
                     .font(.subheadline.weight(.semibold).monospacedDigit())
                     .foregroundStyle(rule.isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor)
-                    .privacySensitive(hidesPrivateIncome)
-                    .opacity(hidesPrivateIncome ? 0 : 1)
+                    .privacySensitive(hidesIncome)
+                    .opacity(hidesIncome ? 0 : 1)
                     .overlay {
-                        if hidesPrivateIncome {
+                        if hidesIncome {
                             Text(privacyLock.maskedText)
                                 .font(.subheadline.weight(.semibold).monospacedDigit())
                                 .foregroundStyle(DesignSystem.textTertiary)
@@ -124,13 +134,13 @@ struct RecurringRulesView: View {
                             Label("跳过本期", systemImage: "forward.end")
                         }
                         Button {
-                            if hidesPrivateIncome {
-                                Task { _ = await privacyLock.unlock() }
+                            if hidesIncome {
+                                privacyLock.requestReveal()
                             } else {
                                 editingRule = rule
                             }
                         } label: {
-                            Label(hidesPrivateIncome ? "解锁查看" : "编辑", systemImage: hidesPrivateIncome ? "lock.open" : "pencil")
+                            Label(hidesIncome ? "验证后查看" : "编辑", systemImage: hidesIncome ? "lock.open" : "pencil")
                         }
                         Button(role: .destructive) {
                             rulePendingDeletion = rule
@@ -149,21 +159,21 @@ struct RecurringRulesView: View {
         .opacity(rule.isActive ? 1 : 0.6)
         .contentShape(Rectangle())
         .onTapGesture {
-            if hidesPrivateIncome {
-                Task { _ = await privacyLock.unlock() }
+            if hidesIncome {
+                privacyLock.requestReveal()
             } else {
                 editingRule = rule
             }
         }
         .contextMenu {
             Button {
-                if hidesPrivateIncome {
-                    Task { _ = await privacyLock.unlock() }
+                if hidesIncome {
+                    privacyLock.requestReveal()
                 } else {
                     editingRule = rule
                 }
             } label: {
-                Label(hidesPrivateIncome ? "解锁查看" : "编辑", systemImage: hidesPrivateIncome ? "lock.open" : "pencil")
+                Label(hidesIncome ? "验证后查看" : "编辑", systemImage: hidesIncome ? "lock.open" : "pencil")
             }
             Button {
                 toggle(rule)
@@ -191,8 +201,10 @@ struct RecurringRulesView: View {
             Text("暂无周期账单").font(.headline).foregroundStyle(DesignSystem.textSecondary)
             Text("添加房租、话费、会员等固定服务，自动生成记录").font(.subheadline).foregroundStyle(DesignSystem.textTertiary).multilineTextAlignment(.center)
             Button { showAddRule = true } label: {
-                Text("添加周期账单").font(.subheadline.weight(.semibold)).foregroundStyle(DesignSystem.textPrimary)
-                    .padding(.horizontal, 24).padding(.vertical, 12).background(DesignSystem.primaryGradient).clipShape(Capsule())
+                Text("添加周期账单").font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                    .padding(.horizontal, 24).padding(.vertical, 12)
+                    .background(DesignSystem.primaryColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
         }.padding(.vertical, 60)
     }

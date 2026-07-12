@@ -12,6 +12,8 @@ final class Transaction {
     var createdAt: Date
     var isPrivateIncome: Bool = false
     var cashPoolDelta: Decimal?
+    /// nil 表示跟随分类范围；true / false 表示仅覆盖这一笔。
+    var dailyBudgetOverride: Bool?
 
     // 关系
     var category: Category?
@@ -30,6 +32,7 @@ final class Transaction {
         date: Date = Date(),
         isPrivateIncome: Bool = false,
         cashPoolDelta: Decimal? = nil,
+        dailyBudgetOverride: Bool? = nil,
         category: Category? = nil,
         ledger: Ledger? = nil,
         recurringRule: RecurringRule? = nil
@@ -42,6 +45,7 @@ final class Transaction {
         self.createdAt = Date()
         self.isPrivateIncome = isPrivateIncome
         self.cashPoolDelta = cashPoolDelta
+        self.dailyBudgetOverride = dailyBudgetOverride
         self.category = category
         self.ledger = ledger
         self.recurringRule = recurringRule

@@ -43,7 +43,7 @@ final class Ledger {
 
     static func defaultLedgers() -> [Ledger] {
         [
-            Ledger(name: "生活", icon: "house.fill", colorHex: "#4EA8F8", isDefault: true, sortOrder: 0),
+            Ledger(name: "生活", icon: "house.fill", colorHex: "#4E766A", isDefault: true, sortOrder: 0),
         ]
     }
 }

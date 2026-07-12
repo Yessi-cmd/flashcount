@@ -34,6 +34,102 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertGreaterThan(result.projectedTotal, 1_000)
     }
 
+    func testLedgerPeriodFiltersDistinguishTodayMonthAndPayCycle() throws {
+        let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 11, hour: 12)))
+        let customStart = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 2)))
+        let customEnd = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 4)))
+
+        let today = try XCTUnwrap(LedgerPeriodFilter.today.dateRange(
+            referenceDate: date, payday: 25, customStart: customStart, customEnd: customEnd, calendar: calendar
+        ))
+        let month = try XCTUnwrap(LedgerPeriodFilter.thisMonth.dateRange(
+            referenceDate: date, payday: 25, customStart: customStart, customEnd: customEnd, calendar: calendar
+        ))
+        let cycle = try XCTUnwrap(LedgerPeriodFilter.payCycle.dateRange(
+            referenceDate: date, payday: 25, customStart: customStart, customEnd: customEnd, calendar: calendar
+        ))
+
+        XCTAssertEqual(calendar.component(.day, from: today.lowerBound), 11)
+        XCTAssertEqual(calendar.component(.day, from: today.upperBound), 12)
+        XCTAssertEqual(calendar.component(.day, from: month.lowerBound), 1)
+        XCTAssertEqual(calendar.component(.month, from: month.upperBound), 8)
+        XCTAssertEqual(calendar.component(.day, from: cycle.lowerBound), 25)
+        XCTAssertEqual(calendar.component(.month, from: cycle.lowerBound), 6)
+        XCTAssertEqual(LedgerPeriodFilter.payCycle.metricPrefix, "本周期")
+        XCTAssertEqual(LedgerPeriodFilter.thisMonth.metricPrefix, "本月")
+    }
+
+    func testPrivacyPolicyUsesOneUnlockStateForIncomeAndAssets() {
+        XCTAssertFalse(PrivacyVisibilityPolicy.hidesIncome(isExpense: true, isUnlocked: false))
+        XCTAssertTrue(PrivacyVisibilityPolicy.hidesIncome(isExpense: false, isUnlocked: false))
+        XCTAssertFalse(PrivacyVisibilityPolicy.hidesIncome(isExpense: false, isUnlocked: true))
+
+        XCTAssertTrue(PrivacyVisibilityPolicy.hidesAssets(isUnlocked: false))
+        XCTAssertFalse(PrivacyVisibilityPolicy.hidesAssets(isUnlocked: true))
+    }
+
+    func testPrivacyPolicyOnlyHidesProtectedIncomeMetadataWhileLocked() {
+        XCTAssertFalse(PrivacyVisibilityPolicy.hidesProtectedMetadata(isProtectedIncome: false, isUnlocked: false))
+        XCTAssertTrue(PrivacyVisibilityPolicy.hidesProtectedMetadata(isProtectedIncome: true, isUnlocked: false))
+        XCTAssertFalse(PrivacyVisibilityPolicy.hidesProtectedMetadata(isProtectedIncome: true, isUnlocked: true))
+    }
+
+    func testPrivacyRevealRequiresConfirmationBeforeAuthentication() {
+        let privacyLock = PrivacyLockService()
+
+        XCTAssertFalse(privacyLock.isUnlocked)
+        XCTAssertFalse(privacyLock.isRevealConfirmationPresented)
+
+        privacyLock.requestReveal()
+
+        XCTAssertFalse(privacyLock.isUnlocked)
+        XCTAssertTrue(privacyLock.isRevealConfirmationPresented)
+
+        privacyLock.lock()
+        XCTAssertFalse(privacyLock.isRevealConfirmationPresented)
+        XCTAssertFalse(privacyLock.isUnlocked)
+    }
+
+    func testDailyBudgetScopeExcludesClothingAndAllowsCategoryAndTransactionOverrides() {
+        let clothing = Category(name: "服饰鞋包", icon: "tshirt.fill", colorHex: "#000000")
+        let transaction = Transaction(amount: 200, category: clothing)
+
+        XCTAssertFalse(BudgetScope.includesCategory(clothing))
+        XCTAssertFalse(BudgetScope.includesInDailyBudget(transaction))
+
+        clothing.dailyBudgetOverride = true
+        XCTAssertTrue(BudgetScope.includesInDailyBudget(transaction))
+
+        transaction.dailyBudgetOverride = false
+        XCTAssertFalse(BudgetScope.includesInDailyBudget(transaction))
+    }
+
+    func testBackupRestoresDailyBudgetOverrides() throws {
+        let context = try makeContext()
+        let category = Category(name: "服饰鞋包", icon: "tshirt.fill", colorHex: "#000000")
+        category.dailyBudgetOverride = true
+        let ledger = Ledger.defaultLedgers()[0]
+        let transaction = Transaction(
+            amount: 200,
+            dailyBudgetOverride: false,
+            category: category,
+            ledger: ledger
+        )
+        context.insert(category)
+        context.insert(ledger)
+        context.insert(transaction)
+        try context.save()
+
+        let service = DataBackupService(modelContext: context)
+        let snapshot = try service.exportJSON()
+        _ = try service.importJSON(data: snapshot, mode: .replace)
+
+        let restoredCategory = try XCTUnwrap(context.fetch(FetchDescriptor<FlashCount.Category>()).first { $0.name == "服饰鞋包" })
+        let restoredTransaction = try XCTUnwrap(context.fetch(FetchDescriptor<Transaction>()).first)
+        XCTAssertEqual(restoredCategory.dailyBudgetOverride, true)
+        XCTAssertEqual(restoredTransaction.dailyBudgetOverride, false)
+    }
+
     func testRecurringProcessingIsIdempotentForTheSameDueDate() throws {
         let context = try makeContext()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!

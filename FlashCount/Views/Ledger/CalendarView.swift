@@ -63,7 +63,6 @@ struct CalendarView: View {
 /// 指定月份的日历数据与内容。查询范围限定在该月，避免日历入口加载完整历史交易。
 private struct CalendarMonthContent: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
-    @AppStorage("hideHomeIncome") private var hideHomeIncome = true
     @Query private var monthTransactions: [Transaction]
 
     let displayedMonth: Date
@@ -102,11 +101,11 @@ private struct CalendarMonthContent: View {
         let expense: Decimal
         let hasHiddenIncome: Bool
 
-        init(transactions: [Transaction], calendar: Calendar, hidesPrivateIncome: Bool, hidesIncome: Bool) {
+        init(transactions: [Transaction], calendar: Calendar, hidesIncome: Bool) {
             var days: [Date: DaySummary] = [:]
             var income: Decimal = 0
             var expense: Decimal = 0
-            var hasHiddenIncome = hidesIncome
+            var hasHiddenIncome = false
 
             for transaction in transactions {
                 let day = calendar.startOfDay(for: transaction.date)
@@ -117,9 +116,6 @@ private struct CalendarMonthContent: View {
                 if transaction.isExpense {
                     summary.expense += transaction.amount
                     expense += transaction.amount
-                } else if transaction.isProtectedIncome && hidesPrivateIncome {
-                    summary.hasHiddenIncome = true
-                    hasHiddenIncome = true
                 } else {
                     summary.income += transaction.amount
                     income += transaction.amount
@@ -157,8 +153,7 @@ private struct CalendarMonthContent: View {
         let presentation = MonthPresentation(
             transactions: monthTransactions,
             calendar: calendar,
-            hidesPrivateIncome: !privacyLock.isUnlocked,
-            hidesIncome: hideHomeIncome
+            hidesIncome: privacyLock.hidesSensitiveAmounts
         )
 
         return VStack(spacing: DesignSystem.space16) {
@@ -223,7 +218,7 @@ private struct CalendarMonthContent: View {
                                     .foregroundStyle(DesignSystem.expenseColor.opacity(0.8))
                                     .lineLimit(1)
                             }
-                            if summary.income > 0 && !hideHomeIncome {
+                            if summary.income > 0 && !summary.hasHiddenIncome {
                                 Text(summary.income.compactAmount)
                                     .font(.system(size: 8).monospacedDigit())
                                     .foregroundStyle(DesignSystem.incomeColor.opacity(0.8))
@@ -290,7 +285,7 @@ private struct CalendarMonthContent: View {
                 Text("结余").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
                 Text(presentation.hasHiddenIncome ? privacyLock.maskedText : (presentation.income - presentation.expense).formattedCurrency)
                     .font(.caption.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(presentation.income >= presentation.expense ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                    .foregroundStyle(presentation.hasHiddenIncome ? DesignSystem.textTertiary : (presentation.income >= presentation.expense ? DesignSystem.incomeColor : DesignSystem.expenseColor))
             }
             .frame(maxWidth: .infinity)
         }
@@ -314,7 +309,7 @@ private struct CalendarMonthContent: View {
                     let dayTotal = selectedSummary?.netTotal ?? 0
                     Text(selectedSummary?.hasHiddenIncome == true ? privacyLock.maskedText : dayTotal.formattedCurrency)
                         .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(dayTotal >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                        .foregroundStyle(selectedSummary?.hasHiddenIncome == true ? DesignSystem.textTertiary : (dayTotal >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
                 }
             }
 
@@ -332,7 +327,7 @@ private struct CalendarMonthContent: View {
                     TransactionRow(
                         transaction: transaction,
                         revealsPrivateIncome: privacyLock.isUnlocked,
-                        hidesIncome: hideHomeIncome
+                        hidesIncome: privacyLock.hidesSensitiveAmounts
                     )
                     .padding(.vertical, 4)
                 }

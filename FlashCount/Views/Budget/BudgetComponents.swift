@@ -11,7 +11,9 @@ struct BudgetOverviewCard: View {
             HStack {
                 Text("发薪周期 \(cycleTitle)").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
-                Text(analysis.alertLevel.emoji).font(.title3)
+                Image(systemName: alertIcon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(alertColor)
             }
             VStack(spacing: 8) {
                 HStack {
@@ -84,6 +86,14 @@ struct BudgetOverviewCard: View {
         }
     }
 
+    private var alertIcon: String {
+        switch analysis.alertLevel {
+        case .healthy: return "checkmark.circle.fill"
+        case .warning: return "exclamationmark.circle.fill"
+        case .danger: return "exclamationmark.triangle.fill"
+        }
+    }
+
     private var alertColor: Color {
         switch analysis.alertLevel {
         case .healthy: return DesignSystem.incomeColor
@@ -131,21 +141,21 @@ struct BudgetMetricsGrid: View {
 
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-            metricCard(title: "日均消费", value: analysis.dailyAverage.formattedCurrency, icon: "chart.bar.fill", color: "#778BEB")
+            metricCard(title: "日均消费", value: analysis.dailyAverage.formattedCurrency, icon: "chart.bar.fill", color: "#4E766A")
             metricCard(title: "今日可花", value: analysis.dailyAllowance.formattedCurrency, icon: "wallet.pass.fill",
-                       color: analysis.alertLevel == .danger ? "#FF4757" : "#2ED573")
+                       color: analysis.alertLevel == .danger ? "#B86066" : "#4E766A")
             metricCard(title: "剩余预算", value: analysis.remainingBudget.formattedCurrency, icon: "banknote.fill",
-                       color: analysis.remainingBudget >= 0 ? "#4ECDC4" : "#FF6B6B")
-            metricCard(title: "剩余天数", value: "\(analysis.daysRemaining) 天", icon: "calendar", color: "#FFA502")
-            metricCard(title: "预计周期末", value: analysis.projectedTotal.formattedCurrency, icon: "chart.line.uptrend.xyaxis", color: "#4EA8F8")
+                       color: analysis.remainingBudget >= 0 ? "#4E766A" : "#B86066")
+            metricCard(title: "剩余天数", value: "\(analysis.daysRemaining) 天", icon: "calendar", color: "#4E766A")
+            metricCard(title: "预计周期末", value: analysis.projectedTotal.formattedCurrency, icon: "chart.line.uptrend.xyaxis", color: "#4E766A")
             metricCard(
                 title: analysis.projectedBalance >= 0 ? "预计结余" : "预计超支",
                 value: analysis.projectedBalance.formattedCurrency,
                 icon: analysis.projectedBalance >= 0 ? "checkmark.circle.fill" : "exclamationmark.circle.fill",
-                color: analysis.projectedBalance >= 0 ? "#18B985" : "#F2556B"
+                color: analysis.projectedBalance >= 0 ? "#4E766A" : "#B86066"
             )
             if analysis.excludedSpent > 0 {
-                metricCard(title: "预算外支出", value: analysis.excludedSpent.formattedCurrency, icon: "line.3.horizontal.decrease.circle.fill", color: "#9AA6B2")
+                metricCard(title: "预算外支出", value: analysis.excludedSpent.formattedCurrency, icon: "line.3.horizontal.decrease.circle.fill", color: "#89928E")
             }
         }
     }
