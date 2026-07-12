@@ -20,6 +20,7 @@ struct AddRecurringRuleView: View {
     @State private var selectedLedger: Ledger?
     @State private var isExpense = true
     @State private var wheelCategory: Category?
+    @State private var wheelSourceFrame: CGRect?
     @State private var saveError: String?
     @State private var didLoadInitialValues = false
 
@@ -135,8 +136,10 @@ struct AddRecurringRuleView: View {
                                         iconSize: .subheadline,
                                         circleSize: 44,
                                         minHeight: 66,
-                                        onSelect: { selectCategory(category) },
-                                        onLongPress: { showWheel(for: category) }
+                                        onSelect: { _ in selectCategory(category) },
+                                        onLongPress: { sourceFrame in
+                                            showWheel(for: category, sourceFrame: sourceFrame)
+                                        }
                                     )
                                 }
                             }
@@ -189,16 +192,18 @@ struct AddRecurringRuleView: View {
         withAnimation(.spring(response: 0.3)) {
             selectedCategory = category
             wheelCategory = nil
+            wheelSourceFrame = nil
         }
     }
 
-    private func showWheel(for category: Category) {
+    private func showWheel(for category: Category, sourceFrame: CGRect?) {
         let children = Category.childCategories(for: category.rootCategoryName, in: categories, isExpense: isExpense)
         guard !children.isEmpty else {
             selectCategory(category)
             return
         }
         HapticManager.impact(.soft)
+        wheelSourceFrame = sourceFrame
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category
         }
@@ -211,6 +216,7 @@ struct AddRecurringRuleView: View {
             parentCategory: rootCategory(for: rootName) ?? category,
             children: children,
             selectedCategory: selectedCategory,
+            sourceFrame: wheelSourceFrame,
             onSelectParent: {
                 if let root = rootCategory(for: rootName) {
                     selectExactCategory(root)
@@ -224,6 +230,7 @@ struct AddRecurringRuleView: View {
             onDismiss: {
                 withAnimation(.spring(response: 0.18, dampingFraction: 0.9)) {
                     wheelCategory = nil
+                    wheelSourceFrame = nil
                 }
             }
         )
