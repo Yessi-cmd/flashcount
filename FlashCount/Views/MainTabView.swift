@@ -54,7 +54,9 @@ struct MainTabView: View {
             AddCashPoolItemView(nextSortOrder: cashPoolItems.count)
         }
         .fullScreenCover(isPresented: $showOnboarding) {
-            OnboardingView(isPresented: $showOnboarding)
+            OnboardingView(isPresented: $showOnboarding) {
+                hasCompletedOnboarding = true
+            }
         }
         .confirmationDialog("快捷操作", isPresented: $showPlusActions) {
             Button("记一笔") {
@@ -70,7 +72,6 @@ struct MainTabView: View {
         .onAppear {
             if !hasCompletedOnboarding {
                 showOnboarding = true
-                hasCompletedOnboarding = true
             }
             processQuickEntryRequestIfNeeded()
         }

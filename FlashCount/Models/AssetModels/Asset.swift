@@ -62,7 +62,7 @@ final class Asset {
         self.id = UUID()
         self.name = name
         self.type = type
-        self.balance = balance
+        self.balance = max(balance, 0)
         self.icon = icon ?? type.icon
         self.colorHex = colorHex
         self.note = note

@@ -294,11 +294,10 @@ struct AddRecurringRuleView: View {
             modelContext.insert(rule)
         }
 
-        do {
-            try modelContext.save()
+        if let error = safeSave(modelContext) {
+            saveError = error
+        } else {
             dismiss()
-        } catch {
-            saveError = error.localizedDescription
         }
     }
 }

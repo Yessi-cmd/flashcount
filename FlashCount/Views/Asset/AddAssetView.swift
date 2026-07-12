@@ -112,15 +112,18 @@ struct AddAssetView: View {
     }
 
     private func saveAsset() {
-        guard let balance = Decimal(string: balanceText) else { return }
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let balance = Decimal(string: balanceText),
+              MoneyValidation.nonNegative(balance),
+              !cleanName.isEmpty else { return }
         if let asset = editAsset {
-            asset.name = name
+            asset.name = cleanName
             asset.type = type
             asset.balance = balance
             asset.colorHex = selectedColor
             asset.updatedAt = Date()
         } else {
-            let asset = Asset(name: name, type: type, balance: balance, colorHex: selectedColor)
+            let asset = Asset(name: cleanName, type: type, balance: balance, colorHex: selectedColor)
             modelContext.insert(asset)
         }
         if let error = safeSave(modelContext) {

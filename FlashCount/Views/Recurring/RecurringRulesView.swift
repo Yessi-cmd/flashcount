@@ -189,7 +189,11 @@ struct RecurringRulesView: View {
     }
 
     private func skipNext(_ rule: RecurringRule) {
-        guard let nextDate = rule.frequency.nextDate(from: rule.nextDueDate) else { return }
+        guard let nextDate = rule.frequency.nextDate(from: rule.nextDueDate, anchorDay: rule.anchorDay) else {
+            rule.isActive = false
+            if let error = safeSave(modelContext) { saveError = error }
+            return
+        }
         rule.nextDueDate = nextDate
         if let endDate = rule.endDate, nextDate > endDate { rule.isActive = false }
         if let error = safeSave(modelContext) { saveError = error }
@@ -220,10 +224,9 @@ struct RecurringRulesView: View {
     }
 
     private func persist() {
-        do {
-            try modelContext.save()
-        } catch {
-            saveError = error.localizedDescription
+        if let error = safeSave(modelContext) {
+            saveError = error
+            HapticManager.error()
         }
     }
 }

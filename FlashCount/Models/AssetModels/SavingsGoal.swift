@@ -20,7 +20,7 @@ final class SavingsGoal {
 
     var progress: Double {
         guard targetAmount > 0 else { return 0 }
-        return min(1, NSDecimalNumber(decimal: currentAmount / targetAmount).doubleValue)
+        return min(1, max(0, NSDecimalNumber(decimal: currentAmount / targetAmount).doubleValue))
     }
 
     init(
@@ -33,10 +33,11 @@ final class SavingsGoal {
         self.id = UUID()
         self.name = name
         self.targetAmount = targetAmount
-        self.currentAmount = currentAmount
+        let normalizedCurrentAmount = max(currentAmount, 0)
+        self.currentAmount = normalizedCurrentAmount
         self.targetDate = targetDate
         self.note = note
-        self.isCompleted = currentAmount >= targetAmount
+        self.isCompleted = normalizedCurrentAmount >= targetAmount
         self.isArchived = false
         self.createdAt = Date()
         self.updatedAt = Date()
