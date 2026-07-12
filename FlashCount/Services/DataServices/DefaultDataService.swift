@@ -20,6 +20,12 @@ final class DefaultDataService {
             return
         }
 
+        do {
+            try DataBackupService(modelContext: modelContext).recoverPendingImport()
+        } catch {
+            print("未完成的数据导入恢复失败: \(error.localizedDescription)")
+        }
+
         let recurringService = RecurringService(modelContext: modelContext)
         recurringService.processAllDueRules()
     }

@@ -286,9 +286,13 @@ struct AddBudgetView: View {
                 modelContext.insert(budget)
             }
 
-            try modelContext.save()
-            dismiss()
+            if let error = safeSave(modelContext) {
+                saveError = error
+            } else {
+                dismiss()
+            }
         } catch {
+            modelContext.rollback()
             saveError = error.localizedDescription
         }
     }

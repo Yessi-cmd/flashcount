@@ -1,6 +1,13 @@
 import Foundation
 import UserNotifications
 
+protocol ReminderNotificationScheduling {
+    func authorizationStatus() async -> UNAuthorizationStatus
+    func requestAuthorization() async -> Bool
+    func schedule(_ reminder: ReminderItem) async throws
+    func cancel(reminderID: UUID)
+}
+
 enum ReminderNotificationService {
     private static let delegate = ReminderNotificationDelegate()
 
@@ -28,20 +35,25 @@ enum ReminderNotificationService {
         cancel(reminderID: reminder.id)
 
         let center = UNUserNotificationCenter.current()
-        for (index, offset) in reminder.intensity.notificationOffsets.enumerated() {
-            let fireDate = reminder.dueDate.addingTimeInterval(offset)
-            guard fireDate > Date() else { continue }
+        do {
+            for (index, offset) in reminder.intensity.notificationOffsets.enumerated() {
+                let fireDate = reminder.dueDate.addingTimeInterval(offset)
+                guard fireDate > Date() else { continue }
 
-            let content = UNMutableNotificationContent()
-            content.title = reminder.title
-            content.body = reminder.note.isEmpty ? body(for: reminder, index: index) : reminder.note
-            content.sound = .default
-            content.interruptionLevel = reminder.intensity == .strong ? .timeSensitive : .active
+                let content = UNMutableNotificationContent()
+                content.title = reminder.title
+                content.body = reminder.note.isEmpty ? body(for: reminder, index: index) : reminder.note
+                content.sound = .default
+                content.interruptionLevel = reminder.intensity == .strong ? .timeSensitive : .active
 
-            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let request = UNNotificationRequest(identifier: identifier(for: reminder.id, index: index), content: content, trigger: trigger)
-            try await center.add(request)
+                let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+                let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+                let request = UNNotificationRequest(identifier: identifier(for: reminder.id, index: index), content: content, trigger: trigger)
+                try await center.add(request)
+            }
+        } catch {
+            cancel(reminderID: reminder.id)
+            throw error
         }
     }
 
@@ -63,6 +75,24 @@ enum ReminderNotificationService {
     private static func identifiers(for reminderID: UUID) -> [String] {
         let maxOffsetCount = ReminderIntensity.allCases.map(\.notificationOffsets.count).max() ?? 0
         return (0..<maxOffsetCount).map { identifier(for: reminderID, index: $0) }
+    }
+}
+
+struct SystemReminderNotificationScheduler: ReminderNotificationScheduling {
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await ReminderNotificationService.authorizationStatus()
+    }
+
+    func requestAuthorization() async -> Bool {
+        await ReminderNotificationService.requestAuthorization()
+    }
+
+    func schedule(_ reminder: ReminderItem) async throws {
+        try await ReminderNotificationService.schedule(reminder)
+    }
+
+    func cancel(reminderID: UUID) {
+        ReminderNotificationService.cancel(reminderID: reminderID)
     }
 }
 

@@ -4,18 +4,28 @@ import SwiftData
 /// 精确的金额编解码 — JSON 中存字符串（如 "9.99"），但兼容旧版 Double 数值
 struct CodableMoney: Codable {
     let value: String
+    let decimalValue: Decimal
 
     init(_ decimal: Decimal) {
         self.value = NSDecimalNumber(decimal: decimal).stringValue
+        self.decimalValue = decimal
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let str = try? container.decode(String.self) {
+            guard let decimal = Decimal(string: str), decimal.isFinite else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "无效金额：\(str)")
+            }
             self.value = str
+            self.decimalValue = decimal
         } else {
-            let num = try container.decode(Double.self)
-            self.value = NSDecimalNumber(value: num).stringValue
+            let decimal = try container.decode(Decimal.self)
+            guard decimal.isFinite else {
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "金额不是有限数值")
+            }
+            self.value = NSDecimalNumber(decimal: decimal).stringValue
+            self.decimalValue = decimal
         }
     }
 
@@ -24,7 +34,10 @@ struct CodableMoney: Codable {
         try container.encode(value)
     }
 
-    var decimalValue: Decimal { Decimal(string: value) ?? 0 }
+}
+
+private extension Decimal {
+    var isFinite: Bool { !isNaN }
 }
 
 /// 数据备份/恢复服务 — 全量备份所有数据
@@ -43,6 +56,7 @@ final class DataBackupService {
     enum ImportError: LocalizedError {
         case invalidVersion(String)
         case unsupportedVersion(String)
+        case invalidContents(String)
 
         var errorDescription: String? {
             switch self {
@@ -50,6 +64,8 @@ final class DataBackupService {
                 return "无法识别备份版本：\(version)"
             case .unsupportedVersion(let version):
                 return "不支持备份版本 \(version)，当前支持 \(minimumSupportedBackupVersion) 至 \(currentBackupVersion)"
+            case .invalidContents(let message):
+                return "备份内容无效：\(message)"
             }
         }
     }
@@ -324,7 +340,7 @@ final class DataBackupService {
         }
     }
 
-    enum ImportMode { case merge, replace }
+    enum ImportMode: String, Codable { case merge, replace }
 
     struct BackupPreview {
         let version: String
@@ -535,11 +551,18 @@ final class DataBackupService {
     }
 
     func importJSON(data: Data, mode: ImportMode = .merge) throws -> ImportResult {
+        try importJSON(data: data, mode: mode, recovering: false)
+    }
+
+    private func importJSON(data: Data, mode: ImportMode, recovering: Bool) throws -> ImportResult {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let backup = try decoder.decode(BackupData.self, from: data)
         try Self.validateVersion(backup.version)
-        let storedReminders = ReminderStore.load()
+        try Self.validateContents(backup, mode: mode)
+        if !recovering {
+            try Self.writeImportJournal(backupData: data, mode: mode, phase: .prepared)
+        }
         var result = ImportResult()
 
         do {
@@ -851,9 +874,71 @@ final class DataBackupService {
             try modelContext.save()
         } catch {
             modelContext.rollback()
+            try? Self.clearImportJournal()
             throw error
         }
 
+        try Self.writeImportJournal(backupData: data, mode: mode, phase: .databaseCommitted)
+
+        result.remindersImported = try Self.applyExternalState(from: backup, mode: mode)
+        try Self.clearImportJournal()
+        return result
+    }
+
+    /// Completes an import that was interrupted between its SwiftData and
+    /// external-file commits. Replaying is idempotent because every imported
+    /// model is keyed by UUID and replace mode clears before inserting.
+    @discardableResult
+    func recoverPendingImport() throws -> Bool {
+        guard let journal = try Self.readImportJournal() else { return false }
+        switch journal.phase {
+        case .prepared:
+            _ = try importJSON(data: journal.backupData, mode: journal.mode, recovering: true)
+        case .databaseCommitted:
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let backup = try decoder.decode(BackupData.self, from: journal.backupData)
+            _ = try Self.applyExternalState(from: backup, mode: journal.mode)
+            try Self.clearImportJournal()
+        }
+        return true
+    }
+
+    private enum ImportJournalPhase: String, Codable {
+        case prepared
+        case databaseCommitted
+    }
+
+    private struct ImportJournal: Codable {
+        let backupData: Data
+        let mode: ImportMode
+        let phase: ImportJournalPhase
+    }
+
+    private static var importJournalURL: URL {
+        let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        return directory.appendingPathComponent("flashcount-import-journal.json")
+    }
+
+    private static func writeImportJournal(backupData: Data, mode: ImportMode, phase: ImportJournalPhase) throws {
+        let url = importJournalURL
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(ImportJournal(backupData: backupData, mode: mode, phase: phase))
+        try data.write(to: url, options: .atomic)
+    }
+
+    private static func readImportJournal() throws -> ImportJournal? {
+        guard FileManager.default.fileExists(atPath: importJournalURL.path) else { return nil }
+        return try JSONDecoder().decode(ImportJournal.self, from: Data(contentsOf: importJournalURL))
+    }
+
+    private static func clearImportJournal() throws {
+        guard FileManager.default.fileExists(atPath: importJournalURL.path) else { return }
+        try FileManager.default.removeItem(at: importJournalURL)
+    }
+
+    private static func applyExternalState(from backup: BackupData, mode: ImportMode) throws -> Int {
+        let storedReminders = ReminderStore.load()
         let localReminders = mode == .replace ? [] : storedReminders
         let localReminderIDs = Set(localReminders.map(\.id))
         let newReminders = backup.reminders.filter { !localReminderIDs.contains($0.id) }
@@ -861,14 +946,13 @@ final class DataBackupService {
 
         if mode == .replace || !newReminders.isEmpty {
             try ReminderStore.replace(with: importedReminders)
-            result.remindersImported = newReminders.count
             Task {
                 if mode == .replace {
                     for reminder in storedReminders {
                         ReminderNotificationService.cancel(reminderID: reminder.id)
                     }
                 }
-                for reminder in newReminders where !reminder.isCompleted {
+                for reminder in (mode == .replace ? importedReminders : newReminders) where !reminder.isCompleted {
                     try? await ReminderNotificationService.schedule(reminder)
                 }
             }
@@ -880,7 +964,71 @@ final class DataBackupService {
             if let hideAssetBalance = settings.hideAssetBalance { UserDefaults.standard.set(hideAssetBalance, forKey: "hideAssetBalance") }
             if let hasCompletedOnboarding = settings.hasCompletedOnboarding { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "hasCompletedOnboarding") }
         }
-        return result
+        return newReminders.count
+    }
+
+    private static func validateContents(_ backup: BackupData, mode: ImportMode) throws {
+        try validateUniqueIDs(backup.categories.map(\.id), label: "分类")
+        try validateUniqueIDs(backup.ledgers.map(\.id), label: "账本")
+        try validateUniqueIDs(backup.transactions.map(\.id), label: "账单")
+        try validateUniqueIDs(backup.assets.map(\.id), label: "账户")
+        try validateUniqueIDs(backup.physicalAssets.map(\.id), label: "实物资产")
+        try validateUniqueIDs(backup.recurringRules.map(\.id), label: "周期规则")
+        try validateUniqueIDs(backup.budgets.map(\.id), label: "预算")
+        try validateUniqueIDs(backup.cashPoolItems.map(\.id), label: "资金项")
+        try validateUniqueIDs(backup.cashPoolStates.map(\.id), label: "资金状态")
+        try validateUniqueIDs(backup.installmentBills.map(\.id), label: "分期")
+        try validateUniqueIDs(backup.savingsGoals.map(\.id), label: "储蓄目标")
+        try validateUniqueIDs(backup.templates.map(\.id), label: "模板")
+
+        guard backup.transactions.allSatisfy({ $0.amount.decimalValue > 0 }) else {
+            throw ImportError.invalidContents("账单金额必须大于零")
+        }
+        guard backup.assets.allSatisfy({ $0.balance.decimalValue >= 0 }) else {
+            throw ImportError.invalidContents("账户余额不能为负数")
+        }
+        guard backup.physicalAssets.allSatisfy({ dto in
+            let purchase = dto.purchasePrice.decimalValue
+            let salvage = dto.salvageValue.decimalValue
+            return purchase > 0 && salvage >= 0 && salvage <= purchase
+                && dto.targetDailyCost.decimalValue > 0
+                && (dto.soldPrice?.decimalValue ?? 0) >= 0
+        }) else {
+            throw ImportError.invalidContents("实物资产金额超出有效范围")
+        }
+        guard backup.recurringRules.allSatisfy({ $0.amount.decimalValue > 0 }),
+              backup.budgets.allSatisfy({ $0.monthlyLimit.decimalValue > 0 }),
+              backup.cashPoolItems.allSatisfy({ $0.amount.decimalValue >= 0 }),
+              backup.installmentBills.allSatisfy({ $0.totalAmount.decimalValue > 0 }),
+              backup.savingsGoals.allSatisfy({ $0.targetAmount.decimalValue > 0 && $0.currentAmount.decimalValue >= 0 }),
+              backup.templates.allSatisfy({ $0.amount.decimalValue > 0 }) else {
+            throw ImportError.invalidContents("存在不符合业务约束的金额")
+        }
+
+        if mode == .replace {
+            let categoryIDs = Set(backup.categories.map(\.id))
+            let ledgerIDs = Set(backup.ledgers.map(\.id))
+            let categoryReferences = backup.transactions.compactMap(\.categoryId)
+                + backup.recurringRules.compactMap(\.categoryId)
+            let ledgerReferences = backup.transactions.compactMap(\.ledgerId)
+                + backup.recurringRules.compactMap(\.ledgerId)
+                + backup.budgets.compactMap(\.ledgerId)
+            guard categoryReferences.allSatisfy(categoryIDs.contains) else {
+                throw ImportError.invalidContents("分类关系引用不存在")
+            }
+            guard ledgerReferences.allSatisfy(ledgerIDs.contains) else {
+                throw ImportError.invalidContents("账本关系引用不存在")
+            }
+        }
+    }
+
+    private static func validateUniqueIDs(_ ids: [String], label: String) throws {
+        guard ids.allSatisfy({ UUID(uuidString: $0) != nil }) else {
+            throw ImportError.invalidContents("\(label)包含无效 UUID")
+        }
+        guard Set(ids).count == ids.count else {
+            throw ImportError.invalidContents("\(label)包含重复 UUID")
+        }
     }
 
     private static func validateVersion(_ rawVersion: String) throws {
