@@ -236,7 +236,7 @@ struct QuickEntryView: View {
                 Image(systemName: selectedLedger?.icon ?? "book.closed")
                     .font(.caption)
                 Text(selectedLedger?.name ?? "账本")
-                    .font(.caption.weight(.medium))
+                    .font(DesignSystem.Typography.compactLabel)
                     .lineLimit(1)
             }
             .foregroundStyle(DesignSystem.textSecondary)
@@ -257,7 +257,7 @@ struct QuickEntryView: View {
                 HapticManager.selection()
             } label: {
                 Text("支出")
-                    .font(.subheadline.weight(.semibold))
+                    .font(DesignSystem.Typography.controlLabel)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background {
@@ -278,7 +278,7 @@ struct QuickEntryView: View {
                 HapticManager.selection()
             } label: {
                 Text("收入")
-                    .font(.subheadline.weight(.semibold))
+                    .font(DesignSystem.Typography.controlLabel)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background {
@@ -305,7 +305,7 @@ struct QuickEntryView: View {
                     .font(.title3.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
                 Text(amountText.isEmpty ? "0.00" : amountText)
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.amount)
                     .monospacedDigit()
                     .foregroundStyle(DesignSystem.textPrimary)
                     .contentTransition(.numericText())
@@ -353,7 +353,7 @@ struct QuickEntryView: View {
                     .foregroundStyle(DesignSystem.primaryColor)
 
                 Text(showAllCategories ? "收起全部分类" : "展开全部分类")
-                    .font(.caption.weight(.medium))
+                    .font(DesignSystem.Typography.compactLabel)
                     .foregroundStyle(DesignSystem.textSecondary)
 
                     Spacer(minLength: 2)
@@ -381,7 +381,7 @@ struct QuickEntryView: View {
                 }
 
                 Text(dailyBudgetOverride == nil ? "日常预算" : "本笔覆盖")
-                    .font(.caption2.weight(.medium))
+                    .font(DesignSystem.Typography.supportingLabel)
                     .foregroundStyle(dailyBudgetOverride == nil ? DesignSystem.textSecondary : DesignSystem.primaryColor)
                     .lineLimit(1)
 
@@ -392,7 +392,7 @@ struct QuickEntryView: View {
                     .frame(width: 42)
             } else if let selectedCategory {
                 Text(selectedCategory.entryDisplayName)
-                    .font(.caption2.weight(.medium))
+                    .font(DesignSystem.Typography.supportingLabel)
                     .foregroundStyle(DesignSystem.textTertiary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -407,7 +407,7 @@ struct QuickEntryView: View {
     private func categorySection(title: String, categories: [Category]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.caption2.weight(.medium))
+                .font(DesignSystem.Typography.compactLabelEmphasized)
                 .foregroundStyle(DesignSystem.textTertiary)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
@@ -428,7 +428,7 @@ struct QuickEntryView: View {
             circleSize: 36,
             minHeight: 62,
             onSelect: { _ in selectCategory(category) },
-            onLongPress: { sourceFrame in
+            onOpenChildren: { sourceFrame in
                 showWheel(for: category, sourceFrame: sourceFrame)
             }
         )
@@ -607,7 +607,6 @@ struct QuickEntryView: View {
             selectCategory(category)
             return
         }
-        HapticManager.impact(.soft)
         wheelSourceFrame = sourceFrame
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category

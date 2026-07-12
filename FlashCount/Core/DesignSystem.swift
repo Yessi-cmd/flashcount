@@ -17,6 +17,23 @@ enum AppearancePreference: String, CaseIterable {
 /// App 设计系统常量
 enum DesignSystem {
 
+    // MARK: - Typography
+
+    /// The app uses rounded system faces for Latin text and numerals while
+    /// retaining the system CJK fallback for legibility. Semantic sizes keep
+    /// Dynamic Type behavior instead of scattering fixed point sizes.
+    enum Typography {
+        static let controlLabel = Font.system(.subheadline, design: .rounded, weight: .semibold)
+        static let compactLabel = Font.system(.caption, design: .rounded, weight: .medium)
+        static let compactLabelEmphasized = Font.system(.caption, design: .rounded, weight: .semibold)
+        static let supportingLabel = Font.system(.caption2, design: .rounded, weight: .medium)
+        static let amount = Font.system(size: 40, weight: .bold, design: .rounded)
+        static let keypadDigit = Font.system(.title3, design: .rounded, weight: .medium)
+        static let wheelIcon = Font.system(.body, design: .rounded, weight: .semibold)
+        static let wheelLabel = Font.system(.caption2, design: .rounded, weight: .medium)
+        static let wheelHubTitle = Font.system(.subheadline, design: .rounded, weight: .bold)
+    }
+
     // MARK: - 品牌色
 
     /// B 方向主色。保留 ShapeStyle 类型兼容现有调用，但两端同色，不再产生渐变。

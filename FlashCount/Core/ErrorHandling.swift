@@ -122,19 +122,50 @@ final class DataRepairService {
 // MARK: - 触觉反馈
 
 enum HapticManager {
+    private static let lightImpactGenerator = UIImpactFeedbackGenerator(style: .light)
+    private static let mediumImpactGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private static let selectionGenerator = UISelectionFeedbackGenerator()
+    private static let notificationGenerator = UINotificationFeedbackGenerator()
+
     static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .medium) {
         UIImpactFeedbackGenerator(style: style).impactOccurred()
     }
 
     static func success() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notificationGenerator.notificationOccurred(.success)
+        notificationGenerator.prepare()
     }
 
     static func error() {
-        UINotificationFeedbackGenerator().notificationOccurred(.error)
+        notificationGenerator.notificationOccurred(.error)
+        notificationGenerator.prepare()
     }
 
     static func selection() {
-        UISelectionFeedbackGenerator().selectionChanged()
+        selectionGenerator.selectionChanged()
+        selectionGenerator.prepare()
+    }
+
+    /// Prepares the generators used by the category wheel before the first
+    /// sector is reached, avoiding delayed feedback during a continuous drag.
+    static func prepareCategoryWheel() {
+        lightImpactGenerator.prepare()
+        mediumImpactGenerator.prepare()
+        selectionGenerator.prepare()
+    }
+
+    static func categoryWheelOpened() {
+        lightImpactGenerator.impactOccurred()
+        prepareCategoryWheel()
+    }
+
+    static func categoryWheelSectorChanged() {
+        selectionGenerator.selectionChanged()
+        selectionGenerator.prepare()
+    }
+
+    static func categoryWheelConfirmed() {
+        mediumImpactGenerator.impactOccurred(intensity: 0.78)
+        prepareCategoryWheel()
     }
 }

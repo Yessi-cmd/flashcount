@@ -8,9 +8,8 @@ struct CategorySelectionTile: View {
     let circleSize: CGFloat
     let minHeight: CGFloat
     let onSelect: (CGRect?) -> Void
-    let onLongPress: (CGRect?) -> Void
+    let onOpenChildren: (CGRect?) -> Void
 
-    @State private var isPressing = false
     @State private var globalFrame: CGRect?
 
     private var rootName: String {
@@ -30,43 +29,44 @@ struct CategorySelectionTile: View {
     }
 
     var body: some View {
-        VStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .fill(color.opacity(isSelected ? 0.18 : 0.10))
-                    .frame(width: circleSize, height: circleSize)
-                    .overlay {
-                        if hasChildren && isPressing {
-                            Circle()
-                                .stroke(color.opacity(0.32), lineWidth: 2)
-                                .scaleEffect(1.08)
-                        }
+        Button {
+            if hasChildren {
+                onOpenChildren(globalFrame)
+            } else {
+                onSelect(globalFrame)
+            }
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(isSelected ? 0.18 : 0.10))
+                        .frame(width: circleSize, height: circleSize)
+
+                    if isSelected {
+                        Circle()
+                            .stroke(color.opacity(0.82), lineWidth: 1.8)
+                            .frame(width: circleSize, height: circleSize)
                     }
 
-                if isSelected {
-                    Circle()
-                        .stroke(color.opacity(0.82), lineWidth: 1.8)
-                        .frame(width: circleSize, height: circleSize)
+                    Image(systemName: icon)
+                        .font(iconSize)
+                        .foregroundStyle(color)
                 }
 
-                Image(systemName: icon)
-                    .font(iconSize)
-                    .foregroundStyle(color)
-            }
+                HStack(spacing: 3) {
+                    Text(rootName)
+                        .font(DesignSystem.Typography.supportingLabel)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
 
-            HStack(spacing: 3) {
-                Text(rootName)
-                    .font(.caption2)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.75)
-
-                if hasChildren {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 7, weight: .semibold))
-                        .foregroundStyle(DesignSystem.textTertiary)
+                    if hasChildren {
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 7, weight: .semibold))
+                            .foregroundStyle(DesignSystem.textTertiary)
+                    }
                 }
+                .foregroundStyle(isSelected ? DesignSystem.textPrimary : DesignSystem.textSecondary)
             }
-            .foregroundStyle(isSelected ? DesignSystem.textPrimary : DesignSystem.textSecondary)
         }
         .frame(minHeight: minHeight)
         .background {
@@ -80,42 +80,32 @@ struct CategorySelectionTile: View {
                     }
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if hasChildren {
-                onLongPress(globalFrame)
-            } else {
-                onSelect(globalFrame)
-            }
-        }
-        .scaleEffect(isPressing ? 0.96 : 1)
-        .opacity(isPressing ? 0.94 : 1)
-        .animation(.easeOut(duration: 0.12), value: isPressing)
-        .onLongPressGesture(
-            minimumDuration: 0.35,
-            maximumDistance: 34,
-            pressing: { pressing in
-                updatePressingState(pressing)
-            },
-            perform: {
-                isPressing = false
-                onLongPress(globalFrame)
-            }
-        )
+        .buttonStyle(CategorySelectionTileButtonStyle(color: color))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(hasChildren ? "\(rootName)，包含小类" : rootName)
-        .accessibilityValue(isSelected ? "已选中" : "未选中")
-        .accessibilityHint(hasChildren ? "点按选择具体分类" : "")
+        .accessibilityValue(
+            isSelected
+                ? "已选中：\(selectedCategory?.entryDisplayName ?? rootName)"
+                : "未选中"
+        )
+        .accessibilityHint(hasChildren ? "点按打开分类圆盘" : "")
         .accessibilityAddTraits(.isButton)
     }
+}
 
-    private func updatePressingState(_ pressing: Bool) {
-        guard hasChildren else {
-            isPressing = false
-            return
-        }
+private struct CategorySelectionTileButtonStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    let color: Color
 
-        isPressing = pressing
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.965 : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .background {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(color.opacity(configuration.isPressed ? 0.09 : 0))
+            }
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
@@ -135,7 +125,7 @@ struct CategoryWheelOverlay: View {
     @State private var phase: PresentationPhase = .hidden
     @State private var isPresented = false
     @State private var labelsVisible = false
-    @State private var dialedChildIndex: Int?
+    @State private var dialState = CategoryWheelDialState()
     @State private var selectionPulseIndex: Int?
     @State private var transitionTask: Task<Void, Never>?
 
@@ -147,7 +137,7 @@ struct CategoryWheelOverlay: View {
         case closing
 
         var acceptsInput: Bool {
-            self == .opening || self == .open
+            self == .open
         }
     }
 
@@ -188,6 +178,7 @@ struct CategoryWheelOverlay: View {
                     wheel(in: proxy, sourceOffset: sourceOffset)
                 }
             }
+            .accessibilityIdentifier("categoryWheelOverlay")
             .accessibilityAction(.escape) {
                 dismissThen(onDismiss)
             }
@@ -215,7 +206,7 @@ struct CategoryWheelOverlay: View {
                 layout: layout,
                 children: children,
                 selectedCategoryID: selectedCategory?.id,
-                activeIndex: dialedChildIndex ?? selectionPulseIndex
+                activeIndex: dialState.activeIndex ?? selectionPulseIndex
             )
             .shadow(
                 color: .black.opacity(colorScheme == .dark ? 0.34 : 0.15),
@@ -233,37 +224,40 @@ struct CategoryWheelOverlay: View {
         .frame(width: wheelSize, height: wheelSize)
         .contentShape(Circle())
         .simultaneousGesture(dialGesture(layout: layout))
-        .scaleEffect(isPresented || reduceMotion ? 1 : 0.78)
-        .rotationEffect(.degrees(isPresented || reduceMotion ? 0 : -8))
+        .scaleEffect(isPresented || reduceMotion ? 1 : 0.92)
         .offset(
-            x: isPresented || reduceMotion ? 0 : sourceOffset.width,
-            y: isPresented || reduceMotion ? 0 : sourceOffset.height
+            x: isPresented || reduceMotion ? 0 : sourceOffset.width * 0.24,
+            y: isPresented || reduceMotion ? 0 : sourceOffset.height * 0.24
         )
         .opacity(isPresented ? 1 : 0)
         .allowsHitTesting(phase.acceptsInput)
     }
 
     private func categoryLabel(_ child: Category, index: Int, layout: CategoryWheelLayout) -> some View {
-        let isActive = dialedChildIndex == index || selectionPulseIndex == index
+        let isActive = dialState.activeIndex == index || selectionPulseIndex == index
         let isSelected = selectedCategory?.id == child.id
         let childColor = Color(hex: child.colorHex)
-        let point = layout.labelPoint(for: index, radialOffset: isActive ? 3 : 0)
+        let point = layout.labelPoint(for: index, radialOffset: isActive ? -2 : 0)
 
-        return VStack(spacing: 5) {
+        return VStack(spacing: 4) {
             Image(systemName: child.icon)
-                .font(.system(size: 17, weight: .semibold))
+                .font(DesignSystem.Typography.wheelIcon)
                 .symbolRenderingMode(.monochrome)
+                .scaleEffect(selectionPulseIndex == index ? 1.10 : isActive ? 1.06 : 1)
             Text(child.name)
-                .font(.system(size: layout.itemCount >= 8 ? 10 : 11, weight: .semibold))
+                .font(DesignSystem.Typography.wheelLabel)
+                .fontWidth(layout.itemCount >= 8 ? .condensed : .standard)
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
-                .minimumScaleFactor(0.68)
+                .lineSpacing(1)
+                .allowsTightening(true)
+                .minimumScaleFactor(0.72)
+                .frame(maxWidth: layout.labelSize.width)
         }
         .foregroundStyle(isActive || isSelected ? childColor : DesignSystem.textPrimary)
-        .frame(width: layout.itemCount >= 8 ? 66 : 78)
-        .scaleEffect(selectionPulseIndex == index ? 1.14 : isActive ? 1.07 : 1)
+        .frame(width: layout.labelSize.width, height: layout.labelSize.height)
         .position(point)
-        .opacity(labelsVisible ? (dialedChildIndex == nil || isActive ? 1 : 0.68) : 0)
+        .opacity(labelsVisible ? (dialState.activeIndex == nil || isActive ? 1 : 0.68) : 0)
         .offset(y: labelsVisible ? 0 : 7)
         .animation(
             reduceMotion
@@ -275,6 +269,7 @@ struct CategoryWheelOverlay: View {
         .animation(.easeOut(duration: 0.11), value: isActive)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(child.name)，\(parentName)")
+        .accessibilityIdentifier("categoryWheelChild-\(child.name)")
         .accessibilityValue(isSelected ? "已选中" : "未选中")
         .accessibilityAddTraits(.isButton)
         .accessibilitySortPriority(Double(children.count - index))
@@ -286,7 +281,7 @@ struct CategoryWheelOverlay: View {
     private func centerHub(size: CGFloat) -> some View {
         Button {
             guard phase.acceptsInput else { return }
-            HapticManager.selection()
+            HapticManager.categoryWheelConfirmed()
             selectionPulseIndex = nil
             phase = .selecting(-1)
             scheduleSelection {
@@ -295,13 +290,13 @@ struct CategoryWheelOverlay: View {
         } label: {
             VStack(spacing: 5) {
                 Image(systemName: parentIcon)
-                    .font(.system(size: 23, weight: .semibold))
+                    .font(.title3.weight(.semibold))
                 Text(parentName)
-                    .font(.subheadline.weight(.bold))
+                    .font(DesignSystem.Typography.wheelHubTitle)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                 Text("使用大类")
-                    .font(.system(size: 9, weight: .medium))
+                    .font(DesignSystem.Typography.supportingLabel)
                     .foregroundStyle(DesignSystem.textTertiary)
             }
             .foregroundStyle(parentColor)
@@ -391,6 +386,7 @@ struct CategoryWheelOverlay: View {
                     .frame(width: 28)
                     .foregroundStyle(color)
                 Text(title)
+                    .font(DesignSystem.Typography.controlLabel)
                     .foregroundStyle(DesignSystem.textPrimary)
                 Spacer()
                 if isSelected {
@@ -410,17 +406,17 @@ struct CategoryWheelOverlay: View {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
             .onChanged { value in
                 guard phase.acceptsInput else { return }
-                let index = layout.index(at: value.location)
-                guard dialedChildIndex != index else { return }
-                dialedChildIndex = index
-                if index != nil {
-                    HapticManager.selection()
+                switch dialState.update(location: value.location, layout: layout) {
+                case .entered, .moved:
+                    HapticManager.categoryWheelSectorChanged()
+                case .unchanged, .exited:
+                    break
                 }
             }
             .onEnded { value in
                 guard phase.acceptsInput else { return }
-                let index = layout.index(at: value.location) ?? dialedChildIndex
-                dialedChildIndex = nil
+                let index = layout.index(at: value.location)
+                dialState.reset()
                 guard let index, children.indices.contains(index) else { return }
                 confirmChild(at: index)
             }
@@ -430,6 +426,7 @@ struct CategoryWheelOverlay: View {
         guard phase.acceptsInput, children.indices.contains(index) else { return }
         phase = .selecting(index)
         selectionPulseIndex = index
+        HapticManager.categoryWheelConfirmed()
         scheduleSelection {
             onSelectChild(children[index])
         }
@@ -438,11 +435,13 @@ struct CategoryWheelOverlay: View {
     private func present() {
         transitionTask?.cancel()
         phase = .opening
+        HapticManager.prepareCategoryWheel()
+        HapticManager.categoryWheelOpened()
 
         withAnimation(
             reduceMotion
                 ? .easeOut(duration: 0.12)
-                : .spring(response: 0.34, dampingFraction: 0.82, blendDuration: 0.05)
+                : .spring(response: 0.28, dampingFraction: 0.88, blendDuration: 0.04)
         ) {
             isPresented = true
         }
@@ -450,7 +449,7 @@ struct CategoryWheelOverlay: View {
         labelsVisible = true
         transitionTask = Task { @MainActor in
             do {
-                try await Task.sleep(nanoseconds: reduceMotion ? 120_000_000 : 360_000_000)
+                try await Task.sleep(nanoseconds: reduceMotion ? 120_000_000 : 280_000_000)
             } catch {
                 return
             }
@@ -481,20 +480,20 @@ struct CategoryWheelOverlay: View {
 
     private func beginClosing(action: @escaping () -> Void) {
         phase = .closing
-        dialedChildIndex = nil
+        dialState.reset()
         labelsVisible = false
 
         withAnimation(
             reduceMotion
                 ? .easeOut(duration: 0.12)
-                : .easeInOut(duration: 0.18)
+                : .easeOut(duration: 0.16)
         ) {
             isPresented = false
         }
 
         transitionTask = Task { @MainActor in
             do {
-                try await Task.sleep(nanoseconds: reduceMotion ? 120_000_000 : 180_000_000)
+                try await Task.sleep(nanoseconds: reduceMotion ? 120_000_000 : 160_000_000)
             } catch {
                 return
             }

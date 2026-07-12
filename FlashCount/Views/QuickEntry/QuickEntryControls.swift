@@ -20,7 +20,11 @@ struct QuickEntryNumberPad: View {
                         } else {
                             Button { onKeyPress(button) } label: {
                                 Text(button)
-                                    .font(button == "收入" || button == "支出" ? .caption2.weight(.semibold) : .body.weight(.medium))
+                                    .font(
+                                        button == "收入" || button == "支出"
+                                            ? DesignSystem.Typography.supportingLabel
+                                            : DesignSystem.Typography.keypadDigit
+                                    )
                                     .frame(maxWidth: .infinity).frame(height: 42)
                                     .background(background(for: button))
                                     .foregroundStyle(foreground(for: button))
@@ -62,7 +66,7 @@ struct QuickEntrySubmitButton: View {
     var body: some View {
         Button(action: action) {
             Text("保存")
-                .font(.subheadline.weight(.semibold)).foregroundStyle(.white)
+                .font(DesignSystem.Typography.controlLabel).foregroundStyle(.white)
                 .frame(maxWidth: .infinity).frame(height: 44)
                 .background(
                     isEnabled

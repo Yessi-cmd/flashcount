@@ -33,7 +33,7 @@ struct TemplateBarView: View {
                     .font(.caption2)
                     .foregroundStyle(DesignSystem.warningColor)
                 Text("记账模板")
-                    .font(.caption.weight(.medium))
+                    .font(DesignSystem.Typography.compactLabelEmphasized)
                     .foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
             }
@@ -51,7 +51,7 @@ struct TemplateBarView: View {
                             Image(systemName: "pencil.circle.fill")
                                 .font(.caption)
                             Text("管理")
-                                .font(.caption.weight(.medium))
+                                .font(DesignSystem.Typography.compactLabel)
                         }
                         .foregroundStyle(DesignSystem.textTertiary)
                         .padding(.horizontal, 10)
@@ -88,9 +88,9 @@ struct TemplateBarView: View {
         } label: {
             HStack(spacing: 6) {
                 Text(template.name)
-                    .font(.caption.weight(.semibold))
+                    .font(DesignSystem.Typography.compactLabelEmphasized)
                 Text(template.amount.formattedAmount)
-                    .font(.caption2.weight(.medium))
+                    .font(DesignSystem.Typography.supportingLabel)
                     .foregroundStyle(
                         template.isExpense
                         ? DesignSystem.expenseColor
