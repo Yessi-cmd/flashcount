@@ -4,6 +4,66 @@ import SwiftData
 
 @MainActor
 final class FinanceDomainTests: XCTestCase {
+    func testCodableMoneyRejectsInvalidStrings() {
+        XCTAssertThrowsError(try JSONDecoder().decode(CodableMoney.self, from: Data("\"not-money\"".utf8)))
+    }
+
+    func testMoneyValidationAndModelsClampInvalidProgress() {
+        XCTAssertFalse(MoneyValidation.nonNegative(-1))
+        XCTAssertFalse(MoneyValidation.validPhysicalAsset(purchasePrice: 100, salvageValue: 101, targetDailyCost: 1))
+
+        let goal = SavingsGoal(name: "应急金", targetAmount: 100, currentAmount: -20)
+        XCTAssertEqual(goal.currentAmount, 0)
+        XCTAssertEqual(goal.progress, 0)
+
+        let liability = Asset(name: "信用卡", type: .creditCard, balance: -100)
+        XCTAssertEqual(liability.balance, 0)
+        XCTAssertEqual(liability.signedBalance, 0)
+    }
+
+    func testRecurringSkipKeepsMonthEndAnchor() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let february = try XCTUnwrap(calendar.date(from: DateComponents(year: 2025, month: 2, day: 28)))
+        let next = try XCTUnwrap(RecurringFrequency.monthly.nextDate(from: february, anchorDay: 31, calendar: calendar))
+        XCTAssertEqual(calendar.dateComponents([.year, .month, .day], from: next), DateComponents(year: 2025, month: 3, day: 31))
+    }
+
+    func testReminderStoreFailureDoesNotReplaceExistingFile() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = FileReminderStore(fileURL: directory)
+        XCTAssertThrowsError(try store.save([ReminderItem(title: "test", dueDate: Date().addingTimeInterval(60))]))
+    }
+
+    func testReminderMutationsKeepCallerStateWhenPersistenceFails() {
+        let original = [ReminderItem(title: "原提醒", dueDate: Date().addingTimeInterval(60))]
+        let service = ReminderMutationService(store: FailingReminderStore())
+
+        XCTAssertThrowsError(try service.adding(ReminderItem(title: "新提醒", dueDate: Date().addingTimeInterval(120)), to: original))
+        XCTAssertThrowsError(try service.completing(id: original[0].id, in: original))
+        XCTAssertThrowsError(try service.deleting(id: original[0].id, from: original))
+        XCTAssertEqual(original.count, 1)
+        XCTAssertFalse(original[0].isCompleted)
+    }
+
+    func testDuplicateBackupUUIDIsRejectedBeforeReplaceMutatesData() throws {
+        let context = try makeContext()
+        context.insert(Transaction(amount: 10))
+        context.insert(Transaction(amount: 20))
+        try context.save()
+        let service = DataBackupService(modelContext: context)
+
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: service.exportJSON()) as? [String: Any])
+        var transactions = try XCTUnwrap(json["transactions"] as? [[String: Any]])
+        transactions[1]["id"] = transactions[0]["id"]
+        json["transactions"] = transactions
+        let invalidBackup = try JSONSerialization.data(withJSONObject: json)
+
+        XCTAssertThrowsError(try service.importJSON(data: invalidBackup, mode: .replace))
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 2)
+    }
     private var calendar: Calendar!
 
     override func setUp() {
@@ -294,4 +354,10 @@ final class FinanceDomainTests: XCTestCase {
         try contents.write(to: url, options: .atomic)
         return url
     }
+}
+
+private struct FailingReminderStore: ReminderPersisting {
+    struct Failure: Error {}
+    func load() -> [ReminderItem] { [] }
+    func save(_ reminders: [ReminderItem]) throws { throw Failure() }
 }

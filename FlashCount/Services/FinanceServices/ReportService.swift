@@ -185,20 +185,39 @@ final class ReportService {
     }
 
     private func calculateStreak(calendar: Calendar) throws -> Int {
-        let descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\.date, order: .reverse)])
-        let transactions = try modelContext.fetch(descriptor)
-        guard !transactions.isEmpty else { return 0 }
-
-        let loggedDays = Set(transactions.map { calendar.startOfDay(for: $0.date) })
         var streak = 0
         let today = calendar.startOfDay(for: Date())
-        var checkDate = loggedDays.contains(today)
-            ? today
-            : calendar.date(byAdding: .day, value: -1, to: today)!
+        var expectedDay: Date?
+        var lastProcessedDay: Date?
+        var offset = 0
+        let pageSize = 256
 
-        while loggedDays.contains(checkDate) {
-            streak += 1
-            checkDate = calendar.date(byAdding: .day, value: -1, to: checkDate)!
+        while true {
+            var descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+            descriptor.fetchLimit = pageSize
+            descriptor.fetchOffset = offset
+            let page = try modelContext.fetch(descriptor)
+            guard !page.isEmpty else { break }
+
+            for transaction in page {
+                let day = calendar.startOfDay(for: transaction.date)
+                guard day != lastProcessedDay else { continue }
+                lastProcessedDay = day
+                if expectedDay == nil {
+                    if day == today {
+                        expectedDay = today
+                    } else if day == calendar.date(byAdding: .day, value: -1, to: today) {
+                        expectedDay = day
+                    } else {
+                        return 0
+                    }
+                }
+                guard day == expectedDay else { return streak }
+                streak += 1
+                expectedDay = calendar.date(byAdding: .day, value: -1, to: day)
+            }
+            if page.count < pageSize { break }
+            offset += page.count
         }
         return streak
     }

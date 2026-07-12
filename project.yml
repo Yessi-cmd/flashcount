@@ -43,3 +43,10 @@ targets:
       - path: FlashCountTests
     dependencies:
       - target: FlashCount
+  FlashCountUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: FlashCountUITests
+    dependencies:
+      - target: FlashCount
