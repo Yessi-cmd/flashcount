@@ -26,6 +26,7 @@ struct EditTransactionView: View {
     @State private var selectedLedger: Ledger?
     @State private var saveError: String?
     @State private var wheelCategory: Category?
+    @State private var wheelSourceFrame: CGRect?
     @State private var showDeleteConfirm = false
     @State private var dailyBudgetOverride: Bool?
 
@@ -108,8 +109,10 @@ struct EditTransactionView: View {
                                         iconSize: .subheadline,
                                         circleSize: 44,
                                         minHeight: 74,
-                                        onSelect: { selectCategory(category) },
-                                        onLongPress: { showWheel(for: category) }
+                                        onSelect: { _ in selectCategory(category) },
+                                        onLongPress: { sourceFrame in
+                                            showWheel(for: category, sourceFrame: sourceFrame)
+                                        }
                                     )
                                 }
                             }
@@ -285,16 +288,18 @@ struct EditTransactionView: View {
             selectedCategory = category
             dailyBudgetOverride = nil
             wheelCategory = nil
+            wheelSourceFrame = nil
         }
     }
 
-    private func showWheel(for category: Category) {
+    private func showWheel(for category: Category, sourceFrame: CGRect?) {
         let children = Category.childCategories(for: category.rootCategoryName, in: currentCategories, isExpense: isExpense)
         guard !children.isEmpty else {
             selectCategory(category)
             return
         }
         HapticManager.impact(.soft)
+        wheelSourceFrame = sourceFrame
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category
         }
@@ -307,6 +312,7 @@ struct EditTransactionView: View {
             parentCategory: rootCategory(for: rootName, in: currentCategories) ?? category,
             children: children,
             selectedCategory: selectedCategory,
+            sourceFrame: wheelSourceFrame,
             onSelectParent: {
                 if let root = rootCategory(for: rootName, in: currentCategories) {
                     selectExactCategory(root)
@@ -320,6 +326,7 @@ struct EditTransactionView: View {
             onDismiss: {
                 withAnimation(.spring(response: 0.18, dampingFraction: 0.9)) {
                     wheelCategory = nil
+                    wheelSourceFrame = nil
                 }
             }
         )
