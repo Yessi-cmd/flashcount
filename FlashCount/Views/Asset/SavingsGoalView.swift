@@ -275,6 +275,7 @@ private struct AddSavingsGoalView: View {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let targetAmount = Decimal(string: targetAmountText), targetAmount > 0, !cleanName.isEmpty else { return }
         let currentAmount = Decimal(string: currentAmountText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+        guard MoneyValidation.nonNegative(currentAmount) else { return }
         let date = hasTargetDate ? targetDate : nil
 
         if let editGoal {

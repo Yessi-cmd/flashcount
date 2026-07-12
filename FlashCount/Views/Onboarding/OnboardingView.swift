@@ -3,6 +3,7 @@ import SwiftUI
 /// 首次启动引导页
 struct OnboardingView: View {
     @Binding var isPresented: Bool
+    var onComplete: () -> Void = {}
 
     private let features: [(icon: String, title: String, desc: String, color: Color)] = [
         ("bolt.fill", "极速记账", "打开即记，3 秒搞定", DesignSystem.primaryColor),
@@ -80,6 +81,7 @@ struct OnboardingView: View {
 
                 // 开始按钮
                 Button {
+                    onComplete()
                     withAnimation(.spring(response: 0.4)) {
                         isPresented = false
                     }

@@ -101,13 +101,17 @@ final class PhysicalAsset {
         self.id = UUID()
         self.name = name
         self.category = category
-        self.purchasePrice = purchasePrice
+        let normalizedPurchasePrice = max(purchasePrice, 0)
+        self.purchasePrice = normalizedPurchasePrice
         self.purchaseDate = purchaseDate
         // 默认残值 = 购买价 × 行业默认残值比例
-        self.salvageValue = salvageValue ?? (purchasePrice * Decimal(category.defaultSalvageRatio))
+        let defaultSalvage = normalizedPurchasePrice * Decimal(category.defaultSalvageRatio)
+        let normalizedSalvage = min(max(salvageValue ?? defaultSalvage, 0), normalizedPurchasePrice)
+        self.salvageValue = normalizedSalvage
         // 默认目标日成本 = 折旧成本 ÷ 365
-        let depreciableCost = purchasePrice - (salvageValue ?? (purchasePrice * Decimal(category.defaultSalvageRatio)))
-        self.targetDailyCost = targetDailyCost ?? (depreciableCost / 365)
+        let depreciableCost = normalizedPurchasePrice - normalizedSalvage
+        let defaultDailyCost = max(depreciableCost / 365, Decimal(string: "0.01") ?? 0.01)
+        self.targetDailyCost = max(targetDailyCost ?? defaultDailyCost, Decimal(string: "0.01") ?? 0.01)
         self.note = note
         self.isArchived = false
     }
@@ -122,7 +126,7 @@ final class PhysicalAsset {
 
     /// 可折旧金额 = 购买价 - 残值
     var depreciableCost: Decimal {
-        purchasePrice - salvageValue
+        max(purchasePrice - salvageValue, 0)
     }
 
     /// 当前日均成本 = 可折旧金额 ÷ 持有天数
@@ -142,6 +146,7 @@ final class PhysicalAsset {
     var progressToTarget: Double {
         guard targetDailyCost > 0 else { return 0 }
         let targetDays = NSDecimalNumber(decimal: depreciableCost / targetDailyCost).doubleValue
+        guard targetDays > 0 else { return depreciableCost == 0 ? 1 : 0 }
         return min(1.0, Double(daysHeld) / targetDays)
     }
 
