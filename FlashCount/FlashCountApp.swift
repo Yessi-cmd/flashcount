@@ -32,19 +32,112 @@ private struct AppRootView: View {
     private static var didPrepareData = false
 
     var body: some View {
-        MainTabView()
-            .environmentObject(privacyLock)
-            .preferredColorScheme(AppearancePreference(rawValue: appearance)?.colorScheme)
-            .onAppear {
-                ReminderNotificationService.configure()
-                guard !Self.didPrepareData else { return }
-                Self.didPrepareData = true
-                DefaultDataService(modelContext: modelContext).prepareAppData()
-            }
-            .onChange(of: scenePhase) { _, phase in
-                if phase == .background {
-                    privacyLock.lock()
+        Group {
+            if isBudgetScopeReview {
+                DailyBudgetScopeView()
+                    .onAppear { prepareReviewDataIfNeeded() }
+            } else if isQuickEntryReview {
+                QuickEntryView()
+                    .onAppear { prepareReviewDataIfNeeded() }
+            } else if let direction = visualExplorationDirection {
+                if ProcessInfo.processInfo.arguments.contains("-visualHomeExploration") {
+                    MainInterfaceExplorationView(
+                        initialDirection: direction,
+                        allowsDirectionSwitching: !ProcessInfo.processInfo.arguments.contains("-visualDirectionSnapshot")
+                    )
+                } else {
+                    VisualDirectionExplorationView(
+                        initialDirection: direction,
+                        allowsDirectionSwitching: !ProcessInfo.processInfo.arguments.contains("-visualDirectionSnapshot")
+                    )
                 }
+            } else {
+                MainTabView()
+                    .environmentObject(privacyLock)
+                    .onAppear {
+                        ReminderNotificationService.configure()
+                        guard !Self.didPrepareData else { return }
+                        Self.didPrepareData = true
+                        DefaultDataService(modelContext: modelContext).prepareAppData()
+                    }
             }
+        }
+        .tint(DesignSystem.primaryColor)
+        .preferredColorScheme(AppearancePreference(rawValue: appearance)?.colorScheme)
+        .overlay {
+            if scenePhase != .active {
+                ZStack {
+                    DesignSystem.surfaceBackground.ignoresSafeArea()
+                    VStack(spacing: 10) {
+                        Image(systemName: "lock.fill")
+                            .font(.title2)
+                        Text("隐私内容已遮挡")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .foregroundStyle(DesignSystem.textTertiary)
+                }
+                .accessibilityHidden(true)
+            }
+        }
+        .confirmationDialog(
+            "显示隐私金额？",
+            isPresented: $privacyLock.isRevealConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("验证并显示") {
+                Task { _ = await privacyLock.confirmReveal() }
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("验证后，本次使用期间会显示所有收入和资产金额。进入后台或点击眼睛按钮后会再次隐藏。")
+        }
+        .alert("无法显示隐私金额", isPresented: Binding(
+            get: { privacyLock.lastError != nil },
+            set: { if !$0 { privacyLock.lastError = nil } }
+        )) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(privacyLock.lastError ?? "身份验证未完成")
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                privacyLock.lock()
+            }
+        }
+    }
+
+    /// Debug-only visual lab. Production launches always keep the normal app root.
+    private var visualExplorationDirection: VisualDirection? {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-visualDirectionExploration") || arguments.contains("-visualHomeExploration") else { return nil }
+        if arguments.contains("-visualDirectionB") { return .soft }
+        if arguments.contains("-visualDirectionC") { return .precise }
+        return .restrained
+#else
+        return nil
+#endif
+    }
+
+    private var isBudgetScopeReview: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-visualBudgetScopeReview")
+#else
+        false
+#endif
+    }
+
+    private var isQuickEntryReview: Bool {
+#if DEBUG
+        ProcessInfo.processInfo.arguments.contains("-visualQuickEntryReview")
+#else
+        false
+#endif
+    }
+
+    private func prepareReviewDataIfNeeded() {
+        guard !Self.didPrepareData else { return }
+        Self.didPrepareData = true
+        DefaultDataService(modelContext: modelContext).prepareAppData()
     }
 }

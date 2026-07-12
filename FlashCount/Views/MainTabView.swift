@@ -5,13 +5,28 @@ import SwiftData
 struct MainTabView: View {
     @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var selectedTab = 0
+    @EnvironmentObject private var privacyLock: PrivacyLockService
+    @State private var selectedTab: Int
     @State private var showQuickEntry = false
     @State private var showAddCashPoolItem = false
     @State private var showPlusActions = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage(QuickEntryRoute.requestKey) private var shouldShowQuickEntry = false
     @State private var showOnboarding = false
+
+    init() {
+        var initialTab = 0
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        if let marker = arguments.firstIndex(of: "-visualReviewTab"),
+           arguments.indices.contains(marker + 1),
+           let requestedTab = Int(arguments[marker + 1]),
+           [0, 1, 3, 4].contains(requestedTab) {
+            initialTab = requestedTab
+        }
+#endif
+        _selectedTab = State(initialValue: initialTab)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -73,7 +88,7 @@ struct MainTabView: View {
             tabButton(icon: "book.fill", title: "账本", tag: 0)
             tabButton(icon: "chart.pie.fill", title: "预算", tag: 1)
 
-            // 中间加号按钮
+            // B 方向中央快捷入口：实体方圆按钮，不使用双层圆环、渐变或发光。
             Button {
                 HapticManager.impact(.medium)
                 if selectedTab == 4 {
@@ -82,30 +97,19 @@ struct MainTabView: View {
                     showQuickEntry = true
                 }
             } label: {
-                ZStack {
-                    Circle()
-                        .fill(DesignSystem.cardBackground)
-                        .frame(width: 68, height: 68)
-                        .overlay {
-                            Circle()
-                                .stroke(DesignSystem.borderColor.opacity(0.8), lineWidth: 1)
-                        }
-                        .shadow(color: .black.opacity(0.10), radius: 16, y: 7)
-
-                    Circle()
-                        .fill(DesignSystem.primaryGradient)
-                        .frame(width: 58, height: 58)
-                        .overlay {
-                            Circle()
-                                .stroke(.white.opacity(0.50), lineWidth: 1)
-                        }
-                        .shadow(color: DesignSystem.primaryColor.opacity(0.35), radius: 12, y: 5)
-
+                VStack(spacing: 3) {
                     Image(systemName: "plus")
-                        .font(.title2.weight(.bold))
+                        .font(.headline.weight(.semibold))
                         .foregroundStyle(.white)
+                        .frame(width: 48, height: 42)
+                        .background(DesignSystem.primaryColor)
+                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+
+                    Text("记一笔")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(DesignSystem.primaryColor)
                 }
-                .offset(y: -19)
+                .frame(maxWidth: .infinity)
             }
             .buttonStyle(FloatingActionButtonStyle())
             .accessibilityLabel("快速记账")
@@ -115,22 +119,18 @@ struct MainTabView: View {
             tabButton(icon: "building.columns.fill", title: "资产", tag: 4)
         }
         .padding(.horizontal, 8)
-        .padding(.top, 10)
+        .padding(.top, 9)
         .padding(.bottom, 5)
         .background {
             ZStack(alignment: .top) {
                 Rectangle()
-                    .fill(.ultraThinMaterial)
+                    .fill(DesignSystem.cardBackground)
 
-                LinearGradient(
-                    colors: [.white.opacity(0.55), DesignSystem.borderColor.opacity(0.45), .clear],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
+                Rectangle()
+                    .fill(DesignSystem.borderColor)
                 .frame(height: 1)
             }
-            // 背景和分割高光均在按钮下方绘制，不会再穿过主加号。
-            .shadow(color: .black.opacity(0.08), radius: 18, y: -6)
+            .shadow(color: .black.opacity(0.05), radius: 12, y: -4)
             .ignoresSafeArea(edges: .bottom)
         }
     }
@@ -145,28 +145,22 @@ struct MainTabView: View {
         Button {
             guard selectedTab != tag else { return }
             HapticManager.selection()
+            if tag == 4 {
+                // 资产页每次从标签栏进入都从隐藏态开始，避免之前的会话解锁状态造成误展示。
+                privacyLock.lock()
+            }
             // 不使用全局 withAnimation，防止动画事务传播到整张页面。
             selectedTab = tag
         } label: {
             VStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.title3)
-                    .scaleEffect(selectedTab == tag && !reduceMotion ? 1.08 : 1)
+                    .font(.title3.weight(selectedTab == tag ? .semibold : .regular))
+                    .scaleEffect(selectedTab == tag && !reduceMotion ? 1.04 : 1)
                 Text(title)
                     .font(.caption2)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 3)
-            .background {
-                Capsule()
-                    .fill(DesignSystem.primaryColor.opacity(0.12))
-                    .overlay {
-                        Capsule()
-                            .stroke(DesignSystem.primaryColor.opacity(0.14), lineWidth: 1)
-                    }
-                    .opacity(selectedTab == tag ? 1 : 0)
-                    .scaleEffect(selectedTab == tag ? 1 : 0.92)
-            }
             .scaleEffect(selectedTab == tag && !reduceMotion ? 1 : 0.96)
             .foregroundStyle(
                 selectedTab == tag

@@ -11,11 +11,12 @@ final class CSVTransactionService {
     func exportToFile() throws -> URL {
         let transactions = try modelContext.fetch(FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\.date)]))
         let formatter = ISO8601DateFormatter()
-        var rows = ["id,date,type,amount,category,note"]
+        var rows = ["id,date,type,amount,category,note,dailyBudget"]
         for item in transactions {
             rows.append([
                 item.id.uuidString, formatter.string(from: item.date), item.isExpense ? "expense" : "income",
-                NSDecimalNumber(decimal: item.amount).stringValue, item.category?.name ?? "", item.note
+                NSDecimalNumber(decimal: item.amount).stringValue, item.category?.name ?? "", item.note,
+                item.dailyBudgetOverride.map { $0 ? "include" : "exclude" } ?? "inherit"
             ].map(csvEscape).joined(separator: ","))
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("FlashCount_Transactions.csv")
@@ -62,6 +63,7 @@ final class CSVTransactionService {
                 note: values[5],
                 date: date,
                 cashPoolDelta: cashDelta,
+                dailyBudgetOverride: values.count > 6 ? dailyBudgetOverride(from: values[6]) : nil,
                 category: category,
                 ledger: defaultLedger
             )
@@ -84,6 +86,14 @@ final class CSVTransactionService {
 
     private func csvEscape(_ value: String) -> String {
         "\"\(value.replacingOccurrences(of: "\"", with: "\"\""))\""
+    }
+
+    private func dailyBudgetOverride(from value: String) -> Bool? {
+        switch value.lowercased() {
+        case "include", "true", "1", "yes": return true
+        case "exclude", "false", "0", "no": return false
+        default: return nil
+        }
     }
 
     private func parseCSV(_ row: String) -> [String] {

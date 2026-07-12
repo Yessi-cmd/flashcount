@@ -13,7 +13,6 @@ struct CashPoolView: View {
     @State private var showCalibration = false
     @State private var calibrationText = ""
     @State private var saveError: String?
-    @AppStorage("hideAssetBalance") private var hideAssetBalance = true
 
     private var activeItems: [CashPoolItem] {
         items.filter { !$0.isArchived }
@@ -40,7 +39,7 @@ struct CashPoolView: View {
     }
 
     private var hidesMoney: Bool {
-        hideAssetBalance || !privacyLock.isUnlocked
+        PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
     }
 
     var body: some View {
@@ -59,6 +58,9 @@ struct CashPoolView: View {
             .navigationTitle("资金池")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    PrivacyVisibilityButton()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     HStack {
                         Button { showCalibration = true } label: {
@@ -109,7 +111,7 @@ struct CashPoolView: View {
             Text(hidesMoney ? privacyLock.maskedText : availableAmount.formattedCurrency)
                 .font(.system(size: 40, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(availableAmount >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor)
+                .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (availableAmount >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor))
 
             HStack(spacing: 0) {
                 metric(title: "资金净额", value: manualTotal)
@@ -127,7 +129,7 @@ struct CashPoolView: View {
             Text(title).font(.caption).foregroundStyle(DesignSystem.textTertiary)
             Text(hidesMoney ? privacyLock.maskedText : value.formattedCurrency)
                 .font(.subheadline.weight(.semibold).monospacedDigit())
-                .foregroundStyle(value >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (value >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
         }
         .frame(maxWidth: .infinity)
     }
@@ -240,10 +242,10 @@ struct CashPoolView: View {
         }
         .padding(.vertical, 5)
         .contentShape(Rectangle())
-        .onTapGesture { editingItem = item }
+        .onTapGesture { revealOrPerform { editingItem = item } }
         .contextMenu {
-            Button { editingItem = item } label: {
-                Label("编辑", systemImage: "pencil")
+            Button { revealOrPerform { editingItem = item } } label: {
+                Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
             }
             Button(role: .destructive) {
                 item.isArchived = true
@@ -255,6 +257,14 @@ struct CashPoolView: View {
                 Label("归档", systemImage: "archivebox")
             }
         }
+    }
+
+    private func revealOrPerform(_ action: () -> Void) {
+        guard privacyLock.isUnlocked else {
+            privacyLock.requestReveal()
+            return
+        }
+        action()
     }
 
     private func calibrate() {

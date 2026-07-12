@@ -92,13 +92,7 @@ struct QuickEntryWidgetView: View {
         VStack(spacing: 8) {
             Image(systemName: "bolt.circle.fill")
                 .font(.system(size: 36))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [Color(red: 0.4, green: 0.49, blue: 0.92),
-                                 Color(red: 0.46, green: 0.29, blue: 0.64)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    )
-                )
+                .foregroundStyle(Color(red: 0.306, green: 0.463, blue: 0.416))
 
             Text("记一笔")
                 .font(.headline)

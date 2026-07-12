@@ -9,6 +9,25 @@ enum TransactionTypeFilter: String, CaseIterable {
     case income = "收入"
 }
 
+enum TransactionSortField: String, CaseIterable {
+    case date = "时间"
+    case amount = "金额"
+}
+
+enum TransactionSortDirection: String, CaseIterable {
+    case descending = "倒序"
+    case ascending = "正序"
+
+    func detail(for field: TransactionSortField) -> String {
+        switch (field, self) {
+        case (.date, .descending): return "最新在前"
+        case (.date, .ascending): return "最早在前"
+        case (.amount, .descending): return "金额从高到低"
+        case (.amount, .ascending): return "金额从低到高"
+        }
+    }
+}
+
 // MARK: - 筛选面板
 
 struct FilterSheetView: View {
@@ -21,6 +40,8 @@ struct FilterSheetView: View {
     @Binding var categoryFilterId: UUID?
     @Binding var minAmountText: String
     @Binding var maxAmountText: String
+    @Binding var sortField: TransactionSortField
+    @Binding var sortDirection: TransactionSortDirection
 
     @Environment(\.dismiss) private var dismiss
 
@@ -54,6 +75,9 @@ struct FilterSheetView: View {
 
                     // 金额范围
                     amountSection
+
+                    // 排列
+                    sortSection
                 }
                 .padding()
             }
@@ -251,6 +275,60 @@ struct FilterSheetView: View {
         }
     }
 
+    private var sortSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            sectionHeader("排列方式", icon: "arrow.up.arrow.down")
+
+            HStack(spacing: 10) {
+                ForEach(TransactionSortField.allCases, id: \.self) { field in
+                    selectionButton(
+                        title: field.rawValue,
+                        isSelected: sortField == field
+                    ) {
+                        sortField = field
+                    }
+                }
+            }
+
+            HStack(spacing: 10) {
+                ForEach(TransactionSortDirection.allCases, id: \.self) { direction in
+                    selectionButton(
+                        title: direction.detail(for: sortField),
+                        isSelected: sortDirection == direction
+                    ) {
+                        sortDirection = direction
+                    }
+                }
+            }
+        }
+    }
+
+    private func selectionButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(DesignSystem.standardAnimation) { action() }
+            HapticManager.selection()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.caption)
+                Text(title)
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(isSelected ? DesignSystem.primaryColor.opacity(0.1) : DesignSystem.softFill)
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius, style: .continuous)
+                    .stroke(isSelected ? DesignSystem.primaryColor.opacity(0.28) : DesignSystem.borderColor, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - 辅助
 
     private func sectionHeader(_ title: String, icon: String) -> some View {
@@ -269,6 +347,8 @@ struct FilterSheetView: View {
         categoryFilterId = nil
         minAmountText = ""
         maxAmountText = ""
+        sortField = .date
+        sortDirection = .descending
         expandedRootId = nil
     }
 }

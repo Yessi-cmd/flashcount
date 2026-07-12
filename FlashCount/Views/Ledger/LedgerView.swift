@@ -1,12 +1,59 @@
 import SwiftUI
 import SwiftData
 
+enum LedgerPeriodFilter: String, CaseIterable {
+    case today = "今天"
+    case thisWeek = "本周"
+    case payCycle = "本周期"
+    case thisMonth = "本月"
+    case all = "全部"
+    case custom = "自定义"
+
+    var metricPrefix: String {
+        switch self {
+        case .today: return "今日"
+        case .thisWeek: return "本周"
+        case .payCycle: return "本周期"
+        case .thisMonth: return "本月"
+        case .all: return "全部"
+        case .custom: return "所选范围"
+        }
+    }
+
+    func dateRange(
+        referenceDate: Date,
+        payday: Int,
+        customStart: Date,
+        customEnd: Date,
+        calendar: Calendar = .current
+    ) -> Range<Date>? {
+        switch self {
+        case .all:
+            return nil
+        case .today:
+            let start = calendar.startOfDay(for: referenceDate)
+            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? referenceDate
+            return start..<end
+        case .thisWeek:
+            return calendar.dateInterval(of: .weekOfYear, for: referenceDate).map { $0.start..<$0.end }
+        case .payCycle:
+            let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday, calendar: calendar)
+            return cycle.start..<cycle.end
+        case .thisMonth:
+            return calendar.dateInterval(of: .month, for: referenceDate).map { $0.start..<$0.end }
+        case .custom:
+            let start = calendar.startOfDay(for: customStart)
+            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: customEnd)) ?? start
+            return min(start, end)..<max(start, end)
+        }
+    }
+}
+
 /// 账本主页面 - 展示当前账本的交易列表和统计
 struct LedgerView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("payday") private var payday = 1
-    @AppStorage("hideHomeIncome") private var hideHomeIncome = true
     @Query(sort: \Transaction.date, order: .reverse) private var allTransactions: [Transaction]
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
 
@@ -19,7 +66,7 @@ struct LedgerView: View {
     @State private var editingTransaction: Transaction?
     @State private var searchText = ""
     @State private var debouncedSearchText = ""
-    @State private var dateFilter: DateFilter = .all
+    @State private var dateFilter: LedgerPeriodFilter = .payCycle
     @State private var showCustomDatePicker = false
     @State private var showCalendar = false
     @State private var showSettings = false
@@ -39,17 +86,11 @@ struct LedgerView: View {
     @State private var categoryFilterId: UUID?
     @State private var minAmountText = ""
     @State private var maxAmountText = ""
+    @State private var sortField: TransactionSortField = .date
+    @State private var sortDirection: TransactionSortDirection = .descending
     @State private var visibleTransactionLimit = 200
 
     private let transactionPageSize = 200
-
-    enum DateFilter: String, CaseIterable {
-        case all = "全部"
-        case today = "今天"
-        case thisWeek = "本周"
-        case thisMonth = "本月"
-        case custom = "自定义"
-    }
 
     /// 单次渲染所需的交易数据。筛选、月度统计、按日分组在同一遍历中完成。
     private struct LedgerPresentation {
@@ -60,7 +101,7 @@ struct LedgerView: View {
         }
 
         struct DayGroup: Identifiable {
-            let id: Date
+            let id: String
             let title: String
             let transactions: [Transaction]
             let netTotal: Decimal
@@ -80,21 +121,13 @@ struct LedgerView: View {
     private func makePresentation(visibleTransactionLimit: Int) -> LedgerPresentation {
         let calendar = Calendar.current
         let now = Date()
-        let range: Range<Date>?
-        switch dateFilter {
-        case .all:
-            range = nil
-        case .today:
-            range = calendar.startOfDay(for: now)..<Date.distantFuture
-        case .thisWeek:
-            range = (calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? now)..<Date.distantFuture
-        case .thisMonth:
-            range = (calendar.dateInterval(of: .month, for: now)?.start ?? now)..<Date.distantFuture
-        case .custom:
-            let start = calendar.startOfDay(for: customStartDate)
-            let end = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: customEndDate)) ?? start
-            range = start..<end
-        }
+        let range = dateFilter.dateRange(
+            referenceDate: now,
+            payday: payday,
+            customStart: customStartDate,
+            customEnd: customEndDate,
+            calendar: calendar
+        )
         let selectedCategory = categoryFilterId.flatMap { id in allCategories.first { $0.id == id } }
         let categoryRootName = selectedCategory?.rootCategoryName == selectedCategory?.name ? selectedCategory?.name : nil
         let categoryID = categoryRootName == nil ? selectedCategory?.id : nil
@@ -102,12 +135,11 @@ struct LedgerView: View {
         let minAmount = Decimal(string: minAmountText).flatMap { $0 > 0 ? $0 : nil }
         let maxAmount = Decimal(string: maxAmountText).flatMap { $0 > 0 ? $0 : nil }
         let searchQuery = debouncedSearchText.isEmpty ? nil : debouncedSearchText.lowercased()
-        let currentMonth = calendar.dateInterval(of: .month, for: now)
 
         var filteredTransactions: [Transaction] = []
         var expense: Decimal = 0
         var income: Decimal = 0
-        var hasHiddenIncome = hideHomeIncome
+        var hasHiddenIncome = false
         var visibleTransactionsByDay: [Date: [Transaction]] = [:]
         var netTotalsByDay: [Date: Decimal] = [:]
         var hiddenIncomeByDay: Set<Date> = []
@@ -122,7 +154,7 @@ struct LedgerView: View {
             else { continue }
 
             if let searchQuery {
-                guard !isPrivateIncomeHidden(transaction),
+                guard !isProtectedIncomeMetadataHidden(transaction),
                       transaction.note.lowercased().contains(searchQuery)
                         || transaction.category?.name.lowercased().contains(searchQuery) == true
                         || transaction.category?.rootCategoryName.lowercased().contains(searchQuery) == true
@@ -133,39 +165,72 @@ struct LedgerView: View {
             filteredTransactions.append(transaction)
             let day = calendar.startOfDay(for: transaction.date)
             netTotalsByDay[day, default: 0] += transaction.signedAmount
-            if isPrivateIncomeHidden(transaction) || (hideHomeIncome && !transaction.isExpense) {
+            if isIncomeHidden(transaction) {
                 hiddenIncomeByDay.insert(day)
             }
 
-            if filteredTransactions.count <= visibleTransactionLimit {
-                visibleTransactionsByDay[day, default: []].append(transaction)
-            }
-
-            if currentMonth?.contains(transaction.date) == true {
-                if transaction.isExpense {
-                    expense += transaction.amount
-                } else if isPrivateIncomeHidden(transaction) {
-                    hasHiddenIncome = true
-                } else {
-                    income += transaction.amount
-                    if hideHomeIncome { hasHiddenIncome = true }
-                }
+            if transaction.isExpense {
+                expense += transaction.amount
+            } else {
+                income += transaction.amount
+                if isIncomeHidden(transaction) { hasHiddenIncome = true }
             }
         }
 
-        let dayGroups = visibleTransactionsByDay.keys.sorted(by: >).map { day in
-            LedgerPresentation.DayGroup(
-                id: day,
-                title: day.relativeString,
-                transactions: visibleTransactionsByDay[day] ?? [],
-                netTotal: netTotalsByDay[day] ?? 0,
-                hasHiddenIncome: hiddenIncomeByDay.contains(day)
-            )
+        filteredTransactions.sort { lhs, rhs in
+            switch sortField {
+            case .date:
+                if lhs.date != rhs.date {
+                    return sortDirection == .ascending ? lhs.date < rhs.date : lhs.date > rhs.date
+                }
+                if lhs.createdAt != rhs.createdAt {
+                    return sortDirection == .ascending ? lhs.createdAt < rhs.createdAt : lhs.createdAt > rhs.createdAt
+                }
+            case .amount:
+                if lhs.amount != rhs.amount {
+                    return sortDirection == .ascending ? lhs.amount < rhs.amount : lhs.amount > rhs.amount
+                }
+                if lhs.date != rhs.date {
+                    return sortDirection == .ascending ? lhs.date < rhs.date : lhs.date > rhs.date
+                }
+            }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
+
+        let visibleTransactions = Array(filteredTransactions.prefix(visibleTransactionLimit))
+        let dayGroups: [LedgerPresentation.DayGroup]
+        if sortField == .date {
+            for transaction in visibleTransactions {
+                let day = calendar.startOfDay(for: transaction.date)
+                visibleTransactionsByDay[day, default: []].append(transaction)
+            }
+            let orderedDays = visibleTransactionsByDay.keys.sorted {
+                sortDirection == .ascending ? $0 < $1 : $0 > $1
+            }
+            dayGroups = orderedDays.map { day in
+                LedgerPresentation.DayGroup(
+                    id: "day-\(day.timeIntervalSinceReferenceDate)",
+                    title: day.relativeString,
+                    transactions: visibleTransactionsByDay[day] ?? [],
+                    netTotal: netTotalsByDay[day] ?? 0,
+                    hasHiddenIncome: hiddenIncomeByDay.contains(day)
+                )
+            }
+        } else if visibleTransactions.isEmpty {
+            dayGroups = []
+        } else {
+            dayGroups = [LedgerPresentation.DayGroup(
+                id: "amount",
+                title: sortDirection.detail(for: .amount),
+                transactions: visibleTransactions,
+                netTotal: filteredTransactions.reduce(0) { $0 + $1.signedAmount },
+                hasHiddenIncome: filteredTransactions.contains(where: isIncomeHidden)
+            )]
         }
 
         return LedgerPresentation(
             filteredTransactions: filteredTransactions,
-            visibleTransactionCount: min(filteredTransactions.count, visibleTransactionLimit),
+            visibleTransactionCount: visibleTransactions.count,
             monthlySummary: .init(expense: expense, income: income, hasHiddenIncome: hasHiddenIncome),
             dayGroups: dayGroups
         )
@@ -198,8 +263,22 @@ struct LedgerView: View {
         return count
     }
 
-    private func isPrivateIncomeHidden(_ transaction: Transaction) -> Bool {
-        transaction.isProtectedIncome && !privacyLock.isUnlocked
+    private var hasCustomSort: Bool {
+        sortField != .date || sortDirection != .descending
+    }
+
+    private func isIncomeHidden(_ transaction: Transaction) -> Bool {
+        PrivacyVisibilityPolicy.hidesIncome(
+            isExpense: transaction.isExpense,
+            isUnlocked: privacyLock.isUnlocked
+        )
+    }
+
+    private func isProtectedIncomeMetadataHidden(_ transaction: Transaction) -> Bool {
+        PrivacyVisibilityPolicy.hidesProtectedMetadata(
+            isProtectedIncome: transaction.isProtectedIncome,
+            isUnlocked: privacyLock.isUnlocked
+        )
     }
 
     var body: some View {
@@ -211,6 +290,13 @@ struct LedgerView: View {
 
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
+                        // B 方向先呈现核心结论，再提供搜索与筛选工具。
+                        monthlySummaryCard(presentation.monthlySummary)
+
+                        if let budgetReminder {
+                            ledgerBudgetCard(budgetReminder)
+                        }
+
                         // 搜索栏
                         HStack(spacing: 8) {
                             Image(systemName: "magnifyingglass")
@@ -282,12 +368,14 @@ struct LedgerView: View {
                         // 日期筛选快捷标签
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
-                                ForEach(DateFilter.allCases, id: \.self) { filter in
+                                ForEach(LedgerPeriodFilter.allCases, id: \.self) { filter in
                                     Button {
                                         withAnimation(.spring(response: 0.3)) { dateFilter = filter }
                                     } label: {
                                         Text(filter.rawValue)
                                             .font(.caption.weight(.medium))
+                                            .lineLimit(1)
+                                            .fixedSize(horizontal: true, vertical: false)
                                             .padding(.horizontal, 12)
                                             .padding(.vertical, 6)
                                             .background(dateFilter == filter ? DesignSystem.primaryColor.opacity(0.16) : DesignSystem.softFill)
@@ -334,13 +422,6 @@ struct LedgerView: View {
                                 }
                                 .transition(.move(edge: .top).combined(with: .opacity))
                             }
-                        }
-
-                        // 本月概览卡片
-                        monthlySummaryCard(presentation.monthlySummary)
-
-                        if let budgetReminder {
-                            ledgerBudgetCard(budgetReminder)
                         }
 
                         // 交易列表 / 日历
@@ -413,9 +494,9 @@ struct LedgerView: View {
                                 showFilterSheet = true
                             } label: {
                                 HStack(spacing: 2) {
-                                    Image(systemName: "line.3.horizontal.decrease")
+                                    Image(systemName: "slider.horizontal.3")
                                         .font(.subheadline)
-                                        .foregroundStyle(hasActiveFilters ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                                        .foregroundStyle(hasActiveFilters || hasCustomSort ? DesignSystem.primaryColor : DesignSystem.textSecondary)
                                     if hasActiveFilters {
                                         Text("\(activeFilterCount)")
                                             .font(.caption2.weight(.bold))
@@ -426,6 +507,7 @@ struct LedgerView: View {
                                     }
                                 }
                             }
+                            .accessibilityLabel("筛选与排序，当前\(sortDirection.detail(for: sortField))")
 
                             Button {
                                 showReminders = true
@@ -459,7 +541,9 @@ struct LedgerView: View {
                     typeFilter: $typeFilter,
                     categoryFilterId: $categoryFilterId,
                     minAmountText: $minAmountText,
-                    maxAmountText: $maxAmountText
+                    maxAmountText: $maxAmountText,
+                    sortField: $sortField,
+                    sortDirection: $sortDirection
                 )
                 .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
@@ -496,6 +580,8 @@ struct LedgerView: View {
             .onChange(of: maxAmountText) { resetVisibleTransactionLimit() }
             .onChange(of: customStartDate) { resetVisibleTransactionLimit() }
             .onChange(of: customEndDate) { resetVisibleTransactionLimit() }
+            .onChange(of: sortField) { resetVisibleTransactionLimit() }
+            .onChange(of: sortDirection) { resetVisibleTransactionLimit() }
         }
     }
 
@@ -506,77 +592,91 @@ struct LedgerView: View {
     // MARK: - Components
 
     private func monthlySummaryCard(_ summary: LedgerPresentation.MonthlySummary) -> some View {
-        VStack(spacing: 16) {
-            // 月份标题
+        VStack(alignment: .leading, spacing: 17) {
             HStack {
-                Text(Date().monthYearString)
+                Text(summaryPeriodDescription)
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
-                Button {
-                    hideHomeIncome.toggle()
-                    HapticManager.selection()
-                } label: {
-                    Image(systemName: hideHomeIncome ? "eye.slash.fill" : "eye.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(hideHomeIncome ? DesignSystem.textTertiary : DesignSystem.primaryColor)
-                        .frame(width: 32, height: 32)
-                        .background(DesignSystem.softFill)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(PressableButtonStyle())
-                .accessibilityLabel(hideHomeIncome ? "显示首页收入" : "隐藏首页收入")
+                PrivacyVisibilityButton()
+                    .font(.subheadline)
+                    .frame(width: 32, height: 32)
+                    .background(DesignSystem.softFill)
+                    .clipShape(Circle())
+                    .buttonStyle(PressableButtonStyle())
             }
 
-            HStack(spacing: 0) {
-                // 支出
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("支出")
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textSecondary)
-                    Text(summary.expense.formattedCurrency)
-                        .font(.title3.weight(.bold).monospacedDigit())
-                        .foregroundStyle(DesignSystem.expenseColor)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                // 收入
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("收入")
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textSecondary)
-                    Text(summary.hasHiddenIncome ? privacyLock.maskedText : summary.income.formattedCurrency)
-                        .font(.title3.weight(.bold).monospacedDigit())
-                        .foregroundStyle(DesignSystem.incomeColor)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                // 结余
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("结余")
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textSecondary)
-                    Text(summary.hasHiddenIncome ? privacyLock.maskedText : (summary.income - summary.expense).formattedCurrency)
-                        .font(.title3.weight(.bold).monospacedDigit())
-                        .foregroundStyle(
-                            summary.income >= summary.expense
-                            ? DesignSystem.incomeColor
-                            : DesignSystem.expenseColor
-                        )
-                }
+            VStack(alignment: .leading, spacing: 5) {
+                Text("\(dateFilter.metricPrefix)支出")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(DesignSystem.textSecondary)
+                Text(summary.expense.formattedCurrency)
+                    .font(.system(size: 38, weight: .semibold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(DesignSystem.textPrimary)
             }
 
-            if summary.hasHiddenIncome && !hideHomeIncome {
+            HStack(spacing: 9) {
+                summarySecondaryMetric(
+                    title: "\(dateFilter.metricPrefix)收入",
+                    value: summary.hasHiddenIncome ? privacyLock.maskedText : summary.income.formattedCurrency,
+                    color: DesignSystem.textPrimary
+                )
+                summarySecondaryMetric(
+                    title: "\(dateFilter.metricPrefix)结余",
+                    value: summary.hasHiddenIncome ? privacyLock.maskedText : (summary.income - summary.expense).formattedCurrency,
+                    color: summary.hasHiddenIncome ? DesignSystem.textTertiary : (summary.income >= summary.expense ? DesignSystem.textPrimary : DesignSystem.expenseColor)
+                )
+            }
+
+            if summary.hasHiddenIncome {
                 Button {
-                    Task { _ = await privacyLock.unlock() }
+                    privacyLock.requestReveal()
                 } label: {
-                    Label("解锁查看工资收入", systemImage: "lock.fill")
+                    Label("验证并显示全部收入", systemImage: "lock.fill")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
         }
-        .heroCard(accent: summary.income >= summary.expense ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+        .heroCard(accent: DesignSystem.primaryColor)
+    }
+
+    private var summaryPeriodDescription: String {
+        let calendar = Calendar.current
+        let now = Date()
+        switch dateFilter {
+        case .today:
+            return now.fullDateString
+        case .thisWeek, .thisMonth, .payCycle, .custom:
+            guard let range = dateFilter.dateRange(
+                referenceDate: now,
+                payday: payday,
+                customStart: customStartDate,
+                customEnd: customEndDate,
+                calendar: calendar
+            ) else { return dateFilter.rawValue }
+            let finalDay = calendar.date(byAdding: .day, value: -1, to: range.upperBound) ?? range.upperBound
+            return "\(range.lowerBound.shortDateString) – \(finalDay.shortDateString)"
+        case .all:
+            return "全部记录"
+        }
+    }
+
+    private func summarySecondaryMetric(title: String, value: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(DesignSystem.textTertiary)
+            Text(value)
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(DesignSystem.softFill)
+        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius, style: .continuous))
     }
 
     private func ledgerBudgetCard(_ reminder: BudgetReminder) -> some View {
@@ -607,7 +707,7 @@ struct LedgerView: View {
             RoundedRectangle(cornerRadius: DesignSystem.cornerRadius)
                 .stroke(budgetAccent(for: reminder.alertLevel).opacity(0.18), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.04), radius: 10, y: 5)
+        .shadow(color: .black.opacity(0.03), radius: 10, y: 4)
     }
 
     private func budgetAccent(for level: BudgetAlertLevel) -> Color {
@@ -687,7 +787,7 @@ struct LedgerView: View {
                     TransactionRow(
                         transaction: transaction,
                         revealsPrivateIncome: privacyLock.isUnlocked,
-                        hidesIncome: hideHomeIncome
+                        hidesIncome: privacyLock.hidesSensitiveAmounts
                     )
                         .contentShape(Rectangle())
                         .onTapGesture {
@@ -699,8 +799,8 @@ struct LedgerView: View {
                                         selectedIds.insert(transaction.id)
                                     }
                                 }
-                            } else if isPrivateIncomeHidden(transaction) {
-                                Task { _ = await privacyLock.unlock() }
+                            } else if isIncomeHidden(transaction) {
+                                privacyLock.requestReveal()
                             } else {
                                 editingTransaction = transaction
                             }
@@ -708,13 +808,13 @@ struct LedgerView: View {
                         .contextMenu {
                             if !isSelecting {
                                 Button {
-                                    if isPrivateIncomeHidden(transaction) {
-                                        Task { _ = await privacyLock.unlock() }
+                                    if isIncomeHidden(transaction) {
+                                        privacyLock.requestReveal()
                                     } else {
                                         editingTransaction = transaction
                                     }
                                 } label: {
-                                    Label(isPrivateIncomeHidden(transaction) ? "解锁查看" : "编辑", systemImage: isPrivateIncomeHidden(transaction) ? "lock.open" : "pencil")
+                                    Label(isIncomeHidden(transaction) ? "验证后查看" : "编辑", systemImage: isIncomeHidden(transaction) ? "lock.open" : "pencil")
                                 }
                                 Button(role: .destructive) {
                                     withAnimation {
@@ -739,13 +839,13 @@ struct LedgerView: View {
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             if !isSelecting {
                                 Button {
-                                    if isPrivateIncomeHidden(transaction) {
-                                        Task { _ = await privacyLock.unlock() }
+                                    if isIncomeHidden(transaction) {
+                                        privacyLock.requestReveal()
                                     } else {
                                         editingTransaction = transaction
                                     }
                                 } label: {
-                                    Label(isPrivateIncomeHidden(transaction) ? "解锁" : "编辑", systemImage: isPrivateIncomeHidden(transaction) ? "lock.open" : "pencil")
+                                    Label(isIncomeHidden(transaction) ? "验证" : "编辑", systemImage: isIncomeHidden(transaction) ? "lock.open" : "pencil")
                                 }
                                 .tint(DesignSystem.primaryColor)
                             }
@@ -833,7 +933,8 @@ struct LedgerView: View {
                 .padding(.vertical, 12)
                 .background(DesignSystem.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
-                .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(DesignSystem.borderColor, lineWidth: 1))
+                .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -872,9 +973,10 @@ struct LedgerView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(DesignSystem.borderColor, lineWidth: 1))
+        .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -907,6 +1009,7 @@ struct LedgerView: View {
             date: transaction.date,
             isPrivateIncome: transaction.isPrivateIncome,
             cashPoolDelta: transaction.cashPoolDelta,
+            dailyBudgetOverride: transaction.dailyBudgetOverride,
             category: transaction.category,
             ledger: transaction.ledger,
             recurringRule: transaction.recurringRule
@@ -944,6 +1047,7 @@ struct LedgerView: View {
             date: info.date,
             isPrivateIncome: info.isPrivateIncome,
             cashPoolDelta: info.cashPoolDelta,
+            dailyBudgetOverride: info.dailyBudgetOverride,
             category: info.category,
             ledger: info.ledger,
             recurringRule: info.recurringRule
@@ -972,6 +1076,7 @@ private struct UndoDeleteInfo {
     let date: Date
     let isPrivateIncome: Bool
     let cashPoolDelta: Decimal?
+    let dailyBudgetOverride: Bool?
     let category: Category?
     let ledger: Ledger?
     let recurringRule: RecurringRule?

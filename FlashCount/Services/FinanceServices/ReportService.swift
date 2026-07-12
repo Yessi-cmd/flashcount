@@ -210,9 +210,9 @@ final class ReportService {
         // 最大消费分类
         if let top = categoryBreakdown.first {
             let pct = Int(top.percentage * 100)
-            insights.append("💡 \(periodName)\(top.categoryName)占比最高，达 \(pct)%")
+            insights.append("\(periodName)\(top.categoryName)占比最高，达 \(pct)%")
             if pct > 40 {
-                insights.append("⚠️ \(top.categoryName)支出集中度偏高，建议适当控制")
+                insights.append("\(top.categoryName)支出集中度偏高，建议适当控制")
             }
         }
 
@@ -220,11 +220,11 @@ final class ReportService {
         if let change = expenseChange {
             let pct = Int(abs(change) * 100)
             if change > 0.1 {
-                insights.append("📈 \(periodName)总支出比上期增加了 \(pct)%")
+                insights.append("\(periodName)总支出比上期增加了 \(pct)%")
             } else if change < -0.1 {
-                insights.append("📉 \(periodName)总支出比上期减少了 \(pct)%，继续保持！")
+                insights.append("\(periodName)总支出比上期减少了 \(pct)%，继续保持")
             } else {
-                insights.append("📊 \(periodName)总支出与上期基本持平")
+                insights.append("\(periodName)总支出与上期基本持平")
             }
         }
 

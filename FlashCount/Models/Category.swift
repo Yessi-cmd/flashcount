@@ -24,6 +24,8 @@ final class Category {
     var isExpense: Bool       // true = 支出分类, false = 收入分类
     var sortOrder: Int
     var isArchived: Bool
+    /// nil 使用内置日常预算范围；非 nil 为用户自定义范围。
+    var dailyBudgetOverride: Bool?
 
     @Relationship(deleteRule: .nullify, inverse: \Transaction.category)
     var transactions: [Transaction] = []
@@ -45,6 +47,7 @@ final class Category {
         self.isExpense = isExpense
         self.sortOrder = sortOrder
         self.isArchived = false
+        self.dailyBudgetOverride = nil
     }
 
     // MARK: - 默认分类

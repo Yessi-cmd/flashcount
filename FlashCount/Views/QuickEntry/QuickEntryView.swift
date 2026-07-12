@@ -36,6 +36,7 @@ struct QuickEntryView: View {
     @State private var showTemplateManager = false
     @State private var editingTemplate: TransactionTemplate?
     @State private var isSaving = false
+    @State private var dailyBudgetOverride: Bool?
     @Namespace private var typeSelectionNamespace
 
     init() {
@@ -46,6 +47,7 @@ struct QuickEntryView: View {
             sort: \Transaction.date,
             order: .reverse
         )
+        _dailyBudgetOverride = State(initialValue: nil)
     }
 
     private var currentCategories: [Category] {
@@ -126,7 +128,7 @@ struct QuickEntryView: View {
                     .padding(.horizontal)
                     .padding(.top, DesignSystem.space12)
                     .padding(.bottom, DesignSystem.space8)
-                    .background(.regularMaterial)
+                    .background(DesignSystem.cardBackground)
                     .overlay(alignment: .top) {
                         Rectangle()
                             .fill(DesignSystem.dividerColor)
@@ -176,6 +178,24 @@ struct QuickEntryView: View {
                 if selectedCategory == nil {
                     selectedCategory = defaultCategory(from: currentCategories, isExpense: isExpense)
                 }
+#if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-visualCategoryMenuReview"),
+                   let firstCategory = rootCategories.first {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        wheelCategory = firstCategory
+                    }
+                }
+#endif
+            }
+            .task(id: showSuccess) {
+                guard showSuccess else { return }
+                do {
+                    try await Task.sleep(nanoseconds: 2_000_000_000)
+                } catch {
+                    return
+                }
+                guard showSuccess, !Task.isCancelled else { return }
+                dismiss()
             }
             .saveErrorAlert($saveError)
             .sheet(isPresented: $showTemplateManager) {
@@ -229,6 +249,7 @@ struct QuickEntryView: View {
             Button {
                 withAnimation(.spring(response: 0.3)) { isExpense = true }
                 selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
+                dailyBudgetOverride = nil
                 showAllCategories = false
                 HapticManager.selection()
             } label: {
@@ -249,6 +270,7 @@ struct QuickEntryView: View {
             Button {
                 withAnimation(.spring(response: 0.3)) { isExpense = false }
                 selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
+                dailyBudgetOverride = nil
                 showAllCategories = false
                 HapticManager.selection()
             } label: {
@@ -316,12 +338,13 @@ struct QuickEntryView: View {
     }
 
     private var allCategoriesToggle: some View {
-        Button {
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
-                showAllCategories.toggle()
-            }
-        } label: {
-            HStack(spacing: 8) {
+        HStack(spacing: 8) {
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                    showAllCategories.toggle()
+                }
+            } label: {
+                HStack(spacing: 8) {
                 Image(systemName: showAllCategories ? "chevron.up.circle.fill" : "square.grid.2x2")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(DesignSystem.primaryColor)
@@ -330,22 +353,52 @@ struct QuickEntryView: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
 
-                Spacer(minLength: 8)
-
-                if let selectedCategory {
-                    Text(selectedCategory.entryDisplayName)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(DesignSystem.textTertiary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                    Spacer(minLength: 2)
                 }
+                .contentShape(Rectangle())
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(DesignSystem.softFill)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .buttonStyle(.plain)
+
+            if isExpense {
+                Rectangle()
+                    .fill(DesignSystem.dividerColor)
+                    .frame(width: 1, height: 22)
+
+                if dailyBudgetOverride != nil {
+                    Button {
+                        dailyBudgetOverride = nil
+                        HapticManager.selection()
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(DesignSystem.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("恢复跟随分类")
+                }
+
+                Text(dailyBudgetOverride == nil ? "日常预算" : "本笔覆盖")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(dailyBudgetOverride == nil ? DesignSystem.textSecondary : DesignSystem.primaryColor)
+                    .lineLimit(1)
+
+                Toggle("计入日常预算", isOn: dailyBudgetBinding)
+                    .labelsHidden()
+                    .tint(DesignSystem.primaryColor)
+                    .scaleEffect(0.82)
+                    .frame(width: 42)
+            } else if let selectedCategory {
+                Text(selectedCategory.entryDisplayName)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(DesignSystem.textTertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(DesignSystem.softFill)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 
     private func categorySection(title: String, categories: [Category]) -> some View {
@@ -388,6 +441,20 @@ struct QuickEntryView: View {
         .background(DesignSystem.softFill)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
         .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
+    private var effectiveDailyBudgetValue: Bool {
+        dailyBudgetOverride ?? BudgetScope.includesCategory(selectedCategory)
+    }
+
+    private var dailyBudgetBinding: Binding<Bool> {
+        Binding(
+            get: { effectiveDailyBudgetValue },
+            set: { value in
+                dailyBudgetOverride = value
+                HapticManager.selection()
+            }
+        )
     }
 
     private var numberPad: some View {
@@ -517,7 +584,7 @@ struct QuickEntryView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.ultraThinMaterial)
+        .background(DesignSystem.surfaceBackground.opacity(0.98))
         .transition(.scale(scale: 0.96).combined(with: .opacity))
     }
 
@@ -549,10 +616,12 @@ struct QuickEntryView: View {
         case "收入":
             withAnimation(.spring(response: 0.3)) { isExpense = false }
             selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
+            dailyBudgetOverride = nil
             showAllCategories = false
         case "支出":
             withAnimation(.spring(response: 0.3)) { isExpense = true }
             selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
+            dailyBudgetOverride = nil
             showAllCategories = false
         default:
             // 限制整数部分最多 12 位
@@ -577,6 +646,7 @@ struct QuickEntryView: View {
 
         withAnimation(.spring(response: 0.3)) {
             selectedCategory = target
+            dailyBudgetOverride = nil
             showAllCategories = false
         }
         HapticManager.selection()
@@ -585,6 +655,7 @@ struct QuickEntryView: View {
     private func selectExactCategory(_ category: Category) {
         withAnimation(.spring(response: 0.3)) {
             selectedCategory = category
+            dailyBudgetOverride = nil
             wheelCategory = nil
             showAllCategories = false
         }
@@ -659,6 +730,7 @@ struct QuickEntryView: View {
             isExpense = template.isExpense
             note = template.note
             selectedCategory = category
+            dailyBudgetOverride = nil
             showAllCategories = false
         }
         HapticManager.impact(.light)
@@ -675,6 +747,7 @@ struct QuickEntryView: View {
             note: note,
             date: selectedDate,
             isPrivateIncome: !isExpense && selectedCategory?.isSalaryIncome == true,
+            dailyBudgetOverride: isExpense ? dailyBudgetOverride : nil,
             category: selectedCategory,
             ledger: selectedLedger
         )
@@ -706,6 +779,7 @@ struct QuickEntryView: View {
             showSuccess = false
             budgetReminderText = nil
             budgetReminderLevel = nil
+            dailyBudgetOverride = nil
         }
     }
 

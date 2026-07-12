@@ -24,6 +24,10 @@ struct CategorySelectionTile: View {
         Color(hex: Category.groupDefinition(for: rootName, isExpense: category.isExpense)?.colorHex ?? category.colorHex)
     }
 
+    private var displayColor: Color {
+        color
+    }
+
     private var icon: String {
         Category.groupDefinition(for: rootName, isExpense: category.isExpense)?.icon ?? category.icon
     }
@@ -33,25 +37,25 @@ struct CategorySelectionTile: View {
             ZStack {
                 ZStack {
                     Circle()
-                        .fill(isSelected ? color.opacity(0.18) : DesignSystem.softFill)
+                        .fill(color.opacity(isSelected ? 0.18 : 0.10))
                         .frame(width: circleSize, height: circleSize)
                         .overlay {
                             if hasChildren && isPressing {
                                 Circle()
-                                    .stroke(color.opacity(0.32), lineWidth: 2)
+                                    .stroke(displayColor.opacity(0.32), lineWidth: 2)
                                     .scaleEffect(1.08)
                             }
                         }
 
                     if isSelected {
                         Circle()
-                            .stroke(color, lineWidth: 2)
+                            .stroke(color.opacity(0.82), lineWidth: 1.8)
                             .frame(width: circleSize, height: circleSize)
                     }
 
                     Image(systemName: icon)
                         .font(iconSize)
-                        .foregroundStyle(color)
+                        .foregroundStyle(displayColor)
                 }
 
             }
@@ -72,12 +76,18 @@ struct CategorySelectionTile: View {
         }
         .frame(minHeight: minHeight)
         .contentShape(Rectangle())
-        .onTapGesture(perform: onSelect)
+        .onTapGesture {
+            if hasChildren {
+                onLongPress()
+            } else {
+                onSelect()
+            }
+        }
         .scaleEffect(isPressing ? 0.96 : 1)
         .opacity(isPressing ? 0.94 : 1)
         .animation(.easeOut(duration: 0.12), value: isPressing)
         .onLongPressGesture(
-            minimumDuration: 0.22,
+            minimumDuration: 0.35,
             maximumDistance: 34,
             pressing: { pressing in
                 updatePressingState(pressing)
@@ -90,7 +100,7 @@ struct CategorySelectionTile: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(hasChildren ? "\(rootName)，包含小类" : rootName)
         .accessibilityValue(isSelected ? "已选中" : "未选中")
-        .accessibilityHint(hasChildren ? "长按选择小类" : "")
+        .accessibilityHint(hasChildren ? "点按选择具体分类" : "")
         .accessibilityAddTraits(.isButton)
     }
 
@@ -122,12 +132,12 @@ struct CategoryWheelOverlay: View {
         parentCategory.rootCategoryName
     }
 
-    private var parentColor: Color {
-        Color(hex: Category.groupDefinition(for: parentName, isExpense: parentCategory.isExpense)?.colorHex ?? parentCategory.colorHex)
-    }
-
     private var parentIcon: String {
         Category.groupDefinition(for: parentName, isExpense: parentCategory.isExpense)?.icon ?? parentCategory.icon
+    }
+
+    private var parentColor: Color {
+        Color(hex: Category.groupDefinition(for: parentName, isExpense: parentCategory.isExpense)?.colorHex ?? parentCategory.colorHex)
     }
 
     private var isParentSelected: Bool {
@@ -140,7 +150,7 @@ struct CategoryWheelOverlay: View {
 
             ZStack {
                 Color.black
-                    .opacity(isVisible ? 0.3 : 0)
+                    .opacity(isVisible ? 0.18 : 0)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -152,7 +162,6 @@ struct CategoryWheelOverlay: View {
 
                 categoryWheel(size: wheelSize)
                     .scaleEffect(isVisible || reduceMotion ? 1 : 0.74)
-                    .rotationEffect(.degrees(isVisible || reduceMotion ? 0 : -7))
                     .opacity(isVisible ? 1 : 0)
                     .allowsHitTesting(!isClosing)
             }
@@ -177,8 +186,8 @@ struct CategoryWheelOverlay: View {
 
         return ZStack {
             Circle()
-                .fill(.regularMaterial)
-                .overlay(Circle().fill(parentColor.opacity(0.06)))
+                .fill(DesignSystem.cardBackground)
+                .overlay(Circle().fill(parentColor.opacity(0.025)))
 
             ForEach(Array(children.enumerated()), id: \.element.id) { index, child in
                 let middleAngle = -90 + Double(index) * sectorAngle
@@ -195,24 +204,33 @@ struct CategoryWheelOverlay: View {
 
                 ZStack {
                     sector
-                        .fill(childColor.opacity(isDialed ? 0.36 : (isSelected ? 0.3 : 0.14)))
+                        .fill(
+                            isDialed
+                                ? childColor.opacity(0.20)
+                                : isSelected
+                                    ? childColor.opacity(0.14)
+                                    : childColor.opacity(0.065)
+                        )
                         .overlay {
                             sector.stroke(
-                                isDialed || isSelected ? childColor.opacity(0.82) : Color.white.opacity(0.34),
-                                lineWidth: isDialed || isSelected ? 1.5 : 0.8
+                                isDialed || isSelected
+                                    ? childColor.opacity(0.56)
+                                    : DesignSystem.dividerColor,
+                                lineWidth: isDialed || isSelected ? 1.2 : 0.8
                             )
                         }
 
                     VStack(spacing: 5) {
                         Image(systemName: child.icon)
                             .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(childColor)
                         Text(child.name)
                             .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(isDialed || isSelected ? childColor : DesignSystem.textPrimary)
                             .lineLimit(2)
                             .multilineTextAlignment(.center)
                             .minimumScaleFactor(0.72)
                     }
-                    .foregroundStyle(isDialed || isSelected ? childColor : DesignSystem.textPrimary)
                     .frame(width: max(54, size * 0.2))
                     .scaleEffect(isDialed ? 1.06 : 1)
                     .offset(
@@ -249,12 +267,14 @@ struct CategoryWheelOverlay: View {
                 }
                 .foregroundStyle(parentColor)
                 .frame(width: size * 0.35, height: size * 0.35)
-                .background(.thickMaterial, in: Circle())
+                .background(DesignSystem.cardBackground, in: Circle())
                 .overlay {
                     Circle()
-                        .stroke(parentColor.opacity(isParentSelected ? 0.72 : 0.32), lineWidth: isParentSelected ? 2 : 1)
+                        .stroke(
+                            parentColor.opacity(isParentSelected ? 0.62 : 0.28),
+                            lineWidth: isParentSelected ? 1.5 : 1
+                        )
                 }
-                .shadow(color: .black.opacity(0.12), radius: 14, x: 0, y: 7)
             }
             .buttonStyle(CategoryWheelPressButtonStyle())
             .accessibilityElement(children: .ignore)
@@ -265,10 +285,9 @@ struct CategoryWheelOverlay: View {
         .simultaneousGesture(dialGesture(size: size))
         .clipShape(Circle())
         .overlay {
-            Circle().stroke(Color.white.opacity(0.42), lineWidth: 1)
+            Circle().stroke(DesignSystem.borderColor, lineWidth: 1)
         }
-        .shadow(color: parentColor.opacity(0.15), radius: 26, x: 0, y: 14)
-        .shadow(color: .black.opacity(0.18), radius: 22, x: 0, y: 12)
+        .shadow(color: .black.opacity(0.06), radius: 14, x: 0, y: 6)
     }
 
     private func dialGesture(size: CGFloat) -> some Gesture {

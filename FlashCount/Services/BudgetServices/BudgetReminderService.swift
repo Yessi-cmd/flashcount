@@ -115,24 +115,30 @@ enum BudgetReminderService {
 }
 
 enum BudgetScope {
-    private static let includedRootNames: Set<String> = [
-        "餐饮",
-        "出行",
-        "购物",
+    /// 日常预算只覆盖高频、可控的小额消费。服饰、聚餐、长途出行和耐用品默认排除。
+    private static let includedCategoryNames: Set<String> = [
+        "餐饮", "正餐", "外卖", "早餐", "奶茶", "咖啡", "零食", "水果", "饮料",
+        "出行", "公交地铁", "打车", "共享单车", "停车过路", "加油充电",
+        "日用品", "美妆个护",
     ]
 
-    private static let excludedCategoryNames: Set<String> = [
-        "数码配件",
-        "家具家电",
-        "大件消费",
-    ]
-
-    static let description = "仅统计餐饮、出行、日常购物；房租、固定服务、娱乐、健康、学习、旅行、账务和大件/数码消费不计入预算。"
+    static let description = "默认统计餐饮、通勤和日用品；服饰鞋包、聚餐、长途出行、固定账单及大件消费不计入。范围可以自行调整，每笔支出也能单独覆盖。"
 
     static func includesInDailyBudget(_ transaction: Transaction) -> Bool {
         guard transaction.isExpense else { return false }
+        if let override = transaction.dailyBudgetOverride { return override }
         guard let category = transaction.category else { return false }
-        guard includedRootNames.contains(category.rootCategoryName) else { return false }
-        return !excludedCategoryNames.contains(category.name)
+        return includesCategory(category)
+    }
+
+    static func includesCategory(_ category: Category?) -> Bool {
+        guard let category, category.isExpense else { return false }
+        if let override = category.dailyBudgetOverride { return override }
+        return defaultIncludesCategory(category)
+    }
+
+    static func defaultIncludesCategory(_ category: Category?) -> Bool {
+        guard let category, category.isExpense else { return false }
+        return includedCategoryNames.contains(category.name)
     }
 }

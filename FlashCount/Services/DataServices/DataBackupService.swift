@@ -31,7 +31,7 @@ struct CodableMoney: Codable {
 @MainActor
 final class DataBackupService {
 
-    nonisolated static let currentBackupVersion = "1.6.0"
+    nonisolated static let currentBackupVersion = "1.7.0"
     nonisolated static let minimumSupportedBackupVersion = "1.0.0"
 
     private let modelContext: ModelContext
@@ -174,6 +174,7 @@ final class DataBackupService {
         let isExpense: Bool
         let sortOrder: Int
         let isArchived: Bool
+        let dailyBudgetOverride: Bool?
     }
 
     struct LedgerDTO: Codable {
@@ -198,6 +199,7 @@ final class DataBackupService {
         let ledgerId: String?
         let isPrivateIncome: Bool?
         let cashPoolDelta: CodableMoney?
+        let dailyBudgetOverride: Bool?
     }
 
     struct AssetDTO: Codable {
@@ -358,7 +360,8 @@ final class DataBackupService {
             categories: categories.map { c in
                 CategoryDTO(id: c.id.uuidString, name: c.name, icon: c.icon,
                            colorHex: c.colorHex, isExpense: c.isExpense,
-                           sortOrder: c.sortOrder, isArchived: c.isArchived)
+                           sortOrder: c.sortOrder, isArchived: c.isArchived,
+                           dailyBudgetOverride: c.dailyBudgetOverride)
             },
             ledgers: ledgers.map { l in
                 LedgerDTO(id: l.id.uuidString, name: l.name, icon: l.icon,
@@ -373,7 +376,8 @@ final class DataBackupService {
                               categoryId: t.category?.id.uuidString,
                               ledgerId: t.ledger?.id.uuidString,
                               isPrivateIncome: t.isPrivateIncome,
-                              cashPoolDelta: t.cashPoolDelta.map { CodableMoney($0) })
+                              cashPoolDelta: t.cashPoolDelta.map { CodableMoney($0) },
+                              dailyBudgetOverride: t.dailyBudgetOverride)
             },
             assets: assets.map { a in
                 AssetDTO(id: a.id.uuidString, name: a.name, type: a.type.rawValue,
@@ -572,6 +576,7 @@ final class DataBackupService {
                               isExpense: dto.isExpense, sortOrder: dto.sortOrder)
             if let id = UUID(uuidString: dto.id) { cat.id = id }
             cat.isArchived = dto.isArchived
+            cat.dailyBudgetOverride = dto.dailyBudgetOverride
             modelContext.insert(cat)
             categoryMap[dto.id] = cat
             result.categoriesImported += 1
@@ -635,6 +640,7 @@ final class DataBackupService {
                                note: dto.note, date: dto.date,
                                isPrivateIncome: dto.isPrivateIncome ?? false,
                                cashPoolDelta: dto.cashPoolDelta?.decimalValue,
+                               dailyBudgetOverride: dto.dailyBudgetOverride,
                                category: dto.categoryId.flatMap { categoryMap[$0] },
                                ledger: matchedLedger)
             if let id = UUID(uuidString: dto.id) { t.id = id }

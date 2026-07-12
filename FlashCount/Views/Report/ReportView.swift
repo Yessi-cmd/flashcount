@@ -85,7 +85,8 @@ struct ReportView: View {
     private func generateReport() {
         let service = ReportService(modelContext: modelContext)
         do {
-            let data = try service.generateReport(period: selectedPeriod, includePrivateIncome: privacyLock.isUnlocked)
+            // 始终计算完整值，再由统一隐私状态负责遮罩，避免锁定时普通收入与工资口径不一致。
+            let data = try service.generateReport(period: selectedPeriod, includePrivateIncome: true)
             withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                 reportData = data
             }
@@ -119,24 +120,23 @@ struct ReportView: View {
 
     private func streakCard(days: Int) -> some View {
         HStack(spacing: 12) {
-            Text("🔥")
-                .font(.system(size: 36))
+            Image(systemName: "checkmark.seal.fill")
+                .font(.system(size: 30))
+                .foregroundStyle(DesignSystem.primaryColor)
             VStack(alignment: .leading, spacing: 2) {
                 Text("连续记账 \(days) 天")
                     .font(.headline)
                     .foregroundStyle(DesignSystem.textPrimary)
-                Text(days >= 30 ? "厉害了！坚持就是胜利 💪" : days >= 7 ? "保持住，养成习惯！" : "每天记一笔，积少成多 ✨")
+                Text(days >= 30 ? "稳定的记录习惯已经形成" : days >= 7 ? "保持这个节奏" : "每天记一笔，趋势会更清楚")
                     .font(.caption)
                     .foregroundStyle(DesignSystem.textSecondary)
             }
             Spacer()
         }
         .padding()
-        .background(
-            LinearGradient(colors: [.orange.opacity(0.15), .red.opacity(0.1)], startPoint: .leading, endPoint: .trailing)
-        )
+        .background(DesignSystem.softFill)
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
-        .overlay(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius).stroke(.orange.opacity(0.2)))
+        .overlay(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius).stroke(DesignSystem.borderColor))
     }
 
     // MARK: - 概览卡片
@@ -148,30 +148,33 @@ struct ReportView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
-                Label(data.netChange >= 0 ? "有结余" : "需关注", systemImage: data.netChange >= 0 ? "arrow.up.right" : "exclamationmark.triangle.fill")
+                Label(
+                    privacyLock.hidesSensitiveAmounts ? "收入已隐藏" : (data.netChange >= 0 ? "有结余" : "需关注"),
+                    systemImage: privacyLock.hidesSensitiveAmounts ? "lock.fill" : (data.netChange >= 0 ? "arrow.up.right" : "exclamationmark.triangle.fill")
+                )
                     .font(.caption2.weight(.semibold))
-                    .foregroundStyle(data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                    .foregroundStyle(privacyLock.hidesSensitiveAmounts ? DesignSystem.textTertiary : (data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
             }
 
             HStack(spacing: 0) {
                 summaryItem(title: "支出", amount: data.totalExpense, color: DesignSystem.expenseColor, change: data.expenseChange)
-                summaryItem(title: "收入", amount: data.totalIncome, color: DesignSystem.incomeColor, change: data.incomeChange, masked: data.hasHiddenPrivateIncome)
+                summaryItem(title: "收入", amount: data.totalIncome, color: DesignSystem.incomeColor, change: data.incomeChange, masked: privacyLock.hidesSensitiveAmounts)
                 VStack(spacing: 4) {
                     Text("结余").font(.caption).foregroundStyle(DesignSystem.textTertiary)
-                    Text(data.hasHiddenPrivateIncome ? privacyLock.maskedText : data.netChange.formattedCurrency)
+                    Text(privacyLock.hidesSensitiveAmounts ? privacyLock.maskedText : data.netChange.formattedCurrency)
                         .font(.subheadline.weight(.bold).monospacedDigit())
-                        .foregroundStyle(data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+                        .foregroundStyle(privacyLock.hidesSensitiveAmounts ? DesignSystem.textTertiary : (data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
                 }
                 .frame(maxWidth: .infinity)
             }
         }
-        .heroCard(accent: data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
+        .heroCard(accent: privacyLock.hidesSensitiveAmounts ? DesignSystem.primaryColor : (data.netChange >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
         .overlay(alignment: .bottom) {
-            if data.hasHiddenPrivateIncome {
+            if privacyLock.hidesSensitiveAmounts {
                 Button {
-                    Task { _ = await privacyLock.unlock() }
+                    privacyLock.requestReveal()
                 } label: {
-                    Label("解锁工资收入", systemImage: "lock.fill")
+                    Label("验证并显示全部收入", systemImage: "lock.fill")
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(DesignSystem.primaryColor)
                         .padding(.horizontal, 10)
@@ -230,10 +233,7 @@ struct ReportView: View {
                         x: .value("日期", item.0),
                         y: .value("金额", NSDecimalNumber(decimal: item.1).doubleValue)
                     )
-                    .foregroundStyle(
-                        LinearGradient(colors: [DesignSystem.primaryColor, DesignSystem.primaryColor.opacity(0.5)],
-                                       startPoint: .top, endPoint: .bottom)
-                    )
+                    .foregroundStyle(DesignSystem.primaryColor)
                     .cornerRadius(4)
                 }
             }
@@ -319,7 +319,9 @@ struct ReportView: View {
     private func topCategoriesCard(data: ReportData) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("🏆 消费 Top 5").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
+                Label("消费 Top 5", systemImage: "list.number")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
             }
 
@@ -376,7 +378,7 @@ struct ReportView: View {
             Text("🧠 消费洞察").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
 
             if data.insights.isEmpty {
-                Text("记账数据不足，多记几笔生成洞察 ✨")
+                Text("记账数据不足，多记几笔后生成洞察")
                     .font(.caption).foregroundStyle(DesignSystem.textTertiary)
             } else {
                 ForEach(data.insights, id: \.self) { insight in

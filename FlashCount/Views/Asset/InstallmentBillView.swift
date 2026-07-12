@@ -9,7 +9,6 @@ struct InstallmentBillView: View {
     @State private var showAddBill = false
     @State private var editingBill: InstallmentBill?
     @State private var saveError: String?
-    @AppStorage("hideAssetBalance") private var hideAssetBalance = true
 
     private var activeBills: [InstallmentBill] {
         bills.filter { !$0.isArchived }
@@ -20,7 +19,7 @@ struct InstallmentBillView: View {
     }
 
     private var hidesMoney: Bool {
-        hideAssetBalance || !privacyLock.isUnlocked
+        PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
     }
 
     var body: some View {
@@ -44,6 +43,9 @@ struct InstallmentBillView: View {
             .navigationTitle("分期账单")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    PrivacyVisibilityButton()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showAddBill = true } label: {
                         Image(systemName: "plus.circle.fill")
@@ -117,8 +119,8 @@ struct InstallmentBillView: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 22)
             .padding(.vertical, 11)
-            .background(DesignSystem.primaryGradient)
-            .clipShape(Capsule())
+            .background(DesignSystem.primaryColor)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
@@ -147,7 +149,7 @@ struct InstallmentBillView: View {
                     .overlay(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 5)
                             .fill(DesignSystem.expenseColor.opacity(0.75))
-                            .frame(width: geo.size.width * CGFloat(bill.progress))
+                            .frame(width: hidesMoney ? 0 : geo.size.width * CGFloat(bill.progress))
                     }
             }
             .frame(height: 10)
@@ -155,7 +157,7 @@ struct InstallmentBillView: View {
             HStack(spacing: 0) {
                 billMetric(title: "每期", value: hidesMoney ? privacyLock.maskedText : bill.installmentAmount.formattedCurrency)
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
-                billMetric(title: "进度", value: "\(bill.normalizedPaidInstallments)/\(bill.normalizedInstallmentCount) 期")
+                billMetric(title: "进度", value: hidesMoney ? privacyLock.maskedText : "\(bill.normalizedPaidInstallments)/\(bill.normalizedInstallmentCount) 期")
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
                 billMetric(title: "还款日", value: "每月 \(bill.repaymentDay) 日")
             }
@@ -179,10 +181,10 @@ struct InstallmentBillView: View {
         }
         .glassCard()
         .contentShape(Rectangle())
-        .onTapGesture { editingBill = bill }
+        .onTapGesture { revealOrPerform { editingBill = bill } }
         .contextMenu {
-            Button { editingBill = bill } label: {
-                Label("编辑", systemImage: "pencil")
+            Button { revealOrPerform { editingBill = bill } } label: {
+                Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
             }
             Button {
                 markOneInstallmentPaid(bill)
@@ -201,6 +203,14 @@ struct InstallmentBillView: View {
             }
         }
         .opacity(bill.isCompleted ? 0.68 : 1)
+    }
+
+    private func revealOrPerform(_ action: () -> Void) {
+        guard privacyLock.isUnlocked else {
+            privacyLock.requestReveal()
+            return
+        }
+        action()
     }
 
     private func billMetric(title: String, value: String) -> some View {
