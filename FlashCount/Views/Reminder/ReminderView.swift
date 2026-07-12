@@ -8,9 +8,17 @@ struct ReminderView: View {
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var saveError: String?
     private let onClose: (() -> Void)?
+    private let reminderStore: any ReminderPersisting
+    private let notificationScheduler: any ReminderNotificationScheduling
 
-    init(onClose: (() -> Void)? = nil) {
+    init(
+        onClose: (() -> Void)? = nil,
+        reminderStore: any ReminderPersisting = FileReminderStore(),
+        notificationScheduler: any ReminderNotificationScheduling = SystemReminderNotificationScheduler()
+    ) {
         self.onClose = onClose
+        self.reminderStore = reminderStore
+        self.notificationScheduler = notificationScheduler
     }
 
     private var activeReminders: [ReminderItem] {
@@ -113,7 +121,7 @@ struct ReminderView: View {
                 Text(saveError ?? "")
             }
             .onAppear {
-                reminders = ReminderStore.load()
+                reminders = reminderStore.load()
                 refreshNotificationStatus()
             }
         }
@@ -204,9 +212,16 @@ struct ReminderView: View {
         }
     }
 
-    private func add(_ reminder: ReminderItem) {
-        reminders.append(reminder)
-        persistAndSchedule(reminder)
+    @discardableResult
+    private func add(_ reminder: ReminderItem) -> Bool {
+        do {
+            reminders = try ReminderMutationService(store: reminderStore).adding(reminder, to: reminders)
+            schedule(reminder)
+            return true
+        } catch {
+            saveError = "提醒保存失败：\(error.localizedDescription)"
+            return false
+        }
     }
 
     private func close() {
@@ -218,28 +233,31 @@ struct ReminderView: View {
     }
 
     private func close(_ reminder: ReminderItem) {
-        guard let index = reminders.firstIndex(where: { $0.id == reminder.id }) else { return }
-        reminders[index].isCompleted = true
-        reminders[index].completedAt = Date()
-        ReminderNotificationService.cancel(reminderID: reminder.id)
-        persist()
+        do {
+            reminders = try ReminderMutationService(store: reminderStore).completing(id: reminder.id, in: reminders)
+            notificationScheduler.cancel(reminderID: reminder.id)
+        } catch {
+            saveError = "提醒保存失败：\(error.localizedDescription)"
+        }
     }
 
     private func delete(_ reminder: ReminderItem) {
-        reminders.removeAll { $0.id == reminder.id }
-        ReminderNotificationService.cancel(reminderID: reminder.id)
-        persist()
+        do {
+            reminders = try ReminderMutationService(store: reminderStore).deleting(id: reminder.id, from: reminders)
+            notificationScheduler.cancel(reminderID: reminder.id)
+        } catch {
+            saveError = "提醒保存失败：\(error.localizedDescription)"
+        }
     }
 
-    private func persistAndSchedule(_ reminder: ReminderItem) {
-        persist()
+    private func schedule(_ reminder: ReminderItem) {
         Task {
-            let status = await ReminderNotificationService.authorizationStatus()
+            let status = await notificationScheduler.authorizationStatus()
             if status == .notDetermined {
-                _ = await ReminderNotificationService.requestAuthorization()
+                _ = await notificationScheduler.requestAuthorization()
             }
             do {
-                try await ReminderNotificationService.schedule(reminder)
+                try await notificationScheduler.schedule(reminder)
             } catch {
                 saveError = "通知安排失败：\(error.localizedDescription)"
             }
@@ -247,23 +265,15 @@ struct ReminderView: View {
         }
     }
 
-    private func persist() {
-        do {
-            try ReminderStore.save(reminders)
-        } catch {
-            saveError = "提醒保存失败：\(error.localizedDescription)"
-        }
-    }
-
     private func refreshNotificationStatus() {
         Task {
-            notificationStatus = await ReminderNotificationService.authorizationStatus()
+            notificationStatus = await notificationScheduler.authorizationStatus()
         }
     }
 
     private func requestNotifications() {
         Task {
-            _ = await ReminderNotificationService.requestAuthorization()
+            _ = await notificationScheduler.requestAuthorization()
             refreshNotificationStatus()
         }
     }
@@ -336,96 +346,5 @@ private struct ReminderRow: View {
         if reminder.isCompleted { return DesignSystem.textTertiary }
         if reminder.isOverdue { return DesignSystem.dangerColor }
         return reminder.intensity == .strong ? DesignSystem.warningColor : DesignSystem.primaryColor
-    }
-}
-
-private struct AddReminderView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var title = ""
-    @State private var note = ""
-    @State private var dueDate = Calendar.current.date(byAdding: .hour, value: 1, to: Date()) ?? Date()
-    @State private var intensity: ReminderIntensity = .strong
-    let onSave: (ReminderItem) -> Void
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                DesignSystem.surfaceBackground.ignoresSafeArea()
-
-                Form {
-                    Section {
-                        TextField("例如：交房租、复诊、抢票", text: $title)
-                            .foregroundStyle(DesignSystem.textPrimary)
-                        TextField("备注，可不填", text: $note, axis: .vertical)
-                            .lineLimit(2...4)
-                            .foregroundStyle(DesignSystem.textPrimary)
-                    } header: {
-                        Text("事项").foregroundStyle(DesignSystem.textSecondary)
-                    }
-
-                    Section {
-                        DatePicker("提醒时间", selection: $dueDate, in: Date()..., displayedComponents: [.date, .hourAndMinute])
-                            .foregroundStyle(DesignSystem.textPrimary)
-                    } header: {
-                        Text("时间").foregroundStyle(DesignSystem.textSecondary)
-                    }
-
-                    Section {
-                        Picker("提醒力度", selection: $intensity) {
-                            ForEach(ReminderIntensity.allCases) { item in
-                                Text(item.rawValue).tag(item)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        HStack(spacing: 10) {
-                            Image(systemName: intensity.iconName)
-                                .foregroundStyle(intensity == .strong ? DesignSystem.warningColor : DesignSystem.primaryColor)
-                            Text(intensity.description)
-                                .font(.caption)
-                                .foregroundStyle(DesignSystem.textSecondary)
-                        }
-                    } header: {
-                        Text("提醒方式").foregroundStyle(DesignSystem.textSecondary)
-                    } footer: {
-                        Text("iOS 不允许普通 App 像系统闹钟一样持续响铃，强提醒会用多次时间敏感通知增强存在感。")
-                            .foregroundStyle(DesignSystem.textTertiary)
-                    }
-                }
-                .scrollContentBackground(.hidden)
-            }
-            .navigationTitle("新建提醒")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("取消") { dismiss() }
-                        .foregroundStyle(DesignSystem.textSecondary)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("保存") {
-                        let reminder = ReminderItem(
-                            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                            note: note.trimmingCharacters(in: .whitespacesAndNewlines),
-                            dueDate: dueDate,
-                            intensity: intensity
-                        )
-                        onSave(reminder)
-                        dismiss()
-                    }
-                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .foregroundStyle(DesignSystem.primaryColor)
-                }
-            }
-        }
-    }
-}
-
-private extension Date {
-    var reminderDateTimeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = Calendar.current.isDate(self, equalTo: Date(), toGranularity: .year)
-            ? "M月d日 HH:mm"
-            : "yyyy年M月d日 HH:mm"
-        return formatter.string(from: self)
     }
 }
