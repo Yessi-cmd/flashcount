@@ -759,6 +759,19 @@ struct QuickEntryView: View {
             return
         }
 
+        if let categorySnapshot = CategoryBudgetService.snapshot(
+            for: transaction,
+            budgets: allBudgets,
+            transactions: transactions,
+            categories: expenseCategories,
+            ledger: nil,
+            payday: payday
+        ), categorySnapshot.alertLevel != .healthy {
+            budgetReminderText = categorySnapshot.shortMessage
+            budgetReminderLevel = categorySnapshot.alertLevel
+            return
+        }
+
         guard let reminder = BudgetReminderService.reminder(
             budgets: allBudgets,
             transactions: transactions,

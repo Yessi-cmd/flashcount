@@ -12,6 +12,7 @@ struct MainTabView: View {
     @State private var showPlusActions = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage(QuickEntryRoute.requestKey) private var shouldShowQuickEntry = false
+    @AppStorage(ReportRoute.requestKey) private var shouldShowReport = false
     @State private var showOnboarding = false
 
     init() {
@@ -74,12 +75,18 @@ struct MainTabView: View {
                 showOnboarding = true
             }
             processQuickEntryRequestIfNeeded()
+            processReportRequestIfNeeded()
         }
         .onChange(of: shouldShowQuickEntry) { processQuickEntryRequestIfNeeded() }
+        .onChange(of: shouldShowReport) { processReportRequestIfNeeded() }
         .onChange(of: showOnboarding) {
             if !showOnboarding {
                 processQuickEntryRequestIfNeeded()
+                processReportRequestIfNeeded()
             }
+        }
+        .onOpenURL { url in
+            handleDeepLink(url)
         }
     }
 
@@ -137,9 +144,27 @@ struct MainTabView: View {
     }
 
     private func processQuickEntryRequestIfNeeded() {
-        guard shouldShowQuickEntry, !showOnboarding else { return }
+        guard shouldShowQuickEntry, hasCompletedOnboarding, !showOnboarding else { return }
         shouldShowQuickEntry = false
         showQuickEntry = true
+    }
+
+    private func processReportRequestIfNeeded() {
+        guard shouldShowReport, hasCompletedOnboarding, !showOnboarding else { return }
+        shouldShowReport = false
+        selectedTab = 3
+    }
+
+    private func handleDeepLink(_ url: URL) {
+        guard let route = AppDeepLink(url: url) else { return }
+        switch route {
+        case .quickEntry:
+            shouldShowQuickEntry = true
+            processQuickEntryRequestIfNeeded()
+        case .report(let period):
+            ReportRoute.request(period: period)
+            processReportRequestIfNeeded()
+        }
     }
 
     private func tabButton(icon: String, title: String, tag: Int) -> some View {

@@ -1,6 +1,5 @@
 import WidgetKit
 import SwiftUI
-import AppIntents
 
 /// 快速记账 Widget
 struct QuickEntryWidget: Widget {
@@ -50,16 +49,19 @@ struct QuickEntryWidgetView: View {
     var entry: QuickEntryTimelineEntry
 
     var body: some View {
-        switch family {
-        case .accessoryCircular:
-            lockScreenCircular
-        case .accessoryRectangular:
-            lockScreenRectangular
-        case .systemSmall:
-            homeScreenSmall
-        default:
-            homeScreenSmall
+        Group {
+            switch family {
+            case .accessoryCircular:
+                lockScreenCircular
+            case .accessoryRectangular:
+                lockScreenRectangular
+            case .systemSmall:
+                homeScreenSmall
+            default:
+                homeScreenSmall
+            }
         }
+        .widgetURL(URL(string: "flashcount://quick-entry"))
     }
 
     // 锁屏 - 圆形 Widget

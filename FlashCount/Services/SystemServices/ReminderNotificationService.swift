@@ -103,4 +103,17 @@ private final class ReminderNotificationDelegate: NSObject, UNUserNotificationCe
     ) async -> UNNotificationPresentationOptions {
         [.banner, .list, .sound]
     }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        guard let rawPeriod = response.notification.request.content.userInfo[
+            ReportRoute.notificationPeriodUserInfoKey
+        ] as? String,
+              let period = ReportPeriod(rawValue: rawPeriod) else {
+            return
+        }
+        ReportRoute.request(period: period)
+    }
 }

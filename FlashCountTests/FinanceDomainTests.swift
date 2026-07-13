@@ -164,6 +164,79 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertFalse(BudgetScope.includesInDailyBudget(transaction))
     }
 
+    func testCategoryBudgetIncludesChildrenAndExcludesOtherGroups() throws {
+        let reference = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 15, hour: 12)))
+        let cycle = PayCycleService.cycle(containing: reference, payday: 1, calendar: calendar)
+        let dining = Category(name: "餐饮", icon: "fork.knife", colorHex: "#FF0000", sortOrder: 0)
+        let coffee = Category(name: "咖啡", icon: "cup.and.saucer", colorHex: "#AA0000", sortOrder: 1)
+        let shopping = Category(name: "购物", icon: "bag", colorHex: "#00AA00", sortOrder: 100)
+        let budget = Budget(
+            monthlyLimit: 500,
+            year: calendar.component(.year, from: cycle.start),
+            month: calendar.component(.month, from: cycle.start),
+            categoryId: dining.id
+        )
+        let included = Transaction(
+            amount: 100,
+            date: try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 2))),
+            category: coffee
+        )
+        let otherGroup = Transaction(
+            amount: 300,
+            date: try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 3))),
+            category: shopping
+        )
+        let previousCycle = Transaction(
+            amount: 400,
+            date: try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 6, day: 30))),
+            category: coffee
+        )
+
+        let snapshots = CategoryBudgetService.snapshots(
+            budgets: [budget],
+            transactions: [included, otherGroup, previousCycle],
+            categories: [dining, coffee, shopping],
+            ledger: nil,
+            referenceDate: reference,
+            payday: 1,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(snapshots.count, 1)
+        XCTAssertEqual(snapshots[0].category.id, dining.id)
+        XCTAssertEqual(snapshots[0].analysis.totalSpent, 100)
+        XCTAssertEqual(snapshots[0].analysis.remainingBudget, 400)
+    }
+
+    func testCategoryBudgetUsesNewestDuplicateForCurrentCycle() throws {
+        let reference = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 15)))
+        let cycle = PayCycleService.cycle(containing: reference, payday: 1, calendar: calendar)
+        let category = Category(name: "餐饮", icon: "fork.knife", colorHex: "#FF0000")
+        let old = Budget(
+            monthlyLimit: 500,
+            year: calendar.component(.year, from: cycle.start),
+            month: calendar.component(.month, from: cycle.start),
+            categoryId: category.id
+        )
+        let newest = Budget(
+            monthlyLimit: 800,
+            year: calendar.component(.year, from: cycle.start),
+            month: calendar.component(.month, from: cycle.start),
+            categoryId: category.id
+        )
+        newest.createdAt = old.createdAt.addingTimeInterval(1)
+
+        let selected = CategoryBudgetService.currentBudgets(
+            in: [old, newest],
+            ledger: nil,
+            referenceDate: reference,
+            payday: 1,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(selected.map(\.id), [newest.id])
+    }
+
     func testBackupRestoresDailyBudgetOverrides() throws {
         let context = try makeContext()
         let category = Category(name: "服饰鞋包", icon: "tshirt.fill", colorHex: "#000000")
@@ -188,6 +261,37 @@ final class FinanceDomainTests: XCTestCase {
         let restoredTransaction = try XCTUnwrap(context.fetch(FetchDescriptor<Transaction>()).first)
         XCTAssertEqual(restoredCategory.dailyBudgetOverride, true)
         XCTAssertEqual(restoredTransaction.dailyBudgetOverride, false)
+    }
+
+    func testBackupRestoresCategoryHierarchyAndMergeMetadata() throws {
+        let context = try makeContext()
+        let root = Category(name: "自定义生活", icon: "house.fill", colorHex: "#123456", isExpense: true)
+        let child = Category(
+            name: "自定义咖啡",
+            icon: "cup.and.saucer.fill",
+            colorHex: "#654321",
+            isExpense: true,
+            parentCategoryName: root.name,
+            defaultKey: "custom.test.child"
+        )
+        let merged = Category(name: "旧咖啡", icon: "cup.and.saucer", colorHex: "#999999", isExpense: true)
+        merged.isArchived = true
+        merged.mergedIntoCategoryID = child.id
+        context.insert(root)
+        context.insert(child)
+        context.insert(merged)
+        try context.save()
+
+        let service = DataBackupService(modelContext: context)
+        let snapshot = try service.exportJSON()
+        _ = try service.importJSON(data: snapshot, mode: .replace)
+
+        let restored = try context.fetch(FetchDescriptor<FlashCount.Category>())
+        let restoredChild = try XCTUnwrap(restored.first { $0.name == child.name })
+        let restoredMerged = try XCTUnwrap(restored.first { $0.name == merged.name })
+        XCTAssertEqual(restoredChild.parentCategoryName, root.name)
+        XCTAssertEqual(restoredChild.defaultKey, "custom.test.child")
+        XCTAssertEqual(restoredMerged.mergedIntoCategoryID, restoredChild.id)
     }
 
     func testRecurringProcessingIsIdempotentForTheSameDueDate() throws {

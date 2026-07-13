@@ -10,6 +10,7 @@ struct AddRecurringRuleView: View {
     @Query(filter: #Predicate<Category> { $0.isExpense == false && $0.isArchived == false }, sort: \Category.sortOrder) private var incomeCategories: [Category]
 
     var editRule: RecurringRule?
+    var suggestion: RecurringSuggestion?
     @State private var title = ""
     @State private var amountText = ""
     @State private var frequency: RecurringFrequency = .monthly
@@ -26,6 +27,12 @@ struct AddRecurringRuleView: View {
 
     private var isEditing: Bool {
         editRule != nil
+    }
+
+    private var screenTitle: String {
+        if isEditing { return "编辑周期账单" }
+        if suggestion != nil { return "确认周期账单" }
+        return "添加周期账单"
     }
 
     private var categories: [Category] {
@@ -155,7 +162,7 @@ struct AddRecurringRuleView: View {
                     categoryWheel(for: wheelCategory)
                 }
             }
-            .navigationTitle(isEditing ? "编辑周期账单" : "添加周期账单").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(screenTitle).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("取消") { dismiss() }.foregroundStyle(DesignSystem.textSecondary) }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -260,6 +267,16 @@ struct AddRecurringRuleView: View {
             selectedCategory = editRule.category
             selectedLedger = editRule.ledger
             isExpense = editRule.isExpense
+        } else if let suggestion {
+            title = suggestion.title
+            amountText = NSDecimalNumber(decimal: suggestion.amount).stringValue
+            frequency = suggestion.frequency
+            nextDueDate = suggestion.nextDueDate
+            isExpense = true
+            selectedCategory = expenseCategories.first { $0.id == suggestion.categoryID }
+            selectedLedger = ledgers.first { $0.id == suggestion.ledgerID }
+                ?? ledgers.first(where: { $0.isDefault })
+                ?? ledgers.first
         } else {
             selectedLedger = ledgers.first(where: { $0.isDefault }) ?? ledgers.first
         }
@@ -276,6 +293,9 @@ struct AddRecurringRuleView: View {
             rule.isExpense = isExpense
             rule.frequency = frequency
             rule.nextDueDate = nextDueDate
+            rule.anchorDay = frequency == .monthly || frequency == .yearly
+                ? Calendar.current.component(.day, from: nextDueDate)
+                : nil
             rule.endDate = hasEndDate ? endDate : nil
             rule.category = selectedCategory
             rule.ledger = selectedLedger

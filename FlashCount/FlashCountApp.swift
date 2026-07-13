@@ -59,6 +59,9 @@ private struct AppRootView: View {
                         guard !Self.didPrepareData else { return }
                         Self.didPrepareData = true
                         DefaultDataService(modelContext: modelContext).prepareAppData()
+                        Task {
+                            await ReportReminderNotificationService.refreshStoredScheduleIfAuthorized()
+                        }
                     }
             }
         }

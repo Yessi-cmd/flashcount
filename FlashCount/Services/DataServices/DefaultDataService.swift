@@ -76,12 +76,32 @@ final class DefaultDataService {
 
     private func ensureCategories(_ defaults: [Category], isExpense: Bool, existing: [Category]) {
         var existingKeys = Set(existing.map { "\($0.name)_\($0.isExpense)" })
+        var existingDefaultKeys = Set(existing.compactMap(\.defaultKey))
         let appendMode = existing.contains { $0.isExpense == isExpense }
         var nextSortOrder = ((existing.filter { $0.isExpense == isExpense }.map(\.sortOrder).max()) ?? -1) + 1
 
         for category in defaults {
+            if let defaultKey = category.defaultKey,
+               let existingDefault = existing.first(where: { $0.defaultKey == defaultKey }) {
+                if existingDefault.parentCategoryName == nil {
+                    existingDefault.parentCategoryName = category.parentCategoryName
+                }
+                continue
+            }
+
             let key = "\(category.name)_\(category.isExpense)"
-            guard !existingKeys.contains(key) else { continue }
+            if let matchingName = existing.first(where: {
+                $0.name == category.name && $0.isExpense == category.isExpense
+            }) {
+                matchingName.defaultKey = category.defaultKey
+                if matchingName.parentCategoryName == nil {
+                    matchingName.parentCategoryName = category.parentCategoryName
+                }
+                if let defaultKey = category.defaultKey { existingDefaultKeys.insert(defaultKey) }
+                continue
+            }
+            guard !existingKeys.contains(key),
+                  category.defaultKey.map({ !existingDefaultKeys.contains($0) }) ?? true else { continue }
 
             if appendMode {
                 category.sortOrder = nextSortOrder
@@ -89,6 +109,7 @@ final class DefaultDataService {
             }
             modelContext.insert(category)
             existingKeys.insert(key)
+            if let defaultKey = category.defaultKey { existingDefaultKeys.insert(defaultKey) }
         }
     }
 

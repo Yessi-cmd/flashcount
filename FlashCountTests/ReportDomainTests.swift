@@ -156,6 +156,67 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(loaded.yearlyDeliveryDay, 31)
     }
 
+    func testReportReminderPlannerUsesRepeatingDailyAndWeeklyTriggers() {
+        let preferences = ReportReminderPreferences(
+            enabledPeriods: [.daily, .weekly],
+            deliveryTime: ReportReminderTime(hour: 8, minute: 45),
+            weeklyDeliveryWeekday: 6
+        )
+
+        let plans = ReportReminderSchedulePlanner.plans(
+            for: preferences,
+            referenceDate: Date(timeIntervalSince1970: 0),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(plans.count, 2)
+        XCTAssertEqual(plans.first(where: { $0.period == .daily })?.dateComponents.hour, 8)
+        XCTAssertEqual(plans.first(where: { $0.period == .daily })?.dateComponents.minute, 45)
+        XCTAssertEqual(plans.first(where: { $0.period == .daily })?.repeats, true)
+        XCTAssertEqual(plans.first(where: { $0.period == .weekly })?.dateComponents.weekday, 6)
+        XCTAssertEqual(plans.first(where: { $0.period == .weekly })?.repeats, true)
+    }
+
+    func testReportReminderPlannerClampsMonthEndAndLeapDay() throws {
+        let reference = try date(2027, 1, 30, 10)
+        let preferences = ReportReminderPreferences(
+            enabledPeriods: [.monthly, .yearly],
+            deliveryTime: ReportReminderTime(hour: 8, minute: 45),
+            monthlyDeliveryDay: 31,
+            yearlyDeliveryMonth: 2,
+            yearlyDeliveryDay: 29
+        )
+
+        let plans = ReportReminderSchedulePlanner.plans(
+            for: preferences,
+            referenceDate: reference,
+            calendar: calendar
+        )
+        let monthly = plans.filter { $0.period == .monthly }
+        let yearly = plans.filter { $0.period == .yearly }
+
+        XCTAssertEqual(monthly.count, 12)
+        XCTAssertEqual(monthly[0].dateComponents.day, 31)
+        XCTAssertEqual(monthly[0].dateComponents.month, 1)
+        XCTAssertEqual(monthly[1].dateComponents.day, 28)
+        XCTAssertEqual(monthly[1].dateComponents.month, 2)
+        XCTAssertEqual(yearly[0].dateComponents.year, 2027)
+        XCTAssertEqual(yearly[0].dateComponents.day, 28)
+        XCTAssertEqual(yearly[1].dateComponents.year, 2028)
+        XCTAssertEqual(yearly[1].dateComponents.day, 29)
+    }
+
+    func testReportRoutePersistsColdLaunchDestination() {
+        let suiteName = "ReportRouteTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        ReportRoute.request(period: .monthly, userDefaults: defaults)
+
+        XCTAssertTrue(defaults.bool(forKey: ReportRoute.requestKey))
+        XCTAssertEqual(defaults.string(forKey: ReportRoute.periodKey), ReportPeriod.monthly.rawValue)
+    }
+
     private func date(
         _ year: Int,
         _ month: Int,

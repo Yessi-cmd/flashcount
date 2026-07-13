@@ -26,6 +26,12 @@ final class Category {
     var isArchived: Bool
     /// nil 使用内置日常预算范围；非 nil 为用户自定义范围。
     var dailyBudgetOverride: Bool?
+    /// 自定义及默认子分类的父级名称。nil 表示一级分类；旧数据通过内置定义回退推断。
+    var parentCategoryName: String?
+    /// 内置分类的稳定标识。重命名后仍用于防止启动时重复补种。
+    var defaultKey: String?
+    /// 合并后的目标分类；非 nil 的分类保留为归档别名，不再允许恢复。
+    var mergedIntoCategoryID: UUID?
 
     @Relationship(deleteRule: .nullify, inverse: \Transaction.category)
     var transactions: [Transaction] = []
@@ -38,7 +44,9 @@ final class Category {
         icon: String,
         colorHex: String,
         isExpense: Bool = true,
-        sortOrder: Int = 0
+        sortOrder: Int = 0,
+        parentCategoryName: String? = nil,
+        defaultKey: String? = nil
     ) {
         self.id = UUID()
         self.name = name
@@ -48,6 +56,9 @@ final class Category {
         self.sortOrder = sortOrder
         self.isArchived = false
         self.dailyBudgetOverride = nil
+        self.parentCategoryName = parentCategoryName
+        self.defaultKey = defaultKey
+        self.mergedIntoCategoryID = nil
     }
 
     // MARK: - 默认分类
@@ -307,7 +318,8 @@ extension Category {
                 icon: group.icon,
                 colorHex: group.colorHex,
                 isExpense: isExpense,
-                sortOrder: baseSortOrder
+                sortOrder: baseSortOrder,
+                defaultKey: defaultKey(for: group.name, isExpense: isExpense)
             )
             let children = group.children.enumerated().map { childIndex, child in
                 Category(
@@ -315,11 +327,31 @@ extension Category {
                     icon: child.icon,
                     colorHex: child.colorHex,
                     isExpense: isExpense,
-                    sortOrder: baseSortOrder + childIndex + 1
+                    sortOrder: baseSortOrder + childIndex + 1,
+                    parentCategoryName: group.name,
+                    defaultKey: defaultKey(for: child.name, isExpense: isExpense)
                 )
             }
             return [parent] + children
         }
+    }
+
+    static func defaultKey(for name: String, isExpense: Bool) -> String {
+        "\(isExpense ? "expense" : "income").\(name)"
+    }
+
+    static func defaultParentName(for name: String, isExpense: Bool) -> String? {
+        categoryGroups(isExpense: isExpense)
+            .first(where: { group in group.children.contains(where: { $0.name == name }) })?
+            .name
+    }
+
+    static func defaultRootName(forDefaultKey key: String?, isExpense: Bool) -> String? {
+        guard let key else { return nil }
+        return categoryGroups(isExpense: isExpense).first { group in
+            defaultKey(for: group.name, isExpense: isExpense) == key
+                || group.children.contains { defaultKey(for: $0.name, isExpense: isExpense) == key }
+        }?.name
     }
 
     private static func categoryGroups(isExpense: Bool) -> [CategoryGroupDefinition] {
@@ -379,7 +411,14 @@ extension Category {
         ]
     }
 
-    static func rootName(for categoryName: String, isExpense: Bool) -> String {
+    static func rootName(
+        for categoryName: String,
+        isExpense: Bool,
+        parentCategoryName: String? = nil
+    ) -> String {
+        if let parentCategoryName, !parentCategoryName.isEmpty {
+            return parentCategoryName
+        }
         let groups = categoryGroups(isExpense: isExpense)
         if groups.contains(where: { $0.name == categoryName }) {
             return categoryName
@@ -398,41 +437,21 @@ extension Category {
     }
 
     static func rootCategories(from categories: [Category], isExpense: Bool) -> [Category] {
-        let activeCategories = categories.filter { $0.isExpense == isExpense && !$0.isArchived }
-        let groups = categoryGroups(isExpense: isExpense)
-        var result: [Category] = []
-        var seenRoots = Set<String>()
-
-        for group in groups {
-            if let root = activeCategories.first(where: { $0.name == group.name })
-                ?? activeCategories.first(where: { $0.rootCategoryName == group.name }) {
-                result.append(root)
-                seenRoots.insert(group.name)
+        categories
+            .filter {
+                $0.isExpense == isExpense
+                    && !$0.isArchived
+                    && $0.rootCategoryName == $0.name
             }
-        }
-
-        let uncategorizedRoots = activeCategories
-            .filter { !seenRoots.contains($0.rootCategoryName) }
-            .sorted { $0.sortOrder < $1.sortOrder }
-
-        for category in uncategorizedRoots where !seenRoots.contains(category.rootCategoryName) {
-            result.append(category)
-            seenRoots.insert(category.rootCategoryName)
-        }
-
-        return result
+            .sorted {
+                if $0.sortOrder == $1.sortOrder {
+                    return $0.name.localizedStandardCompare($1.name) == .orderedAscending
+                }
+                return $0.sortOrder < $1.sortOrder
+            }
     }
 
     static func childCategories(for parentName: String, in categories: [Category], isExpense: Bool) -> [Category] {
-        let groups = categoryGroups(isExpense: isExpense)
-        let childOrder = Dictionary(
-            uniqueKeysWithValues: groups
-                .first(where: { $0.name == parentName })?
-                .children
-                .enumerated()
-                .map { ($0.element.name, $0.offset) } ?? []
-        )
-
         return categories
             .filter {
                 $0.isExpense == isExpense
@@ -441,17 +460,19 @@ extension Category {
                 && $0.name != parentName
             }
             .sorted { lhs, rhs in
-                let leftOrder = childOrder[lhs.name] ?? Int.max
-                let rightOrder = childOrder[rhs.name] ?? Int.max
-                if leftOrder == rightOrder {
-                    return lhs.sortOrder < rhs.sortOrder
+                if lhs.sortOrder == rhs.sortOrder {
+                    return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
                 }
-                return leftOrder < rightOrder
+                return lhs.sortOrder < rhs.sortOrder
             }
     }
 
     var rootCategoryName: String {
-        Category.rootName(for: name, isExpense: isExpense)
+        Category.rootName(
+            for: name,
+            isExpense: isExpense,
+            parentCategoryName: parentCategoryName
+        )
     }
 
     var entryDisplayName: String {
@@ -463,14 +484,21 @@ extension Category {
     }
 
     var reportIcon: String {
-        Category.groupDefinition(for: rootCategoryName, isExpense: isExpense)?.icon ?? icon
+        guard rootCategoryName != name else { return icon }
+        let systemRoot = Category.defaultRootName(forDefaultKey: defaultKey, isExpense: isExpense)
+        return systemRoot.flatMap { Category.groupDefinition(for: $0, isExpense: isExpense)?.icon } ?? icon
     }
 
     var reportColorHex: String {
-        Category.groupDefinition(for: rootCategoryName, isExpense: isExpense)?.colorHex ?? colorHex
+        guard rootCategoryName != name else { return colorHex }
+        let systemRoot = Category.defaultRootName(forDefaultKey: defaultKey, isExpense: isExpense)
+        return systemRoot.flatMap { Category.groupDefinition(for: $0, isExpense: isExpense)?.colorHex } ?? colorHex
     }
 
     var isSalaryIncome: Bool {
-        !isExpense && rootCategoryName == "工资"
+        !isExpense && (
+            rootCategoryName == "工资"
+                || Category.defaultRootName(forDefaultKey: defaultKey, isExpense: false) == "工资"
+        )
     }
 }

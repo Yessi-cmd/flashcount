@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var showRecurringRules = false
     @State private var showReminders = false
     @State private var showTemplates = false
+    @State private var showCategoryManagement = false
     @State private var showOnboarding = false
     @State private var repairResult: String?
     @State private var showRepairResult = false
@@ -169,6 +170,19 @@ struct SettingsView: View {
                                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                             }
                         }
+                        Button {
+                            showCategoryManagement = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "square.grid.3x3.square").foregroundStyle(DesignSystem.primaryColor)
+                                VStack(alignment: .leading) {
+                                    Text("分类管理").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
+                                    Text("增改、排序、归档与合并收支分类").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                            }
+                        }
                     } header: {
                         Text("快捷入口").foregroundStyle(DesignSystem.textSecondary)
                     }
@@ -282,6 +296,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showTemplates) {
                 TemplateManagementView()
+            }
+            .sheet(isPresented: $showCategoryManagement) {
+                CategoryManagementView()
             }
             .sheet(isPresented: $showReminders) {
                 ReminderView {

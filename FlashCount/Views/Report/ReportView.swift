@@ -8,9 +8,11 @@ struct ReportView: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selectedPeriod: ReportPeriod = .weekly
+    @State private var showReminderSettings = false
     @State private var reportData: ReportData?
     @State private var reportError: String?
     @Query private var recentTransactions: [Transaction]
+    @AppStorage(ReportRoute.periodKey) private var requestedPeriodRaw = ""
 
     init() {
         let calendar = Calendar.current
@@ -65,7 +67,24 @@ struct ReportView: View {
             }
             .navigationTitle("报表")
             .navigationBarTitleDisplayMode(.large)
-            .onAppear { generateReport() }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showReminderSettings = true
+                    } label: {
+                        Image(systemName: "bell.badge")
+                    }
+                    .accessibilityLabel("报表提醒")
+                }
+            }
+            .sheet(isPresented: $showReminderSettings) {
+                ReportReminderSettingsView()
+            }
+            .onAppear {
+                applyRequestedPeriodIfNeeded()
+                generateReport()
+            }
+            .onChange(of: requestedPeriodRaw) { applyRequestedPeriodIfNeeded() }
             .onChange(of: selectedPeriod) { generateReport() }
             .onChange(of: privacyLock.isUnlocked) { generateReport() }
             .onChange(of: transactionDigest) { generateReport() }
@@ -93,6 +112,12 @@ struct ReportView: View {
         } catch {
             reportError = error.localizedDescription
         }
+    }
+
+    private func applyRequestedPeriodIfNeeded() {
+        guard let period = ReportPeriod(rawValue: requestedPeriodRaw) else { return }
+        requestedPeriodRaw = ""
+        selectedPeriod = period
     }
 
     // MARK: - 周期选择器

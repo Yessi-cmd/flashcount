@@ -6,10 +6,23 @@ struct RecurringRulesView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @Query(sort: \RecurringRule.createdAt, order: .reverse) private var rules: [RecurringRule]
+    @Query(filter: #Predicate<Transaction> { $0.isExpense == true }, sort: \Transaction.date) private var expenseTransactions: [Transaction]
     @State private var showAddRule = false
     @State private var editingRule: RecurringRule?
+    @State private var suggestionToCreate: RecurringSuggestion?
     @State private var rulePendingDeletion: RecurringRule?
     @State private var saveError: String?
+    @State private var dismissedSuggestionFingerprints: Set<String> = []
+
+    private let suggestionDismissalStore = UserDefaultsRecurringSuggestionDismissalStore()
+
+    private var suggestions: [RecurringSuggestion] {
+        RecurringSuggestionService.suggestions(
+            transactions: expenseTransactions,
+            existingRules: rules,
+            dismissedFingerprints: dismissedSuggestionFingerprints
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,8 +30,12 @@ struct RecurringRulesView: View {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 12) {
-                        if rules.isEmpty { emptyState }
-                        else {
+                        if !suggestions.isEmpty {
+                            suggestionSection
+                        }
+                        if rules.isEmpty {
+                            emptyState
+                        } else {
                             ForEach(rules, id: \.id) { rule in
                                 ruleCard(rule)
                             }
@@ -40,6 +57,9 @@ struct RecurringRulesView: View {
                 }
             }
             .sheet(isPresented: $showAddRule) { AddRecurringRuleView() }
+            .sheet(item: $suggestionToCreate) { suggestion in
+                AddRecurringRuleView(suggestion: suggestion)
+            }
             .sheet(isPresented: Binding(
                 get: { editingRule != nil },
                 set: { if !$0 { editingRule = nil } }
@@ -72,7 +92,75 @@ struct RecurringRulesView: View {
             } message: {
                 Text(saveError ?? "")
             }
+            .onAppear {
+                dismissedSuggestionFingerprints = suggestionDismissalStore.load()
+            }
         }
+    }
+
+    private var suggestionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(DesignSystem.primaryColor)
+                Text("发现可能的周期支出")
+                    .font(.headline)
+                    .foregroundStyle(DesignSystem.textPrimary)
+                Spacer()
+                Text("仅本机分析")
+                    .font(.caption2)
+                    .foregroundStyle(DesignSystem.textTertiary)
+            }
+
+            ForEach(Array(suggestions.prefix(8))) { suggestion in
+                suggestionCard(suggestion)
+            }
+        }
+    }
+
+    private func suggestionCard(_ suggestion: RecurringSuggestion) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.primaryColor.opacity(0.12))
+                    .frame(width: 42, height: 42)
+                Image(systemName: "repeat.circle.fill")
+                    .foregroundStyle(DesignSystem.primaryColor)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(suggestion.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(DesignSystem.textPrimary)
+                    .lineLimit(1)
+                Text("\(suggestion.frequency.rawValue) · 已出现 \(suggestion.occurrenceCount) 次 · 下次 \(suggestion.nextDueDate.shortDateString)")
+                    .font(.caption)
+                    .foregroundStyle(DesignSystem.textTertiary)
+                    .lineLimit(1)
+                Text(suggestion.amount.formattedCurrency)
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(DesignSystem.expenseColor)
+            }
+
+            Spacer(minLength: 8)
+
+            VStack(spacing: 8) {
+                Button("创建规则") {
+                    suggestionToCreate = suggestion
+                }
+                .font(.caption.weight(.semibold))
+                .buttonStyle(.borderedProminent)
+                .tint(DesignSystem.primaryColor)
+
+                Button("忽略") {
+                    dismiss(suggestion)
+                }
+                .font(.caption)
+                .foregroundStyle(DesignSystem.textTertiary)
+                .buttonStyle(.plain)
+            }
+        }
+        .glassCard()
     }
 
     private func ruleCard(_ rule: RecurringRule) -> some View {
@@ -221,6 +309,12 @@ struct RecurringRulesView: View {
     private func delete(_ rule: RecurringRule) {
         modelContext.delete(rule)
         persist()
+    }
+
+    private func dismiss(_ suggestion: RecurringSuggestion) {
+        suggestionDismissalStore.dismiss(suggestion.fingerprint)
+        dismissedSuggestionFingerprints.insert(suggestion.fingerprint)
+        HapticManager.selection()
     }
 
     private func persist() {

@@ -44,7 +44,7 @@ private extension Decimal {
 @MainActor
 final class DataBackupService {
 
-    nonisolated static let currentBackupVersion = "1.7.0"
+    nonisolated static let currentBackupVersion = "1.8.0"
     nonisolated static let minimumSupportedBackupVersion = "1.0.0"
 
     private let modelContext: ModelContext
@@ -191,6 +191,9 @@ final class DataBackupService {
         let sortOrder: Int
         let isArchived: Bool
         let dailyBudgetOverride: Bool?
+        let parentCategoryName: String?
+        let defaultKey: String?
+        let mergedIntoCategoryId: String?
     }
 
     struct LedgerDTO: Codable {
@@ -331,12 +334,20 @@ final class DataBackupService {
         let appearance: String?
         let hideAssetBalance: Bool?
         let hasCompletedOnboarding: Bool?
+        let reportReminderPreferences: ReportReminderPreferences?
 
-        init(payday: Int, appearance: String?, hideAssetBalance: Bool?, hasCompletedOnboarding: Bool?) {
+        init(
+            payday: Int,
+            appearance: String?,
+            hideAssetBalance: Bool?,
+            hasCompletedOnboarding: Bool?,
+            reportReminderPreferences: ReportReminderPreferences? = nil
+        ) {
             self.payday = payday
             self.appearance = appearance
             self.hideAssetBalance = hideAssetBalance
             self.hasCompletedOnboarding = hasCompletedOnboarding
+            self.reportReminderPreferences = reportReminderPreferences
         }
     }
 
@@ -377,7 +388,10 @@ final class DataBackupService {
                 CategoryDTO(id: c.id.uuidString, name: c.name, icon: c.icon,
                            colorHex: c.colorHex, isExpense: c.isExpense,
                            sortOrder: c.sortOrder, isArchived: c.isArchived,
-                           dailyBudgetOverride: c.dailyBudgetOverride)
+                           dailyBudgetOverride: c.dailyBudgetOverride,
+                           parentCategoryName: c.parentCategoryName,
+                           defaultKey: c.defaultKey,
+                           mergedIntoCategoryId: c.mergedIntoCategoryID?.uuidString)
             },
             ledgers: ledgers.map { l in
                 LedgerDTO(id: l.id.uuidString, name: l.name, icon: l.icon,
@@ -471,7 +485,8 @@ final class DataBackupService {
                 payday: max(UserDefaults.standard.integer(forKey: "payday"), 1),
                 appearance: UserDefaults.standard.string(forKey: "appearance"),
                 hideAssetBalance: UserDefaults.standard.object(forKey: "hideAssetBalance") as? Bool,
-                hasCompletedOnboarding: UserDefaults.standard.object(forKey: "hasCompletedOnboarding") as? Bool
+                hasCompletedOnboarding: UserDefaults.standard.object(forKey: "hasCompletedOnboarding") as? Bool,
+                reportReminderPreferences: UserDefaultsReportReminderPreferencesStore().load()
             )
         )
 
@@ -595,11 +610,19 @@ final class DataBackupService {
                 result.skipped += 1
                 continue
             }
-            let cat = Category(name: dto.name, icon: dto.icon, colorHex: dto.colorHex,
-                              isExpense: dto.isExpense, sortOrder: dto.sortOrder)
+            let cat = Category(
+                name: dto.name,
+                icon: dto.icon,
+                colorHex: dto.colorHex,
+                isExpense: dto.isExpense,
+                sortOrder: dto.sortOrder,
+                parentCategoryName: dto.parentCategoryName,
+                defaultKey: dto.defaultKey
+            )
             if let id = UUID(uuidString: dto.id) { cat.id = id }
             cat.isArchived = dto.isArchived
             cat.dailyBudgetOverride = dto.dailyBudgetOverride
+            cat.mergedIntoCategoryID = dto.mergedIntoCategoryId.flatMap(UUID.init(uuidString:))
             modelContext.insert(cat)
             categoryMap[dto.id] = cat
             result.categoriesImported += 1
@@ -963,6 +986,12 @@ final class DataBackupService {
             if let appearance = settings.appearance { UserDefaults.standard.set(appearance, forKey: "appearance") }
             if let hideAssetBalance = settings.hideAssetBalance { UserDefaults.standard.set(hideAssetBalance, forKey: "hideAssetBalance") }
             if let hasCompletedOnboarding = settings.hasCompletedOnboarding { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "hasCompletedOnboarding") }
+            if let reportPreferences = settings.reportReminderPreferences {
+                try UserDefaultsReportReminderPreferencesStore().save(reportPreferences)
+                Task {
+                    await ReportReminderNotificationService.refreshStoredScheduleIfAuthorized()
+                }
+            }
         }
         return newReminders.count
     }
@@ -1010,6 +1039,7 @@ final class DataBackupService {
             let ledgerIDs = Set(backup.ledgers.map(\.id))
             let categoryReferences = backup.transactions.compactMap(\.categoryId)
                 + backup.recurringRules.compactMap(\.categoryId)
+                + backup.categories.compactMap(\.mergedIntoCategoryId)
             let ledgerReferences = backup.transactions.compactMap(\.ledgerId)
                 + backup.recurringRules.compactMap(\.ledgerId)
                 + backup.budgets.compactMap(\.ledgerId)

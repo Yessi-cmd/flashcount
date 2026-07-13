@@ -42,6 +42,16 @@ struct BudgetView: View {
         )
     }
 
+    private var categoryBudgetSnapshots: [CategoryBudgetSnapshot] {
+        CategoryBudgetService.snapshots(
+            budgets: allBudgets,
+            transactions: recentTransactions,
+            categories: expenseCategories,
+            ledger: nil,
+            payday: payday
+        )
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -52,10 +62,12 @@ struct BudgetView: View {
                             BudgetOverviewCard(analysis: reminder.analysis)
                             BudgetAlertCard(reminder: reminder)
                             dailyBudgetScopeCard
+                            categoryBudgetCard
                             BudgetMetricsGrid(analysis: reminder.analysis)
                         } else {
                             noBudgetPlaceholder
                             dailyBudgetScopeCard
+                            categoryBudgetCard
                         }
                     }
                     .padding()
@@ -133,5 +145,84 @@ struct BudgetView: View {
             }
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    private var categoryBudgetCard: some View {
+        NavigationLink {
+            CategoryBudgetsView()
+        } label: {
+            VStack(spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "chart.bar.doc.horizontal")
+                        .font(.headline)
+                        .foregroundStyle(DesignSystem.primaryColor)
+                        .frame(width: 38, height: 38)
+                        .background(DesignSystem.primaryColor.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("分类预算")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(DesignSystem.textPrimary)
+                        Text(categoryBudgetSubtitle)
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.textSecondary)
+                    }
+
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(DesignSystem.textTertiary)
+                }
+
+                ForEach(categoryBudgetSnapshots.prefix(3)) { snapshot in
+                    HStack(spacing: 8) {
+                        Image(systemName: snapshot.category.icon)
+                            .foregroundStyle(Color(hex: snapshot.category.colorHex))
+                            .frame(width: 20)
+                        Text(snapshot.category.name)
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.textSecondary)
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(DesignSystem.dividerColor)
+                                Capsule()
+                                    .fill(categoryBudgetColor(snapshot.alertLevel))
+                                    .frame(width: proxy.size.width * min(max(snapshot.analysis.usagePercent, 0), 1))
+                            }
+                        }
+                        .frame(height: 6)
+                        Text("\(Int(min(snapshot.analysis.usagePercent, 99.99) * 100))%")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(categoryBudgetColor(snapshot.alertLevel))
+                            .frame(width: 38, alignment: .trailing)
+                    }
+                }
+            }
+            .padding(DesignSystem.cardPadding)
+            .background(DesignSystem.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: DesignSystem.cornerRadius, style: .continuous)
+                    .stroke(DesignSystem.primaryColor.opacity(0.22), lineWidth: 1)
+            }
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    private var categoryBudgetSubtitle: String {
+        guard !categoryBudgetSnapshots.isEmpty else { return "为餐饮、购物等分类设置独立上限" }
+        let alerts = categoryBudgetSnapshots.filter { $0.alertLevel != .healthy }.count
+        return alerts == 0
+            ? "已设置 \(categoryBudgetSnapshots.count) 项 · 当前均健康"
+            : "已设置 \(categoryBudgetSnapshots.count) 项 · \(alerts) 项需要注意"
+    }
+
+    private func categoryBudgetColor(_ level: BudgetAlertLevel) -> Color {
+        switch level {
+        case .healthy: return DesignSystem.incomeColor
+        case .warning: return DesignSystem.warningColor
+        case .danger: return DesignSystem.dangerColor
+        }
     }
 }

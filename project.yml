@@ -17,18 +17,48 @@ targets:
     platform: iOS
     sources:
       - path: FlashCount
+    info:
+      path: FlashCount/Info.plist
+      properties:
+        CFBundleDisplayName: FlashCount
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Editor
+            CFBundleURLName: com.flashcount.app
+            CFBundleURLSchemes:
+              - flashcount
+        NSFaceIDUsageDescription: 用于在您确认后显示收入、资产和其他隐私金额
+        UIApplicationSupportsIndirectInputEvents: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+    dependencies:
+      - target: FlashCountWidget
+        embed: true
     settings:
       base:
-        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
-        INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
-        INFOPLIST_KEY_NSFaceIDUsageDescription: "用于在您确认后显示收入、资产和其他隐私金额"
-        INFOPLIST_KEY_CFBundleDisplayName: "FlashCount"
         PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
+        TARGETED_DEVICE_FAMILY: "1"
+      configs:
+        Debug:
+          DEVELOPMENT_TEAM: ""
+        Release:
+          DEVELOPMENT_TEAM: "66WCCRKRLC"
+          PROVISIONING_PROFILE_SPECIFIER: ""
+  FlashCountWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: FlashCountWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app.widget
+        INFOPLIST_FILE: FlashCountWidget/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
         TARGETED_DEVICE_FAMILY: "1"
       configs:
         Debug:

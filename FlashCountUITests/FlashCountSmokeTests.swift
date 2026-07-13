@@ -37,9 +37,10 @@ final class FlashCountSmokeTests: XCTestCase {
         dining.tap()
         XCTAssertTrue(app.otherElements["categoryWheelOverlay"].waitForExistence(timeout: 3))
 
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.03, dy: 0.12)).tap()
-        XCTAssertTrue(app.navigationBars["记一笔"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.otherElements["categoryWheelOverlay"].exists)
+        let overlay = app.otherElements.matching(identifier: "categoryWheelOverlay").firstMatch
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.90)).tap()
+        XCTAssertTrue(overlay.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["记一笔"].exists)
     }
 
     func testQuickEntryCategoryWheelImmediatelyAcceptsSubcategorySelection() {
