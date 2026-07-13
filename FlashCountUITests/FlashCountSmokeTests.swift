@@ -42,7 +42,7 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertFalse(app.otherElements["categoryWheelOverlay"].exists)
     }
 
-    func testQuickEntryCategoryWheelSelectionUpdatesTheChosenSubcategory() {
+    func testQuickEntryCategoryWheelImmediatelyAcceptsSubcategorySelection() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
@@ -53,14 +53,13 @@ final class FlashCountSmokeTests: XCTestCase {
 
         let dining = app.buttons["餐饮，包含小类"]
         XCTAssertTrue(dining.waitForExistence(timeout: 5))
-        dining.tap()
+        let meal = app.staticTexts["正餐"]
 
-        let meal = app.otherElements["categoryWheelChild-正餐"]
-        XCTAssertTrue(meal.waitForExistence(timeout: 3))
+        dining.tap()
         meal.tap()
 
         XCTAssertTrue(app.navigationBars["记一笔"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.otherElements["categoryWheelOverlay"].exists)
-        XCTAssertEqual(dining.value as? String, "已选中：正餐")
+        XCTAssertEqual(dining.value as? String, "已选中：餐饮 · 正餐")
     }
 }

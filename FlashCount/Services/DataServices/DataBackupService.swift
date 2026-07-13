@@ -793,10 +793,10 @@ final class DataBackupService {
             // A merge keeps the local state and incorporates only newly
             // imported transactions. Importing a second state would make the
             // balance source non-deterministic.
-            CashPoolService(modelContext: modelContext).applyImportedTransactionDeltas(importedTransactionDelta)
+            try CashPoolService(modelContext: modelContext).applyImportedTransactionDeltas(importedTransactionDelta)
             result.skipped += backup.cashPoolStates.count
         } else if importedTransactionDelta != 0 {
-            CashPoolService(modelContext: modelContext).applyImportedTransactionDeltas(importedTransactionDelta)
+            try CashPoolService(modelContext: modelContext).applyImportedTransactionDeltas(importedTransactionDelta)
         }
 
         // 8. 导入分期账单

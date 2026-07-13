@@ -24,7 +24,7 @@ struct LedgerView: View {
     @State private var showSettings = false
     @State private var showReminders = false
     @State private var deleteError: String?
-    @State private var undoInfo: UndoDeleteInfo?
+    @State private var undoInfo: DeletedTransactionSnapshot?
     @State private var undoWorkItem: DispatchWorkItem?
     @State private var isSelecting = false
     @State private var selectedIds = Set<UUID>()
@@ -991,47 +991,30 @@ struct LedgerView: View {
 
     private func batchDeleteSelected(from transactions: [Transaction]) {
         let toDelete = transactions.filter { selectedIds.contains($0.id) }
-        for transaction in toDelete {
-            CashPoolService(modelContext: modelContext).reverse(delta: transaction.cashPoolDelta)
-            modelContext.delete(transaction)
-        }
-        if let error = safeSave(modelContext) {
-            modelContext.rollback()
-            batchDeleteError = error
-        } else {
+        do {
+            try TransactionMutationService(modelContext: modelContext).delete(toDelete)
             HapticManager.success()
             withAnimation(.spring(response: 0.3)) {
                 selectedIds.removeAll()
                 isSelecting = false
             }
+        } catch {
+            batchDeleteError = error.localizedDescription
         }
     }
 
     private func deleteTransaction(_ transaction: Transaction) {
-        // 保存事务数据以便撤销
-        let info = UndoDeleteInfo(
-            amount: transaction.amount,
-            isExpense: transaction.isExpense,
-            note: transaction.note,
-            date: transaction.date,
-            isPrivateIncome: transaction.isPrivateIncome,
-            cashPoolDelta: transaction.cashPoolDelta,
-            dailyBudgetOverride: transaction.dailyBudgetOverride,
-            category: transaction.category,
-            ledger: transaction.ledger,
-            recurringRule: transaction.recurringRule
-        )
-        CashPoolService(modelContext: modelContext).reverse(delta: transaction.cashPoolDelta)
-        modelContext.delete(transaction)
-        if let error = safeSave(modelContext) {
-            modelContext.rollback()
-            deleteError = error
+        let snapshot: DeletedTransactionSnapshot
+        do {
+            snapshot = try TransactionMutationService(modelContext: modelContext).delete(transaction)
+        } catch {
+            deleteError = error.localizedDescription
             return
         }
 
         // 显示撤销条
         withAnimation(.spring(response: 0.3)) {
-            undoInfo = info
+            undoInfo = snapshot
         }
         undoWorkItem?.cancel()
         let task = DispatchWorkItem { [self] in
@@ -1047,25 +1030,10 @@ struct LedgerView: View {
         guard let info = undoInfo else { return }
         undoWorkItem?.cancel()
 
-        let transaction = Transaction(
-            amount: info.amount,
-            isExpense: info.isExpense,
-            note: info.note,
-            date: info.date,
-            isPrivateIncome: info.isPrivateIncome,
-            cashPoolDelta: info.cashPoolDelta,
-            dailyBudgetOverride: info.dailyBudgetOverride,
-            category: info.category,
-            ledger: info.ledger,
-            recurringRule: info.recurringRule
-        )
-        modelContext.insert(transaction)
-        if let delta = info.cashPoolDelta {
-            CashPoolService(modelContext: modelContext).apply(delta: delta)
-        }
-
-        if let error = safeSave(modelContext) {
-            deleteError = error
+        do {
+            try TransactionMutationService(modelContext: modelContext).restore(info)
+        } catch {
+            deleteError = error.localizedDescription
             HapticManager.error()
             return
         }

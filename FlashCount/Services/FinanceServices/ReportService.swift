@@ -8,185 +8,214 @@ struct CategorySpending: Identifiable {
     let categoryIcon: String
     let categoryColor: String
     let amount: Decimal
-    let percentage: Double // 0 ~ 1
-    let changeFromLastPeriod: Double? // 比上期变化 (-0.2 = 减少20%)
-}
-
-/// 报表周期
-enum ReportPeriod: String, CaseIterable {
-    case weekly = "周报"
-    case monthly = "月报"
+    let percentage: Double
+    let changeFromLastPeriod: Double?
 }
 
 /// 报表数据
 struct ReportData {
     let period: ReportPeriod
+    let target: ReportTarget
+    let reportRange: ReportDateRange
+    let comparisonRange: ReportDateRange
     let totalExpense: Decimal
     let totalIncome: Decimal
     let netChange: Decimal
-    let expenseChange: Double?     // 比上一期变化
+    let expenseChange: Double?
     let incomeChange: Double?
     let hasHiddenPrivateIncome: Bool
     let categoryBreakdown: [CategorySpending]
-    let dailyExpenses: [(String, Decimal)]  // (日期标签, 金额)
-    let streakDays: Int           // 连续记账天数
-    let insights: [String]        // 消费洞察
+    let timeBuckets: [ReportTimeBucket]
+    let streakDays: Int
+    let insights: [String]
+
+    /// 兼容现有报表界面；新代码应使用带区间和粒度的 timeBuckets。
+    var dailyExpenses: [(String, Decimal)] {
+        timeBuckets.map { ($0.label, $0.expense) }
+    }
 }
 
 /// 报表服务
 @MainActor
 final class ReportService {
     private let modelContext: ModelContext
+    private let calendar: Calendar
+    private let now: () -> Date
 
-    init(modelContext: ModelContext) {
+    init(
+        modelContext: ModelContext,
+        calendar: Calendar = .current,
+        now: @escaping () -> Date = Date.init
+    ) {
         self.modelContext = modelContext
+        self.calendar = calendar
+        self.now = now
     }
 
-    /// 生成报表
-    func generateReport(period: ReportPeriod, includePrivateIncome: Bool = true) throws -> ReportData {
-        let calendar = Calendar.current
-        let now = Date()
+    /// 显式目标 API，定时报表应传入 ReportTarget.scheduled(period:triggerDate:)。
+    func generateReport(
+        period: ReportPeriod,
+        target: ReportTarget,
+        includePrivateIncome: Bool = true
+    ) throws -> ReportData {
+        let calculator = ReportPeriodCalculator(calendar: calendar)
+        let selection = calculator.selection(for: period, target: target)
+        let currentTransactions = try fetchTransactions(in: selection.reportRange)
+        let comparisonTransactions = try fetchTransactions(in: selection.comparisonRange)
 
-        // 计算当前周期和上一周期的日期范围
-        let (currentStart, currentEnd, previousStart, previousEnd) = dateRanges(for: period, from: now, calendar: calendar)
+        let currentExpenses = currentTransactions.filter(\.isExpense)
+        let comparisonExpenses = comparisonTransactions.filter(\.isExpense)
+        let currentIncome = visibleIncome(in: currentTransactions, includePrivateIncome: includePrivateIncome)
+        let comparisonIncome = visibleIncome(in: comparisonTransactions, includePrivateIncome: includePrivateIncome)
 
-        // 获取交易
-        let currentTransactions = try fetchTransactions(from: currentStart, to: currentEnd)
-        let previousTransactions = try fetchTransactions(from: previousStart, to: previousEnd)
-        let hasHiddenPrivateIncome = !includePrivateIncome && currentTransactions.contains { $0.isProtectedIncome }
-        let incomeTransactions = currentTransactions.filter { !$0.isExpense && (includePrivateIncome || !$0.isProtectedIncome) }
-        let previousIncomeTransactions = previousTransactions.filter { !$0.isExpense && (includePrivateIncome || !$0.isProtectedIncome) }
+        let totalExpense = sum(currentExpenses)
+        let totalIncome = sum(currentIncome)
+        let comparisonExpense = sum(comparisonExpenses)
+        let comparisonIncomeTotal = sum(comparisonIncome)
+        let expenseChange = percentageChange(current: totalExpense, previous: comparisonExpense)
+        let incomeChange = percentageChange(current: totalIncome, previous: comparisonIncomeTotal)
 
-        // 基础统计
-        let totalExpense = currentTransactions.filter { $0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
-        let totalIncome = incomeTransactions.reduce(Decimal(0)) { $0 + $1.amount }
-        let prevExpense = previousTransactions.filter { $0.isExpense }.reduce(Decimal(0)) { $0 + $1.amount }
-        let prevIncome = previousIncomeTransactions.reduce(Decimal(0)) { $0 + $1.amount }
-
-        let expenseChange: Double? = prevExpense > 0 ? NSDecimalNumber(decimal: (totalExpense - prevExpense) / prevExpense).doubleValue : nil
-        let incomeChange: Double? = prevIncome > 0 ? NSDecimalNumber(decimal: (totalIncome - prevIncome) / prevIncome).doubleValue : nil
-
-        // 分类汇总
         let categoryBreakdown = buildCategoryBreakdown(
-            transactions: currentTransactions.filter { $0.isExpense },
+            transactions: currentExpenses,
             totalExpense: totalExpense,
-            previousTransactions: previousTransactions.filter { $0.isExpense }
+            previousTransactions: comparisonExpenses
         )
-
-        // 每日消费
-        let dailyExpenses = buildDailyExpenses(
-            transactions: currentTransactions.filter { $0.isExpense },
-            start: currentStart,
-            end: min(currentEnd, now),
-            period: period,
-            calendar: calendar
+        let timeBuckets = buildTimeBuckets(
+            transactions: currentExpenses,
+            selection: selection,
+            calculator: calculator
         )
-
-        // 连续记账天数
-        let streakDays = try calculateStreak(calendar: calendar)
-
-        // 消费洞察
+        let streakDays = try calculateStreak(referenceDate: target.referenceDate)
         let insights = generateInsights(
             categoryBreakdown: categoryBreakdown,
-            totalExpense: totalExpense,
             expenseChange: expenseChange,
             period: period,
-            transactions: currentTransactions.filter(\.isExpense)
+            transactions: currentExpenses
         )
 
         return ReportData(
             period: period,
+            target: target,
+            reportRange: selection.reportRange,
+            comparisonRange: selection.comparisonRange,
             totalExpense: totalExpense,
             totalIncome: totalIncome,
             netChange: totalIncome - totalExpense,
             expenseChange: expenseChange,
             incomeChange: incomeChange,
-            hasHiddenPrivateIncome: hasHiddenPrivateIncome,
+            hasHiddenPrivateIncome: !includePrivateIncome && currentTransactions.contains(where: \.isProtectedIncome),
             categoryBreakdown: categoryBreakdown,
-            dailyExpenses: dailyExpenses,
+            timeBuckets: timeBuckets,
             streakDays: streakDays,
             insights: insights
         )
     }
 
-    // MARK: - Private
-
-    private func dateRanges(for period: ReportPeriod, from date: Date, calendar: Calendar) -> (Date, Date, Date, Date) {
-        switch period {
-        case .weekly:
-            guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: date),
-                  let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekInterval.start),
-                  let prevStart = calendar.date(byAdding: .day, value: -7, to: weekInterval.start)
-            else {
-                let today = Date()
-                return (today, today, today, today)
-            }
-            return (weekInterval.start, weekEnd, prevStart, weekInterval.start)
-        case .monthly:
-            guard let monthInterval = calendar.dateInterval(of: .month, for: date),
-                  let prevMonthStart = calendar.date(byAdding: .month, value: -1, to: monthInterval.start)
-            else {
-                let today = Date()
-                return (today, today, today, today)
-            }
-            return (monthInterval.start, monthInterval.end, prevMonthStart, monthInterval.start)
-        }
+    /// 兼容现有应用内报表：展示包含当前时刻的进行中周期。
+    func generateReport(period: ReportPeriod, includePrivateIncome: Bool = true) throws -> ReportData {
+        try generateReport(
+            period: period,
+            target: .current(referenceDate: now()),
+            includePrivateIncome: includePrivateIncome
+        )
     }
 
-    private func fetchTransactions(from start: Date, to end: Date) throws -> [Transaction] {
+    private func fetchTransactions(in range: ReportDateRange) throws -> [Transaction] {
+        let start = range.start
+        let end = range.end
         let descriptor = FetchDescriptor<Transaction>(
-            predicate: #Predicate<Transaction> { t in
-                t.date >= start && t.date < end
+            predicate: #Predicate<Transaction> { transaction in
+                transaction.date >= start && transaction.date < end
             }
         )
         return try modelContext.fetch(descriptor)
     }
 
-    private func buildCategoryBreakdown(transactions: [Transaction], totalExpense: Decimal, previousTransactions: [Transaction]) -> [CategorySpending] {
-        let grouped = Dictionary(grouping: transactions) { $0.category?.reportDisplayName ?? "未分类" }
-        let prevGrouped = Dictionary(grouping: previousTransactions) { $0.category?.reportDisplayName ?? "未分类" }
+    private func visibleIncome(in transactions: [Transaction], includePrivateIncome: Bool) -> [Transaction] {
+        transactions.filter { !$0.isExpense && (includePrivateIncome || !$0.isProtectedIncome) }
+    }
 
-        return grouped.map { name, txns in
-            let amount = txns.reduce(Decimal(0)) { $0 + $1.amount }
-            let percentage = totalExpense > 0 ? NSDecimalNumber(decimal: amount / totalExpense).doubleValue : 0
-            let prevAmount = prevGrouped[name]?.reduce(Decimal(0)) { $0 + $1.amount } ?? 0
-            let change: Double? = prevAmount > 0 ? NSDecimalNumber(decimal: (amount - prevAmount) / prevAmount).doubleValue : nil
-            let firstTxn = txns.first
+    private func sum(_ transactions: [Transaction]) -> Decimal {
+        transactions.reduce(Decimal.zero) { $0 + $1.amount }
+    }
+
+    private func percentageChange(current: Decimal, previous: Decimal) -> Double? {
+        guard previous > 0 else { return nil }
+        return NSDecimalNumber(decimal: (current - previous) / previous).doubleValue
+    }
+
+    private func buildCategoryBreakdown(
+        transactions: [Transaction],
+        totalExpense: Decimal,
+        previousTransactions: [Transaction]
+    ) -> [CategorySpending] {
+        let grouped = Dictionary(grouping: transactions) { $0.category?.reportDisplayName ?? "未分类" }
+        let previousGrouped = Dictionary(grouping: previousTransactions) { $0.category?.reportDisplayName ?? "未分类" }
+
+        return grouped.map { name, transactions in
+            let amount = sum(transactions)
+            let previousAmount = sum(previousGrouped[name] ?? [])
+            let firstTransaction = transactions.first
             return CategorySpending(
                 categoryName: name,
-                categoryIcon: firstTxn?.category?.reportIcon ?? "questionmark",
-                categoryColor: firstTxn?.category?.reportColorHex ?? "#667EEA",
+                categoryIcon: firstTransaction?.category?.reportIcon ?? "questionmark",
+                categoryColor: firstTransaction?.category?.reportColorHex ?? "#667EEA",
                 amount: amount,
-                percentage: percentage,
-                changeFromLastPeriod: change
+                percentage: totalExpense > 0
+                    ? NSDecimalNumber(decimal: amount / totalExpense).doubleValue
+                    : 0,
+                changeFromLastPeriod: percentageChange(current: amount, previous: previousAmount)
             )
         }
         .sorted { $0.amount > $1.amount }
     }
 
-    private func buildDailyExpenses(transactions: [Transaction], start: Date, end: Date, period: ReportPeriod, calendar: Calendar) -> [(String, Decimal)] {
-        var totalsByDay: [Date: Decimal] = [:]
-        for transaction in transactions {
-            let day = calendar.startOfDay(for: transaction.date)
-            totalsByDay[day, default: 0] += transaction.amount
+    private func buildTimeBuckets(
+        transactions: [Transaction],
+        selection: ReportPeriodSelection,
+        calculator: ReportPeriodCalculator
+    ) -> [ReportTimeBucket] {
+        calculator.bucketRanges(for: selection).map { range in
+            let amount = transactions
+                .filter { range.contains($0.date) }
+                .reduce(Decimal.zero) { $0 + $1.amount }
+            return ReportTimeBucket(
+                range: range,
+                granularity: selection.period.bucketGranularity,
+                label: bucketLabel(for: range, period: selection.period),
+                expense: amount
+            )
         }
-
-        var result: [(String, Decimal)] = []
-        var current = start
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = period == .weekly ? "E" : "d"
-
-        while current < end {
-            result.append((formatter.string(from: current), totalsByDay[current, default: 0]))
-            current = calendar.date(byAdding: .day, value: 1, to: current)!
-        }
-        return result
     }
 
-    private func calculateStreak(calendar: Calendar) throws -> Int {
+    private func bucketLabel(for range: ReportDateRange, period: ReportPeriod) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+
+        switch period {
+        case .daily:
+            formatter.dateFormat = "H时"
+            return formatter.string(from: range.start)
+        case .weekly:
+            formatter.dateFormat = "EEE"
+            return formatter.string(from: range.start)
+        case .monthly:
+            formatter.dateFormat = "M月d日"
+            let start = formatter.string(from: range.start)
+            let inclusiveEnd = calendar.date(byAdding: .day, value: -1, to: range.end) ?? range.start
+            let end = formatter.string(from: inclusiveEnd)
+            return start == end ? start : "\(start)–\(end)"
+        case .yearly:
+            formatter.dateFormat = "M月"
+            return formatter.string(from: range.start)
+        }
+    }
+
+    private func calculateStreak(referenceDate: Date) throws -> Int {
         var streak = 0
-        let today = calendar.startOfDay(for: Date())
+        let referenceDay = calendar.startOfDay(for: referenceDate)
         var expectedDay: Date?
         var lastProcessedDay: Date?
         var offset = 0
@@ -199,18 +228,14 @@ final class ReportService {
             let page = try modelContext.fetch(descriptor)
             guard !page.isEmpty else { break }
 
-            for transaction in page {
+            for transaction in page where transaction.date <= referenceDate {
                 let day = calendar.startOfDay(for: transaction.date)
                 guard day != lastProcessedDay else { continue }
                 lastProcessedDay = day
                 if expectedDay == nil {
-                    if day == today {
-                        expectedDay = today
-                    } else if day == calendar.date(byAdding: .day, value: -1, to: today) {
-                        expectedDay = day
-                    } else {
-                        return 0
-                    }
+                    let yesterday = calendar.date(byAdding: .day, value: -1, to: referenceDay)
+                    guard day == referenceDay || day == yesterday else { return 0 }
+                    expectedDay = day
                 }
                 guard day == expectedDay else { return streak }
                 streak += 1
@@ -222,44 +247,54 @@ final class ReportService {
         return streak
     }
 
-    private func generateInsights(categoryBreakdown: [CategorySpending], totalExpense: Decimal, expenseChange: Double?, period: ReportPeriod, transactions: [Transaction]) -> [String] {
+    private func generateInsights(
+        categoryBreakdown: [CategorySpending],
+        expenseChange: Double?,
+        period: ReportPeriod,
+        transactions: [Transaction]
+    ) -> [String] {
         var insights: [String] = []
-        let periodName = period == .weekly ? "本周" : "本月"
+        let periodName: String
+        switch period {
+        case .daily: periodName = "本日"
+        case .weekly: periodName = "本周"
+        case .monthly: periodName = "本月"
+        case .yearly: periodName = "本年"
+        }
 
-        // 最大消费分类
         if let top = categoryBreakdown.first {
-            let pct = Int(top.percentage * 100)
-            insights.append("\(periodName)\(top.categoryName)占比最高，达 \(pct)%")
-            if pct > 40 {
+            let percentage = Int(top.percentage * 100)
+            insights.append("\(periodName)\(top.categoryName)占比最高，达 \(percentage)%")
+            if percentage > 40 {
                 insights.append("\(top.categoryName)支出集中度偏高，建议适当控制")
             }
         }
 
-        // 消费变化
         if let change = expenseChange {
-            let pct = Int(abs(change) * 100)
+            let percentage = Int(abs(change) * 100)
             if change > 0.1 {
-                insights.append("\(periodName)总支出比上期增加了 \(pct)%")
+                insights.append("\(periodName)总支出比上期增加了 \(percentage)%")
             } else if change < -0.1 {
-                insights.append("\(periodName)总支出比上期减少了 \(pct)%，继续保持")
+                insights.append("\(periodName)总支出比上期减少了 \(percentage)%，继续保持")
             } else {
                 insights.append("\(periodName)总支出与上期基本持平")
             }
         }
 
-        // 分类涨跌
-        for cat in categoryBreakdown.prefix(3) {
-            if let change = cat.changeFromLastPeriod, abs(change) > 0.2 {
-                let pct = Int(abs(change) * 100)
+        for category in categoryBreakdown.prefix(3) {
+            if let change = category.changeFromLastPeriod, abs(change) > 0.2 {
+                let percentage = Int(abs(change) * 100)
                 let arrow = change > 0 ? "↑" : "↓"
-                insights.append("🔍 \(cat.categoryName) \(arrow) \(pct)%（对比上期）")
+                insights.append("🔍 \(category.categoryName) \(arrow) \(percentage)%（对比上期）")
             }
         }
 
         let amounts = transactions.map(\.amount).sorted()
         if amounts.count >= 4 {
             let median = amounts[amounts.count / 2]
-            if let unusual = transactions.max(by: { $0.amount < $1.amount }), median > 0, unusual.amount >= median * 3 {
+            if let unusual = transactions.max(by: { $0.amount < $1.amount }),
+               median > 0,
+               unusual.amount >= median * 3 {
                 let name = unusual.category?.reportDisplayName ?? "未分类"
                 insights.append("🔔 发现一笔较平时偏高的\(name)支出：\(unusual.amount.formattedCurrency)")
             }

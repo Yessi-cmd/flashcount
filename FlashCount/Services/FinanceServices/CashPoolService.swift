@@ -21,11 +21,12 @@ final class CashPoolService {
         items.filter { !$0.isArchived }.reduce(Decimal(0)) { $0 + $1.signedAmount }
     }
 
-    func state() -> CashPoolState {
+    func state() throws -> CashPoolState {
         let descriptor = FetchDescriptor<CashPoolState>(
             sortBy: [SortDescriptor(\CashPoolState.updatedAt, order: .reverse)]
         )
-        if let states = try? modelContext.fetch(descriptor), let primary = states.first {
+        let states = try modelContext.fetch(descriptor)
+        if let primary = states.first {
             // Historical imports could create more than one state. Consolidate
             // the duplicates into the newest record before any further mutation.
             for duplicate in states.dropFirst() {
@@ -38,14 +39,14 @@ final class CashPoolService {
         return state
     }
 
-    func apply(delta: Decimal) {
-        let currentState = state()
+    func apply(delta: Decimal) throws {
+        let currentState = try state()
         currentState.transactionDelta += delta
         currentState.updatedAt = Date()
     }
 
-    func replace(oldDelta: Decimal?, newDelta: Decimal) {
-        let currentState = state()
+    func replace(oldDelta: Decimal?, newDelta: Decimal) throws {
+        let currentState = try state()
         if let oldDelta {
             currentState.transactionDelta -= oldDelta
         }
@@ -53,15 +54,15 @@ final class CashPoolService {
         currentState.updatedAt = Date()
     }
 
-    func reverse(delta: Decimal?) {
+    func reverse(delta: Decimal?) throws {
         guard let delta else { return }
-        let currentState = state()
+        let currentState = try state()
         currentState.transactionDelta -= delta
         currentState.updatedAt = Date()
     }
 
-    func calibrate(to targetAmount: Decimal, items: [CashPoolItem], installmentLiability: Decimal = 0) {
-        let currentState = state()
+    func calibrate(to targetAmount: Decimal, items: [CashPoolItem], installmentLiability: Decimal = 0) throws {
+        let currentState = try state()
         currentState.transactionDelta = targetAmount - manualTotal(items: items) + installmentLiability
         currentState.updatedAt = Date()
     }
@@ -69,8 +70,8 @@ final class CashPoolService {
     /// Applies deltas for newly imported transactions when merging a backup
     /// into an existing local data set. A complete restore imports the saved
     /// state instead, so this deliberately accepts an explicit aggregate.
-    func applyImportedTransactionDeltas(_ delta: Decimal) {
+    func applyImportedTransactionDeltas(_ delta: Decimal) throws {
         guard delta != 0 else { return }
-        apply(delta: delta)
+        try apply(delta: delta)
     }
 }

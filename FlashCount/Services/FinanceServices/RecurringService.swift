@@ -80,10 +80,10 @@ final class RecurringService {
                 // Persist the occurrence, cash-pool change, and cursor in one
                 // save. A failed save is rolled back so a later launch cannot
                 // create a duplicate occurrence.
-                modelContext.insert(transaction)
-                cashPoolService.apply(delta: cashDelta)
-                rule.nextDueDate = nextDate
                 do {
+                    modelContext.insert(transaction)
+                    try cashPoolService.apply(delta: cashDelta)
+                    rule.nextDueDate = nextDate
                     try modelContext.save()
                     generatedCount += 1
                 } catch {

@@ -343,22 +343,19 @@ struct EditTransactionView: View {
 
     private func saveChanges() {
         guard let amount = Decimal(string: amountText), amount > 0 else { return }
-        let oldCashPoolDelta = transaction.cashPoolDelta
-        transaction.amount = amount
-        transaction.isExpense = isExpense
-        transaction.note = note
-        transaction.date = selectedDate
-        transaction.category = selectedCategory
-        transaction.ledger = selectedLedger
-        transaction.isPrivateIncome = !isExpense && selectedCategory?.isSalaryIncome == true
-        transaction.dailyBudgetOverride = isExpense ? dailyBudgetOverride : nil
-        let newCashPoolDelta = CashPoolService.transactionDelta(for: transaction)
-        transaction.cashPoolDelta = newCashPoolDelta
-        CashPoolService(modelContext: modelContext).replace(oldDelta: oldCashPoolDelta, newDelta: newCashPoolDelta)
-
-        if let error = safeSave(modelContext) {
-            modelContext.rollback()
-            saveError = error
+        let draft = TransactionDraft(
+            amount: amount,
+            isExpense: isExpense,
+            note: note,
+            date: selectedDate,
+            dailyBudgetOverride: dailyBudgetOverride,
+            category: selectedCategory,
+            ledger: selectedLedger
+        )
+        do {
+            try TransactionMutationService(modelContext: modelContext).update(transaction, with: draft)
+        } catch {
+            saveError = error.localizedDescription
             HapticManager.error()
             return
         }
@@ -367,11 +364,10 @@ struct EditTransactionView: View {
     }
 
     private func deleteTransaction() {
-        CashPoolService(modelContext: modelContext).reverse(delta: transaction.cashPoolDelta)
-        modelContext.delete(transaction)
-        if let error = safeSave(modelContext) {
-            modelContext.rollback()
-            saveError = error
+        do {
+            try TransactionMutationService(modelContext: modelContext).delete(transaction)
+        } catch {
+            saveError = error.localizedDescription
             HapticManager.error()
             return
         }

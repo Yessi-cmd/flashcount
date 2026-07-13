@@ -131,7 +131,6 @@ struct CategoryWheelOverlay: View {
 
     private enum PresentationPhase: Equatable {
         case hidden
-        case opening
         case open
         case selecting(Int)
         case closing
@@ -260,10 +259,7 @@ struct CategoryWheelOverlay: View {
         .opacity(labelsVisible ? (dialState.activeIndex == nil || isActive ? 1 : 0.68) : 0)
         .offset(y: labelsVisible ? 0 : 7)
         .animation(
-            reduceMotion
-                ? .easeOut(duration: 0.12)
-                : .spring(response: 0.31, dampingFraction: 0.79)
-                    .delay(Double(index) * 0.018),
+            .easeOut(duration: 0.12),
             value: labelsVisible
         )
         .animation(.easeOut(duration: 0.11), value: isActive)
@@ -434,28 +430,15 @@ struct CategoryWheelOverlay: View {
 
     private func present() {
         transitionTask?.cancel()
-        phase = .opening
+        phase = .open
         HapticManager.prepareCategoryWheel()
         HapticManager.categoryWheelOpened()
 
-        withAnimation(
-            reduceMotion
-                ? .easeOut(duration: 0.12)
-                : .spring(response: 0.28, dampingFraction: 0.88, blendDuration: 0.04)
-        ) {
+        withAnimation(.easeOut(duration: 0.12)) {
             isPresented = true
         }
 
         labelsVisible = true
-        transitionTask = Task { @MainActor in
-            do {
-                try await Task.sleep(nanoseconds: reduceMotion ? 120_000_000 : 280_000_000)
-            } catch {
-                return
-            }
-            guard phase == .opening else { return }
-            phase = .open
-        }
     }
 
     private func scheduleSelection(action: @escaping () -> Void) {

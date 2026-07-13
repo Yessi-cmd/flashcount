@@ -40,19 +40,6 @@ enum LedgerPeriodFilter: String, CaseIterable {
     }
 }
 
-struct UndoDeleteInfo {
-    let amount: Decimal
-    let isExpense: Bool
-    let note: String
-    let date: Date
-    let isPrivateIncome: Bool
-    let cashPoolDelta: Decimal?
-    let dailyBudgetOverride: Bool?
-    let category: Category?
-    let ledger: Ledger?
-    let recurringRule: RecurringRule?
-}
-
 struct TransactionRow: View {
     let transaction: Transaction
     var revealsPrivateIncome = true

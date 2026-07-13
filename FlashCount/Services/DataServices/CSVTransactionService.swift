@@ -74,8 +74,8 @@ final class CSVTransactionService {
             imported += 1
         }
 
-        CashPoolService(modelContext: modelContext).applyImportedTransactionDeltas(importedCashDelta)
         do {
+            try CashPoolService(modelContext: modelContext).applyImportedTransactionDeltas(importedCashDelta)
             try modelContext.save()
         } catch {
             modelContext.rollback()

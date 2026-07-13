@@ -699,24 +699,20 @@ struct QuickEntryView: View {
         isSaving = true
         defer { isSaving = false }
 
-        let transaction = Transaction(
+        let draft = TransactionDraft(
             amount: amount,
             isExpense: isExpense,
             note: note,
             date: selectedDate,
-            isPrivateIncome: !isExpense && selectedCategory?.isSalaryIncome == true,
-            dailyBudgetOverride: isExpense ? dailyBudgetOverride : nil,
+            dailyBudgetOverride: dailyBudgetOverride,
             category: selectedCategory,
             ledger: selectedLedger
         )
-        let cashDelta = CashPoolService.transactionDelta(for: transaction)
-        transaction.cashPoolDelta = cashDelta
-        modelContext.insert(transaction)
-        CashPoolService(modelContext: modelContext).apply(delta: cashDelta)
-
-        if let error = safeSave(modelContext) {
-            modelContext.rollback()
-            saveError = error
+        let transaction: Transaction
+        do {
+            transaction = try TransactionMutationService(modelContext: modelContext).create(draft)
+        } catch {
+            saveError = error.localizedDescription
             HapticManager.error()
             return
         }

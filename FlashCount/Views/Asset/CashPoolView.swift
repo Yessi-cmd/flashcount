@@ -269,15 +269,17 @@ struct CashPoolView: View {
 
     private func calibrate() {
         guard let target = Decimal(string: calibrationText.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
-        CashPoolService(modelContext: modelContext).calibrate(
-            to: target,
-            items: activeItems,
-            installmentLiability: installmentRemainingTotal
-        )
-        if let error = safeSave(modelContext) {
-            saveError = error
-        } else {
+        do {
+            try CashPoolService(modelContext: modelContext).calibrate(
+                to: target,
+                items: activeItems,
+                installmentLiability: installmentRemainingTotal
+            )
+            try modelContext.save()
             HapticManager.success()
+        } catch {
+            modelContext.rollback()
+            saveError = error.localizedDescription
         }
         calibrationText = ""
     }
