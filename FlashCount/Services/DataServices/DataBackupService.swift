@@ -967,18 +967,10 @@ final class DataBackupService {
         let newReminders = backup.reminders.filter { !localReminderIDs.contains($0.id) }
         let importedReminders = localReminders + newReminders
 
+        var shouldRebuildNotifications = false
         if mode == .replace || !newReminders.isEmpty {
             try ReminderStore.replace(with: importedReminders)
-            Task {
-                if mode == .replace {
-                    for reminder in storedReminders {
-                        ReminderNotificationService.cancel(reminderID: reminder.id)
-                    }
-                }
-                for reminder in (mode == .replace ? importedReminders : newReminders) where !reminder.isCompleted {
-                    try? await ReminderNotificationService.schedule(reminder)
-                }
-            }
+            shouldRebuildNotifications = true
         }
 
         if let settings = backup.settings {
@@ -988,10 +980,11 @@ final class DataBackupService {
             if let hasCompletedOnboarding = settings.hasCompletedOnboarding { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "hasCompletedOnboarding") }
             if let reportPreferences = settings.reportReminderPreferences {
                 try UserDefaultsReportReminderPreferencesStore().save(reportPreferences)
-                Task {
-                    await ReportReminderNotificationService.refreshStoredScheduleIfAuthorized()
-                }
+                shouldRebuildNotifications = true
             }
+        }
+        if shouldRebuildNotifications {
+            Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild() }
         }
         return newReminders.count
     }

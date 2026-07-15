@@ -58,20 +58,48 @@ final class DefaultDataService {
         primary.isArchived = false
 
         // The product is single-ledger. Preserve historical records by moving
-        // them to the primary ledger before deleting legacy containers.
+        // transactions and recurring rules to the primary ledger. Budgets are
+        // global in the single-ledger UI, so detach every budget before legacy
+        // ledgers are deleted, including budgets already bound to the primary.
+        let transactions = try modelContext.fetch(FetchDescriptor<Transaction>())
+        for transaction in transactions where transaction.ledger?.id != primary.id {
+            transaction.ledger = primary
+        }
+
+        let rules = try modelContext.fetch(FetchDescriptor<RecurringRule>())
+        for rule in rules where rule.ledger?.id != primary.id {
+            rule.ledger = primary
+        }
+
+        let budgets = try modelContext.fetch(FetchDescriptor<Budget>())
+        for budget in budgets {
+            budget.ledger = nil
+        }
+
         for ledger in refreshed where ledger.id != primary.id {
-            for transaction in ledger.transactions { transaction.ledger = primary }
-            for budget in ledger.budgets { budget.ledger = primary }
-            for rule in ledger.recurringRules { rule.ledger = primary }
             modelContext.delete(ledger)
         }
     }
 
     private func ensureDefaultCategories() throws {
         let existing = try modelContext.fetch(FetchDescriptor<Category>())
+        freezeLegacyDailyBudgetScope(in: existing)
         ensureCategories(Category.defaultExpenseCategories(), isExpense: true, existing: existing)
         ensureCategories(Category.defaultIncomeCategories(), isExpense: false, existing: existing)
         try archiveLegacyExpenseCategories()
+    }
+
+    /// Freezes the name-based behavior from versions before categories had
+    /// stable default keys. This is migration-only; runtime scope decisions use
+    /// overrides and default keys, never mutable display names.
+    private func freezeLegacyDailyBudgetScope(in categories: [Category]) {
+        for category in categories where
+            category.isExpense
+            && category.defaultKey == nil
+            && category.dailyBudgetOverride == nil
+        {
+            category.dailyBudgetOverride = BudgetScope.legacyIncludesCategory(named: category.name)
+        }
     }
 
     private func ensureCategories(_ defaults: [Category], isExpense: Bool, existing: [Category]) {

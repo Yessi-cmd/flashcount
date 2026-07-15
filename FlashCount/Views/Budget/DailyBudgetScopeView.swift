@@ -194,7 +194,7 @@ struct DailyBudgetScopeView: View {
 
     private func resetToDefaults() {
         for category in categories {
-            category.dailyBudgetOverride = nil
+            category.dailyBudgetOverride = category.defaultKey == nil ? false : nil
         }
         saveChanges()
         HapticManager.selection()

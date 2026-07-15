@@ -38,7 +38,7 @@ struct MainTabView: View {
                     .tag(1)
                 Color.clear // 中间占位 (记账按钮)
                     .tag(2)
-                ReportView()
+                ReportView(isActive: selectedTab == 3)
                     .tag(3)
                 AssetDashboardView(isActive: selectedTab == 4)
                     .tag(4)
@@ -162,7 +162,7 @@ struct MainTabView: View {
             shouldShowQuickEntry = true
             processQuickEntryRequestIfNeeded()
         case .report(let period):
-            ReportRoute.request(period: period)
+            ReportRoute.requestCurrent(period: period)
             processReportRequestIfNeeded()
         }
     }

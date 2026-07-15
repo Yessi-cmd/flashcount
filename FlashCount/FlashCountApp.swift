@@ -3,6 +3,10 @@ import SwiftData
 
 @main
 struct FlashCountApp: App {
+    init() {
+        ReminderNotificationService.configure()
+    }
+
     var body: some Scene {
         WindowGroup {
             AppRootView()
@@ -55,12 +59,11 @@ private struct AppRootView: View {
                 MainTabView()
                     .environmentObject(privacyLock)
                     .onAppear {
-                        ReminderNotificationService.configure()
                         guard !Self.didPrepareData else { return }
                         Self.didPrepareData = true
                         DefaultDataService(modelContext: modelContext).prepareAppData()
                         Task {
-                            await ReportReminderNotificationService.refreshStoredScheduleIfAuthorized()
+                            _ = try? await NotificationScheduleCoordinator.shared.rebuild()
                         }
                     }
             }
@@ -106,6 +109,8 @@ private struct AppRootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
                 privacyLock.lock()
+            } else if phase == .active, Self.didPrepareData {
+                Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild() }
             }
         }
     }

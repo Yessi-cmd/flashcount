@@ -11,6 +11,7 @@ protocol ReportReminderNotificationScheduling {
 struct ReportReminderRequestPlan: Equatable {
     let identifier: String
     let period: ReportPeriod
+    let nextTriggerDate: Date
     let dateComponents: DateComponents
     let repeats: Bool
     let title: String
@@ -18,22 +19,33 @@ struct ReportReminderRequestPlan: Equatable {
 }
 
 /// 将用户偏好转换为可测试的本地通知计划。
-/// 日报、周报使用系统重复通知；月报、年报滚动安排未来日期，以正确处理 29/30/31 日。
+/// 日报、周报使用系统重复通知；月报、年报和周期报滚动安排未来日期，以正确处理 29/30/31 日。
 enum ReportReminderSchedulePlanner {
     static let identifierPrefix = "flashcount.report."
 
     static func plans(
         for preferences: ReportReminderPreferences,
         referenceDate: Date = Date(),
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        occurrenceLimit: Int = 12,
+        payday: Int = 1
     ) -> [ReportReminderRequestPlan] {
         let preferences = preferences.normalized()
         var result: [ReportReminderRequestPlan] = []
 
-        if preferences.enabledPeriods.contains(.daily) {
+        if preferences.enabledPeriods.contains(.daily),
+           let nextDate = calendar.nextDate(
+               after: referenceDate,
+               matching: DateComponents(
+                   hour: preferences.deliveryTime.hour,
+                   minute: preferences.deliveryTime.minute
+               ),
+               matchingPolicy: .nextTime
+           ) {
             result.append(plan(
                 identifier: "\(identifierPrefix)daily",
                 period: .daily,
+                nextTriggerDate: nextDate,
                 components: DateComponents(
                     hour: preferences.deliveryTime.hour,
                     minute: preferences.deliveryTime.minute
@@ -47,19 +59,26 @@ enum ReportReminderSchedulePlanner {
             components.weekday = preferences.weeklyDeliveryWeekday
             components.hour = preferences.deliveryTime.hour
             components.minute = preferences.deliveryTime.minute
-            result.append(plan(
-                identifier: "\(identifierPrefix)weekly",
-                period: .weekly,
-                components: components,
-                repeats: true
-            ))
+            if let nextDate = calendar.nextDate(
+                after: referenceDate,
+                matching: components,
+                matchingPolicy: .nextTime
+            ) {
+                result.append(plan(
+                    identifier: "\(identifierPrefix)weekly",
+                    period: .weekly,
+                    nextTriggerDate: nextDate,
+                    components: components,
+                    repeats: true
+                ))
+            }
         }
 
         if preferences.enabledPeriods.contains(.monthly) {
             let dates = futureMonthlyDates(
                 day: preferences.monthlyDeliveryDay,
                 time: preferences.deliveryTime,
-                count: 12,
+                count: max(occurrenceLimit, 0),
                 after: referenceDate,
                 calendar: calendar
             )
@@ -67,6 +86,7 @@ enum ReportReminderSchedulePlanner {
                 result.append(plan(
                     identifier: "\(identifierPrefix)monthly.\(index)",
                     period: .monthly,
+                    nextTriggerDate: date,
                     components: calendar.dateComponents(
                         [.year, .month, .day, .hour, .minute],
                         from: date
@@ -81,7 +101,7 @@ enum ReportReminderSchedulePlanner {
                 month: preferences.yearlyDeliveryMonth,
                 day: preferences.yearlyDeliveryDay,
                 time: preferences.deliveryTime,
-                count: 3,
+                count: max(occurrenceLimit, 0),
                 after: referenceDate,
                 calendar: calendar
             )
@@ -89,6 +109,29 @@ enum ReportReminderSchedulePlanner {
                 result.append(plan(
                     identifier: "\(identifierPrefix)yearly.\(index)",
                     period: .yearly,
+                    nextTriggerDate: date,
+                    components: calendar.dateComponents(
+                        [.year, .month, .day, .hour, .minute],
+                        from: date
+                    ),
+                    repeats: false
+                ))
+            }
+        }
+
+        if preferences.enabledPeriods.contains(.payCycle) {
+            let dates = futureMonthlyDates(
+                day: min(max(payday, 1), 31),
+                time: preferences.deliveryTime,
+                count: max(occurrenceLimit, 0),
+                after: referenceDate,
+                calendar: calendar
+            )
+            for (index, date) in dates.enumerated() {
+                result.append(plan(
+                    identifier: "\(identifierPrefix)payCycle.\(index)",
+                    period: .payCycle,
+                    nextTriggerDate: date,
                     components: calendar.dateComponents(
                         [.year, .month, .day, .hour, .minute],
                         from: date
@@ -104,12 +147,14 @@ enum ReportReminderSchedulePlanner {
     private static func plan(
         identifier: String,
         period: ReportPeriod,
+        nextTriggerDate: Date,
         components: DateComponents,
         repeats: Bool
     ) -> ReportReminderRequestPlan {
         ReportReminderRequestPlan(
             identifier: identifier,
             period: period,
+            nextTriggerDate: nextTriggerDate,
             dateComponents: components,
             repeats: repeats,
             title: "你的\(period.rawValue)已准备好",
@@ -217,58 +262,23 @@ enum ReportReminderNotificationService {
     }
 
     static func replaceSchedule(with preferences: ReportReminderPreferences) async throws {
-        await cancelAll()
-        let center = UNUserNotificationCenter.current()
-        do {
-            for plan in ReportReminderSchedulePlanner.plans(for: preferences) {
-                let content = UNMutableNotificationContent()
-                content.title = plan.title
-                content.body = plan.body
-                content.sound = .default
-                content.userInfo = [ReportRoute.notificationPeriodUserInfoKey: plan.period.rawValue]
-
-                let trigger = UNCalendarNotificationTrigger(
-                    dateMatching: plan.dateComponents,
-                    repeats: plan.repeats
-                )
-                try await center.add(UNNotificationRequest(
-                    identifier: plan.identifier,
-                    content: content,
-                    trigger: trigger
-                ))
-            }
-        } catch {
-            await cancelAll()
-            throw error
-        }
+        _ = preferences
+        try await NotificationScheduleCoordinator.shared.rebuild()
     }
 
     static func cancelAll() async {
-        let center = UNUserNotificationCenter.current()
-        let requests = await pendingRequests(from: center)
-        let identifiers = requests
-            .map(\.identifier)
-            .filter { $0.hasPrefix(ReportReminderSchedulePlanner.identifierPrefix) }
-        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+        _ = try? await NotificationScheduleCoordinator.shared.rebuild()
     }
 
     static func refreshStoredScheduleIfAuthorized() async {
         let preferences = UserDefaultsReportReminderPreferencesStore().load()
         guard !preferences.enabledPeriods.isEmpty else {
-            await cancelAll()
+            _ = try? await NotificationScheduleCoordinator.shared.rebuild()
             return
         }
         let status = await authorizationStatus()
         guard status == .authorized || status == .provisional || status == .ephemeral else { return }
-        try? await replaceSchedule(with: preferences)
-    }
-
-    private static func pendingRequests(from center: UNUserNotificationCenter) async -> [UNNotificationRequest] {
-        await withCheckedContinuation { continuation in
-            center.getPendingNotificationRequests { requests in
-                continuation.resume(returning: requests)
-            }
-        }
+        _ = try? await NotificationScheduleCoordinator.shared.rebuild()
     }
 }
 

@@ -3,13 +3,14 @@ import UserNotifications
 
 struct ReportReminderSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("payday") private var payday = 1
 
     @State private var preferences: ReportReminderPreferences
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var scheduleStatus = NotificationScheduleStatus.empty
 
-    private let originalPreferences: ReportReminderPreferences
     private let store: any ReportReminderPreferencesStoring
     private let scheduler: any ReportReminderNotificationScheduling
 
@@ -20,7 +21,6 @@ struct ReportReminderSettingsView: View {
         let loaded = store.load()
         self.store = store
         self.scheduler = scheduler
-        self.originalPreferences = loaded
         _preferences = State(initialValue: loaded)
     }
 
@@ -28,6 +28,7 @@ struct ReportReminderSettingsView: View {
         NavigationStack {
             List {
                 permissionSection
+                scheduleStatusSection
                 periodSection
                 if !preferences.enabledPeriods.isEmpty {
                     deliverySection
@@ -58,7 +59,10 @@ struct ReportReminderSettingsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
-            .onAppear { refreshNotificationStatus() }
+            .onAppear {
+                refreshNotificationStatus()
+                scheduleStatus = NotificationScheduleStatusStore().load()
+            }
             .alert("无法保存报表提醒", isPresented: Binding(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
@@ -87,6 +91,21 @@ struct ReportReminderSettingsView: View {
             }
         }
         .listRowBackground(DesignSystem.cardBackground)
+    }
+
+    @ViewBuilder
+    private var scheduleStatusSection: some View {
+        if let summary = scheduleStatus.summary {
+            Section {
+                Label(summary, systemImage: scheduleStatus.errorMessage == nil ? "clock.badge.exclamationmark" : "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(scheduleStatus.errorMessage == nil ? DesignSystem.warningColor : DesignSystem.dangerColor)
+                    .accessibilityIdentifier("notification.scheduleStatus")
+            } footer: {
+                Text("iOS 最多保留 64 条待通知。FlashCount 按下一次触发时间优先安排；长期不打开 App 时，月报、年报和周期报无法无限自动补排。")
+            }
+            .listRowBackground(DesignSystem.cardBackground)
+        }
     }
 
     private var periodSection: some View {
@@ -152,6 +171,17 @@ struct ReportReminderSettingsView: View {
             }
             .listRowBackground(DesignSystem.cardBackground)
         }
+
+        if preferences.enabledPeriods.contains(.payCycle) {
+            Section {
+                LabeledContent("报告日", value: "每月 \(min(max(payday, 1), 31)) 日")
+            } header: {
+                Text("周期报")
+            } footer: {
+                Text("按设置中的发薪日生成刚结束的完整发薪周期报告。")
+            }
+            .listRowBackground(DesignSystem.cardBackground)
+        }
     }
 
     private var deliveryTimeBinding: Binding<Date> {
@@ -205,14 +235,15 @@ struct ReportReminderSettingsView: View {
             }
 
             do {
-                try await scheduler.replaceSchedule(with: normalized)
+                try store.save(normalized)
                 do {
-                    try store.save(normalized)
+                    try await scheduler.replaceSchedule(with: normalized)
+                    scheduleStatus = NotificationScheduleStatusStore().load()
+                    dismiss()
                 } catch {
-                    try? await scheduler.replaceSchedule(with: originalPreferences)
-                    throw error
+                    scheduleStatus = NotificationScheduleStatusStore().load()
+                    errorMessage = "设置已保存，但通知安排失败：\(error.localizedDescription)"
                 }
-                dismiss()
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -265,6 +296,7 @@ struct ReportReminderSettingsView: View {
         case .weekly: return "calendar"
         case .monthly: return "calendar.badge.clock"
         case .yearly: return "chart.line.uptrend.xyaxis"
+        case .payCycle: return "arrow.triangle.2.circlepath"
         }
     }
 }

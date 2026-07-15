@@ -32,49 +32,13 @@ enum ReminderNotificationService {
     }
 
     static func schedule(_ reminder: ReminderItem) async throws {
-        cancel(reminderID: reminder.id)
-
-        let center = UNUserNotificationCenter.current()
-        do {
-            for (index, offset) in reminder.intensity.notificationOffsets.enumerated() {
-                let fireDate = reminder.dueDate.addingTimeInterval(offset)
-                guard fireDate > Date() else { continue }
-
-                let content = UNMutableNotificationContent()
-                content.title = reminder.title
-                content.body = reminder.note.isEmpty ? body(for: reminder, index: index) : reminder.note
-                content.sound = .default
-                content.interruptionLevel = reminder.intensity == .strong ? .timeSensitive : .active
-
-                let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
-                let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-                let request = UNNotificationRequest(identifier: identifier(for: reminder.id, index: index), content: content, trigger: trigger)
-                try await center.add(request)
-            }
-        } catch {
-            cancel(reminderID: reminder.id)
-            throw error
-        }
+        _ = reminder
+        try await NotificationScheduleCoordinator.shared.rebuild()
     }
 
     static func cancel(reminderID: UUID) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers(for: reminderID))
-    }
-
-    private static func body(for reminder: ReminderItem, index: Int) -> String {
-        if reminder.intensity == .strong && index > 0 {
-            return "还没有标记完成，记得处理这件事。"
-        }
-        return "到时间了，打开 FlashCount 标记完成。"
-    }
-
-    private static func identifier(for reminderID: UUID, index: Int) -> String {
-        "flashcount.reminder.\(reminderID.uuidString).\(index)"
-    }
-
-    private static func identifiers(for reminderID: UUID) -> [String] {
-        let maxOffsetCount = ReminderIntensity.allCases.map(\.notificationOffsets.count).max() ?? 0
-        return (0..<maxOffsetCount).map { identifier(for: reminderID, index: $0) }
+        _ = reminderID
+        Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild() }
     }
 }
 
@@ -108,12 +72,9 @@ private final class ReminderNotificationDelegate: NSObject, UNUserNotificationCe
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        guard let rawPeriod = response.notification.request.content.userInfo[
-            ReportRoute.notificationPeriodUserInfoKey
-        ] as? String,
-              let period = ReportPeriod(rawValue: rawPeriod) else {
-            return
-        }
-        ReportRoute.request(period: period)
+        ReportRoute.requestFromNotification(
+            userInfo: response.notification.request.content.userInfo,
+            deliveredAt: response.notification.date
+        )
     }
 }

@@ -3,7 +3,7 @@ import SwiftData
 
 /// 分类消费汇总
 struct CategorySpending: Identifiable {
-    let id = UUID()
+    var id: String { categoryName }
     let categoryName: String
     let categoryIcon: String
     let categoryColor: String
@@ -28,11 +28,7 @@ struct ReportData {
     let timeBuckets: [ReportTimeBucket]
     let streakDays: Int
     let insights: [String]
-
-    /// 兼容现有报表界面；新代码应使用带区间和粒度的 timeBuckets。
-    var dailyExpenses: [(String, Decimal)] {
-        timeBuckets.map { ($0.label, $0.expense) }
-    }
+    let transactionCount: Int
 }
 
 /// 报表服务
@@ -40,15 +36,18 @@ struct ReportData {
 final class ReportService {
     private let modelContext: ModelContext
     private let calendar: Calendar
+    private let payday: Int
     private let now: () -> Date
 
     init(
         modelContext: ModelContext,
         calendar: Calendar = .current,
+        payday: Int = 1,
         now: @escaping () -> Date = Date.init
     ) {
         self.modelContext = modelContext
         self.calendar = calendar
+        self.payday = min(max(payday, 1), 31)
         self.now = now
     }
 
@@ -58,7 +57,7 @@ final class ReportService {
         target: ReportTarget,
         includePrivateIncome: Bool = true
     ) throws -> ReportData {
-        let calculator = ReportPeriodCalculator(calendar: calendar)
+        let calculator = ReportPeriodCalculator(calendar: calendar, payday: payday)
         let selection = calculator.selection(for: period, target: target)
         let currentTransactions = try fetchTransactions(in: selection.reportRange)
         let comparisonTransactions = try fetchTransactions(in: selection.comparisonRange)
@@ -85,11 +84,12 @@ final class ReportService {
             selection: selection,
             calculator: calculator
         )
-        let streakDays = try calculateStreak(referenceDate: target.referenceDate)
+        let streakDays = try calculateStreak(throughExclusive: selection.reportRange.end)
         let insights = generateInsights(
             categoryBreakdown: categoryBreakdown,
             expenseChange: expenseChange,
             period: period,
+            target: target,
             transactions: currentExpenses
         )
 
@@ -107,7 +107,8 @@ final class ReportService {
             categoryBreakdown: categoryBreakdown,
             timeBuckets: timeBuckets,
             streakDays: streakDays,
-            insights: insights
+            insights: insights,
+            transactionCount: currentTransactions.count
         )
     }
 
@@ -182,53 +183,42 @@ final class ReportService {
             return ReportTimeBucket(
                 range: range,
                 granularity: selection.period.bucketGranularity,
-                label: bucketLabel(for: range, period: selection.period),
+                label: ReportDateRangeFormatter(calendar: calendar).bucketLabel(
+                    for: range,
+                    granularity: selection.period.bucketGranularity
+                ),
                 expense: amount
             )
         }
     }
 
-    private func bucketLabel(for range: ReportDateRange, period: ReportPeriod) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-
-        switch period {
-        case .daily:
-            formatter.dateFormat = "H时"
-            return formatter.string(from: range.start)
-        case .weekly:
-            formatter.dateFormat = "EEE"
-            return formatter.string(from: range.start)
-        case .monthly:
-            formatter.dateFormat = "M月d日"
-            let start = formatter.string(from: range.start)
-            let inclusiveEnd = calendar.date(byAdding: .day, value: -1, to: range.end) ?? range.start
-            let end = formatter.string(from: inclusiveEnd)
-            return start == end ? start : "\(start)–\(end)"
-        case .yearly:
-            formatter.dateFormat = "M月"
-            return formatter.string(from: range.start)
-        }
-    }
-
-    private func calculateStreak(referenceDate: Date) throws -> Int {
+    private func calculateStreak(throughExclusive end: Date) throws -> Int {
         var streak = 0
-        let referenceDay = calendar.startOfDay(for: referenceDate)
+        let referenceDay: Date
+        if calendar.isDate(end, equalTo: calendar.startOfDay(for: end), toGranularity: .second) {
+            let previousDay = calendar.date(byAdding: .day, value: -1, to: end) ?? end
+            referenceDay = calendar.startOfDay(for: previousDay)
+        } else {
+            referenceDay = calendar.startOfDay(for: end)
+        }
         var expectedDay: Date?
         var lastProcessedDay: Date?
         var offset = 0
         let pageSize = 256
 
         while true {
-            var descriptor = FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\.date, order: .reverse)])
+            var descriptor = FetchDescriptor<Transaction>(
+                predicate: #Predicate<Transaction> { transaction in
+                    transaction.date < end
+                },
+                sortBy: [SortDescriptor(\.date, order: .reverse)]
+            )
             descriptor.fetchLimit = pageSize
             descriptor.fetchOffset = offset
             let page = try modelContext.fetch(descriptor)
             guard !page.isEmpty else { break }
 
-            for transaction in page where transaction.date <= referenceDate {
+            for transaction in page {
                 let day = calendar.startOfDay(for: transaction.date)
                 guard day != lastProcessedDay else { continue }
                 lastProcessedDay = day
@@ -251,31 +241,26 @@ final class ReportService {
         categoryBreakdown: [CategorySpending],
         expenseChange: Double?,
         period: ReportPeriod,
+        target: ReportTarget,
         transactions: [Transaction]
     ) -> [String] {
         var insights: [String] = []
-        let periodName: String
-        switch period {
-        case .daily: periodName = "本日"
-        case .weekly: periodName = "本周"
-        case .monthly: periodName = "本月"
-        case .yearly: periodName = "本年"
-        }
+        let periodName = target.isCurrent ? period.currentTitle : "报告期内"
 
         if let top = categoryBreakdown.first {
-            let percentage = Int(top.percentage * 100)
-            insights.append("\(periodName)\(top.categoryName)占比最高，达 \(percentage)%")
-            if percentage > 40 {
+            let percentage = ReportPercentageFormatter.categoryShare(top.percentage)
+            insights.append("\(periodName)\(top.categoryName)占比最高，达 \(percentage)")
+            if top.percentage > 0.4 {
                 insights.append("\(top.categoryName)支出集中度偏高，建议适当控制")
             }
         }
 
         if let change = expenseChange {
-            let percentage = Int(abs(change) * 100)
+            let percentage = ReportPercentageFormatter.changeRate(change)
             if change > 0.1 {
-                insights.append("\(periodName)总支出比上期增加了 \(percentage)%")
+                insights.append("\(periodName)总支出比上期增加了 \(percentage)")
             } else if change < -0.1 {
-                insights.append("\(periodName)总支出比上期减少了 \(percentage)%，继续保持")
+                insights.append("\(periodName)总支出比上期减少了 \(percentage)，继续保持")
             } else {
                 insights.append("\(periodName)总支出与上期基本持平")
             }
@@ -283,9 +268,9 @@ final class ReportService {
 
         for category in categoryBreakdown.prefix(3) {
             if let change = category.changeFromLastPeriod, abs(change) > 0.2 {
-                let percentage = Int(abs(change) * 100)
+                let percentage = ReportPercentageFormatter.changeRate(change)
                 let arrow = change > 0 ? "↑" : "↓"
-                insights.append("🔍 \(category.categoryName) \(arrow) \(percentage)%（对比上期）")
+                insights.append("🔍 \(category.categoryName) \(arrow) \(percentage)（对比上期）")
             }
         }
 

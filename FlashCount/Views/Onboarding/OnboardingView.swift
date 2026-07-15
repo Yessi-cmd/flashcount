@@ -7,7 +7,7 @@ struct OnboardingView: View {
 
     private let features: [(icon: String, title: String, desc: String, color: Color)] = [
         ("bolt.fill", "极速记账", "打开即记，3 秒搞定", DesignSystem.primaryColor),
-        ("chart.bar.fill", "周报月报", "消费趋势、分类排行、智能洞察", DesignSystem.primaryColor),
+        ("chart.bar.fill", "多维报表", "日报、周报、月报、年报和发薪周期报", DesignSystem.primaryColor),
         ("iphone.and.arrow.forward", "实物资产", "追踪日均成本，主打长期主义", DesignSystem.primaryColor),
         ("eye.slash.fill", "隐私至上", "数据全在本地，余额一键隐藏", DesignSystem.primaryColor),
     ]

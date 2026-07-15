@@ -6,6 +6,7 @@ struct ReminderView: View {
     @State private var reminders: [ReminderItem] = []
     @State private var showAddReminder = false
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
+    @State private var scheduleStatus = NotificationScheduleStatus.empty
     @State private var saveError: String?
     private let onClose: (() -> Void)?
     private let reminderStore: any ReminderPersisting
@@ -40,6 +41,7 @@ struct ReminderView: View {
 
                 List {
                     permissionSection
+                    scheduleStatusSection
 
                     Section {
                         if activeReminders.isEmpty {
@@ -122,6 +124,7 @@ struct ReminderView: View {
             }
             .onAppear {
                 reminders = reminderStore.load()
+                scheduleStatus = NotificationScheduleStatusStore().load()
                 refreshNotificationStatus()
             }
         }
@@ -152,6 +155,21 @@ struct ReminderView: View {
             }
         }
         .listRowBackground(DesignSystem.cardBackground)
+    }
+
+    @ViewBuilder
+    private var scheduleStatusSection: some View {
+        if let summary = scheduleStatus.summary {
+            Section {
+                Label(summary, systemImage: scheduleStatus.errorMessage == nil ? "clock.badge.exclamationmark" : "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(scheduleStatus.errorMessage == nil ? DesignSystem.warningColor : DesignSystem.dangerColor)
+                    .accessibilityIdentifier("notification.scheduleStatus")
+            } footer: {
+                Text("系统容量不足时按下一次触发时间优先安排；打开 App 后会继续补排远期通知。")
+            }
+            .listRowBackground(DesignSystem.cardBackground)
+        }
     }
 
     private var emptyActiveState: some View {
@@ -236,6 +254,7 @@ struct ReminderView: View {
         do {
             reminders = try ReminderMutationService(store: reminderStore).completing(id: reminder.id, in: reminders)
             notificationScheduler.cancel(reminderID: reminder.id)
+            scheduleStatus = NotificationScheduleStatusStore().load()
         } catch {
             saveError = "提醒保存失败：\(error.localizedDescription)"
         }
@@ -245,6 +264,7 @@ struct ReminderView: View {
         do {
             reminders = try ReminderMutationService(store: reminderStore).deleting(id: reminder.id, from: reminders)
             notificationScheduler.cancel(reminderID: reminder.id)
+            scheduleStatus = NotificationScheduleStatusStore().load()
         } catch {
             saveError = "提醒保存失败：\(error.localizedDescription)"
         }
@@ -259,8 +279,9 @@ struct ReminderView: View {
             do {
                 try await notificationScheduler.schedule(reminder)
             } catch {
-                saveError = "通知安排失败：\(error.localizedDescription)"
+                saveError = "提醒已保存，但通知安排失败：\(error.localizedDescription)"
             }
+            scheduleStatus = NotificationScheduleStatusStore().load()
             refreshNotificationStatus()
         }
     }

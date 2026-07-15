@@ -53,6 +53,28 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(selection.comparisonRange, ReportDateRange(start: try date(2026, 6, 1), end: try date(2026, 6, 12, 12)))
     }
 
+    func testPayCycleUsesConfiguredPaydayForCurrentCompletedAndMonthEndRanges() throws {
+        let calculator = ReportPeriodCalculator(calendar: calendar, payday: 25)
+        let reference = try date(2026, 7, 15, 12)
+        let current = calculator.selection(for: .payCycle, target: .current(referenceDate: reference))
+
+        XCTAssertEqual(current.reportRange, ReportDateRange(start: try date(2026, 6, 25), end: reference))
+        XCTAssertEqual(current.comparisonRange, ReportDateRange(start: try date(2026, 5, 25), end: try date(2026, 6, 14, 12)))
+
+        let scheduled = calculator.selection(
+            for: .payCycle,
+            target: .scheduled(period: .payCycle, triggerDate: try date(2026, 7, 25, 9))
+        )
+        XCTAssertEqual(scheduled.reportRange, ReportDateRange(start: try date(2026, 6, 25), end: try date(2026, 7, 25)))
+        XCTAssertEqual(scheduled.comparisonRange, ReportDateRange(start: try date(2026, 5, 25), end: try date(2026, 6, 25)))
+
+        let monthEnd = ReportPeriodCalculator(calendar: calendar, payday: 31).selection(
+            for: .payCycle,
+            target: .scheduled(period: .payCycle, triggerDate: try date(2027, 2, 28, 9))
+        )
+        XCTAssertEqual(monthEnd.reportRange, ReportDateRange(start: try date(2027, 1, 31), end: try date(2027, 2, 28)))
+    }
+
     func testTypedBucketGranularitiesAndCounts() throws {
         let calculator = ReportPeriodCalculator(calendar: calendar)
         let trigger = try date(2026, 7, 15, 9)
@@ -72,6 +94,14 @@ final class ReportDomainTests: XCTestCase {
         let yearly = calculator.selection(for: .yearly, target: .scheduled(period: .yearly, triggerDate: trigger))
         XCTAssertEqual(calculator.bucketRanges(for: yearly).count, 12)
         XCTAssertEqual(yearly.period.bucketGranularity, .month)
+
+        let payCycleCalculator = ReportPeriodCalculator(calendar: calendar, payday: 25)
+        let payCycle = payCycleCalculator.selection(
+            for: .payCycle,
+            target: .scheduled(period: .payCycle, triggerDate: try date(2026, 7, 25, 9))
+        )
+        XCTAssertEqual(payCycleCalculator.bucketRanges(for: payCycle).count, 30)
+        XCTAssertEqual(payCycle.period.bucketGranularity, .day)
     }
 
     func testReportServiceUsesHalfOpenTargetAndAlignedComparison() throws {
@@ -91,7 +121,7 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.totalExpense, 100)
         XCTAssertEqual(report.expenseChange, 1)
         XCTAssertEqual(report.timeBuckets.reduce(Decimal.zero) { $0 + $1.expense }, 100)
-        XCTAssertEqual(report.dailyExpenses.count, report.timeBuckets.count)
+        XCTAssertEqual(report.transactionCount, 1)
     }
 
     func testScheduledWeeklyReportAggregatesDaysAndComparesCompletePriorWeek() throws {
@@ -113,6 +143,26 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.timeBuckets.count, 7)
         XCTAssertTrue(report.timeBuckets.allSatisfy { $0.granularity == .day })
         XCTAssertEqual(report.timeBuckets.map(\.expense), [10, 0, 0, 0, 0, 0, 20])
+    }
+
+    func testScheduledPayCycleReportAggregatesConfiguredCycleAndComparison() throws {
+        let context = try makeContext()
+        insertExpense(100, at: try date(2026, 6, 25), into: context)
+        insertExpense(50, at: try date(2026, 7, 24, 23, 59), into: context)
+        insertExpense(999, at: try date(2026, 7, 25), into: context)
+        insertExpense(75, at: try date(2026, 5, 25), into: context)
+        try context.save()
+
+        let report = try ReportService(modelContext: context, calendar: calendar, payday: 25).generateReport(
+            period: .payCycle,
+            target: .scheduled(period: .payCycle, triggerDate: try date(2026, 7, 25, 9))
+        )
+
+        XCTAssertEqual(report.reportRange, ReportDateRange(start: try date(2026, 6, 25), end: try date(2026, 7, 25)))
+        XCTAssertEqual(report.totalExpense, 150)
+        XCTAssertEqual(report.expenseChange, 1)
+        XCTAssertEqual(report.timeBuckets.count, 30)
+        XCTAssertEqual(report.timeBuckets.reduce(Decimal.zero) { $0 + $1.expense }, 150)
     }
 
     func testReminderPreferencesRoundTripAndCorruptionFallback() {
@@ -206,15 +256,117 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(yearly[1].dateComponents.day, 29)
     }
 
+    func testPayCycleReminderUsesConfiguredPaydayAndClampsMonthEnd() throws {
+        let preferences = ReportReminderPreferences(
+            enabledPeriods: [.payCycle],
+            deliveryTime: ReportReminderTime(hour: 20, minute: 30)
+        )
+
+        let plans = ReportReminderSchedulePlanner.plans(
+            for: preferences,
+            referenceDate: try date(2027, 1, 30, 10),
+            calendar: calendar,
+            payday: 31
+        )
+
+        XCTAssertEqual(plans.count, 12)
+        XCTAssertEqual(plans[0].period, .payCycle)
+        XCTAssertEqual(plans[0].dateComponents.month, 1)
+        XCTAssertEqual(plans[0].dateComponents.day, 31)
+        XCTAssertEqual(plans[0].dateComponents.hour, 20)
+        XCTAssertEqual(plans[1].dateComponents.month, 2)
+        XCTAssertEqual(plans[1].dateComponents.day, 28)
+        XCTAssertTrue(plans.allSatisfy { !$0.repeats })
+    }
+
+    func testCompletedTargetSelectsContainingCalendarPeriodAndNavigatesTowardCurrent() throws {
+        let calculator = ReportPeriodCalculator(calendar: calendar)
+        let anchor = try date(2026, 6, 15)
+        let current = try date(2026, 7, 15)
+        let selection = calculator.selection(for: .monthly, target: .completed(containing: anchor))
+
+        XCTAssertEqual(selection.reportRange, ReportDateRange(start: try date(2026, 6, 1), end: try date(2026, 7, 1)))
+        XCTAssertNil(calculator.nextCompletedAnchor(for: selection, referenceDate: current))
+        XCTAssertEqual(calculator.previousCompletedAnchor(for: selection), try date(2026, 5, 1))
+    }
+
+    func testReportFormatterIncludesNonMidnightEndDateAndFormatsPercentages() throws {
+        let formatter = ReportDateRangeFormatter(calendar: calendar)
+        let range = ReportDateRange(start: try date(2026, 7, 6), end: try date(2026, 7, 12, 12))
+
+        XCTAssertEqual(formatter.bucketLabel(for: range, granularity: .week), "7月6日–7月12日")
+        XCTAssertEqual(ReportPercentageFormatter.categoryShare(1), "100%")
+        XCTAssertEqual(ReportPercentageFormatter.changeRate(1), "100%")
+        XCTAssertEqual(ReportPercentageFormatter.changeRate(1.5), "100%+")
+        XCTAssertEqual(ReportChangePresentation.make(change: 0.5, metric: .income).isFavorable, true)
+        XCTAssertEqual(ReportChangePresentation.make(change: 0.5, metric: .expense).isFavorable, false)
+    }
+
+    func testScheduledStreakStopsAtReportExclusiveEnd() throws {
+        let context = try makeContext()
+        let trigger = try date(2026, 7, 15, 9)
+        insertExpense(10, at: try date(2026, 7, 11, 10), into: context)
+        insertExpense(10, at: try date(2026, 7, 12, 10), into: context)
+        insertExpense(10, at: try date(2026, 7, 13, 10), into: context)
+        try context.save()
+
+        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+            period: .weekly,
+            target: .scheduled(period: .weekly, triggerDate: trigger)
+        )
+
+        XCTAssertEqual(report.streakDays, 2)
+    }
+
+    func testReportBudgetSnapshotUsesReportEndPayCycleAndExcludesLaterSpending() throws {
+        let reportEnd = try date(2026, 7, 1)
+        let reportRange = ReportDateRange(start: try date(2026, 6, 1), end: reportEnd)
+        let cycle = PayCycleService.cycle(containing: try date(2026, 6, 30), payday: 25, calendar: calendar)
+        let budget = Budget(
+            monthlyLimit: 1_000,
+            year: calendar.component(.year, from: cycle.start),
+            month: calendar.component(.month, from: cycle.start)
+        )
+        let category = Category(
+            name: "餐饮",
+            icon: "fork.knife",
+            colorHex: "#FF0000",
+            defaultKey: Category.defaultKey(for: "餐饮", isExpense: true)
+        )
+        let included = Transaction(amount: 100, date: try date(2026, 6, 30, 12), category: category)
+        let later = Transaction(amount: 900, date: try date(2026, 7, 2), category: category)
+
+        let snapshot = ReportBudgetSnapshotService.snapshot(
+            budgets: [budget],
+            transactions: [included, later],
+            reportRange: reportRange,
+            target: .completed(containing: try date(2026, 6, 15)),
+            payday: 25,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(snapshot.budget?.id, budget.id)
+        XCTAssertEqual(snapshot.analysis?.totalSpent, 100)
+        XCTAssertEqual(snapshot.cutoff, reportEnd)
+    }
+
     func testReportRoutePersistsColdLaunchDestination() {
         let suiteName = "ReportRouteTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
-        ReportRoute.request(period: .monthly, userDefaults: defaults)
+        ReportRoute.requestScheduled(
+            period: .monthly,
+            deliveredAt: Date(timeIntervalSince1970: 123),
+            userDefaults: defaults
+        )
 
         XCTAssertTrue(defaults.bool(forKey: ReportRoute.requestKey))
         XCTAssertEqual(defaults.string(forKey: ReportRoute.periodKey), ReportPeriod.monthly.rawValue)
+        let request = ReportRoute.consume(userDefaults: defaults)
+        XCTAssertEqual(request?.period, .monthly)
+        XCTAssertEqual(request?.target, .scheduled(deliveredAt: Date(timeIntervalSince1970: 123)))
+        XCTAssertNil(defaults.data(forKey: ReportRoute.payloadKey))
     }
 
     private func date(

@@ -43,6 +43,35 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["记一笔"].exists)
     }
 
+    func testReportShowsCurrentRangeAndNavigatesToPreviousPeriod() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hasCompletedOnboarding", "true"]
+        app.launch()
+
+        let reportTab = app.buttons["报表"]
+        XCTAssertTrue(reportTab.waitForExistence(timeout: 5))
+        reportTab.tap()
+
+        XCTAssertTrue(app.staticTexts["report.range"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["report.nextPeriod"].isEnabled)
+        app.buttons["report.previousPeriod"].tap()
+        XCTAssertTrue(app.buttons["report.nextPeriod"].isEnabled)
+    }
+
+    func testReportCanSwitchToPayCyclePeriod() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hasCompletedOnboarding", "true", "-payday", "25"]
+        app.launch()
+
+        app.buttons["报表"].tap()
+        let payCycle = app.buttons["report.period.payCycle"]
+        XCTAssertTrue(payCycle.waitForExistence(timeout: 5))
+        payCycle.tap()
+
+        XCTAssertTrue(app.staticTexts["report.range"].waitForExistence(timeout: 5))
+        XCTAssertTrue(payCycle.isSelected)
+    }
+
     func testQuickEntryCategoryWheelImmediatelyAcceptsSubcategorySelection() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]

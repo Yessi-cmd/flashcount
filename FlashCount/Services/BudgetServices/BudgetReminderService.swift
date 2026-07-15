@@ -116,11 +116,15 @@ enum BudgetReminderService {
 
 enum BudgetScope {
     /// 日常预算只覆盖高频、可控的小额消费。服饰、聚餐、长途出行和耐用品默认排除。
-    private static let includedCategoryNames: Set<String> = [
+    private static let legacyIncludedCategoryNames: Set<String> = [
         "餐饮", "正餐", "外卖", "早餐", "奶茶", "咖啡", "零食", "水果", "饮料",
         "出行", "公交地铁", "打车", "共享单车", "停车过路", "加油充电",
         "日用品", "美妆个护",
     ]
+
+    private static let includedDefaultKeys = Set(
+        legacyIncludedCategoryNames.map { Category.defaultKey(for: $0, isExpense: true) }
+    )
 
     static let description = "默认统计餐饮、通勤和日用品；服饰鞋包、聚餐、长途出行、固定账单及大件消费不计入。范围可以自行调整，每笔支出也能单独覆盖。"
 
@@ -138,7 +142,15 @@ enum BudgetScope {
     }
 
     static func defaultIncludesCategory(_ category: Category?) -> Bool {
-        guard let category, category.isExpense else { return false }
-        return includedCategoryNames.contains(category.name)
+        guard let category,
+              category.isExpense,
+              let defaultKey = category.defaultKey else { return false }
+        return includedDefaultKeys.contains(defaultKey)
+    }
+
+    /// Migration-only compatibility for categories persisted before `defaultKey`.
+    /// Normal scope evaluation must use `includesCategory(_:)` instead.
+    static func legacyIncludesCategory(named name: String) -> Bool {
+        legacyIncludedCategoryNames.contains(name)
     }
 }
