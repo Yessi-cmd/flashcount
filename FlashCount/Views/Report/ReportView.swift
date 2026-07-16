@@ -50,19 +50,44 @@ private enum ReportLoadState {
 struct ReportView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(ReportRoute.payloadKey) private var requestedPayload = Data()
-    @AppStorage(ReportRoute.periodKey) private var legacyRequestedPeriod = ""
+    @Environment(\.dismiss) private var dismiss
     @AppStorage("payday") private var payday = 1
 
     let isActive: Bool
+    let requestedReport: ReportRoute.Request?
+    let showsDismissButton: Bool
 
-    @State private var selectedPeriod: ReportPeriod = .weekly
-    @State private var navigationAnchor: ReportNavigationAnchor = .current
-    @State private var referenceDate = Date()
+    @State private var selectedPeriod: ReportPeriod
+    @State private var navigationAnchor: ReportNavigationAnchor
+    @State private var referenceDate: Date
+    @State private var appliedRequestID: UUID?
     @State private var showReminderSettings = false
 
-    init(isActive: Bool = true) {
+    init(
+        isActive: Bool = true,
+        requestedReport: ReportRoute.Request? = nil,
+        showsDismissButton: Bool = false
+    ) {
         self.isActive = isActive
+        self.requestedReport = requestedReport
+        self.showsDismissButton = showsDismissButton
+
+        let initialDate = requestedReport.map { request in
+            switch request.target {
+            case .current: return Date()
+            case .scheduled(let deliveredAt): return deliveredAt
+            }
+        } ?? Date()
+        let initialAnchor = requestedReport.map { request in
+            switch request.target {
+            case .current: return ReportNavigationAnchor.current
+            case .scheduled(let deliveredAt): return ReportNavigationAnchor.scheduled(deliveredAt)
+            }
+        } ?? .current
+        _selectedPeriod = State(initialValue: requestedReport?.period ?? .weekly)
+        _navigationAnchor = State(initialValue: initialAnchor)
+        _referenceDate = State(initialValue: initialDate)
+        _appliedRequestID = State(initialValue: requestedReport?.id)
     }
 
     private var calculator: ReportPeriodCalculator {
@@ -117,6 +142,12 @@ struct ReportView: View {
             .navigationTitle("报表")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
+                if showsDismissButton {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("关闭") { dismiss() }
+                            .accessibilityIdentifier("report.foreground.close")
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showReminderSettings = true
@@ -130,11 +161,14 @@ struct ReportView: View {
                 ReportReminderSettingsView()
             }
             .onAppear {
-                referenceDate = Date()
-                applyRequestedReportIfNeeded()
+                if requestedReport == nil {
+                    referenceDate = Date()
+                }
+                applyRequestedReportIfNeeded(requestedReport)
             }
-            .onChange(of: requestedPayload) { applyRequestedReportIfNeeded() }
-            .onChange(of: legacyRequestedPeriod) { applyRequestedReportIfNeeded() }
+            .onChange(of: requestedReport) { _, request in
+                applyRequestedReportIfNeeded(request)
+            }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
                 referenceDate = Date()
@@ -142,7 +176,7 @@ struct ReportView: View {
             .onChange(of: isActive) { _, active in
                 if active {
                     referenceDate = Date()
-                    applyRequestedReportIfNeeded()
+                    applyRequestedReportIfNeeded(requestedReport)
                 }
             }
             .task(id: midnightTaskID) {
@@ -364,9 +398,9 @@ struct ReportView: View {
         }
     }
 
-    private func applyRequestedReportIfNeeded() {
-        guard !requestedPayload.isEmpty || !legacyRequestedPeriod.isEmpty else { return }
-        guard let request = ReportRoute.consume() else { return }
+    private func applyRequestedReportIfNeeded(_ request: ReportRoute.Request?) {
+        guard let request, appliedRequestID != request.id else { return }
+        appliedRequestID = request.id
         selectedPeriod = request.period
         switch request.target {
         case .current:

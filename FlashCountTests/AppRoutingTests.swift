@@ -46,4 +46,38 @@ final class AppRoutingTests: XCTestCase {
             .scheduled(deliveredAt: deliveredAt)
         )
     }
+
+    func testForegroundNotificationRequestsInAppReportSheet() throws {
+        let suiteName = "AppRoutingTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let deliveredAt = Date(timeIntervalSince1970: 234_567)
+
+        XCTAssertTrue(ReportRoute.requestFromNotification(
+            userInfo: [ReportRoute.notificationPeriodUserInfoKey: ReportPeriod.daily.rawValue],
+            deliveredAt: deliveredAt,
+            presentation: .foregroundSheet,
+            userDefaults: defaults
+        ))
+
+        let request = try XCTUnwrap(ReportRoute.consume(userDefaults: defaults))
+        XCTAssertEqual(request.period, .daily)
+        XCTAssertEqual(request.target, .scheduled(deliveredAt: deliveredAt))
+        XCTAssertEqual(request.resolvedPresentation, .foregroundSheet)
+    }
+
+    func testNonReportNotificationDoesNotCreateReportRoute() throws {
+        let suiteName = "AppRoutingTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        XCTAssertFalse(ReportRoute.requestFromNotification(
+            userInfo: [:],
+            deliveredAt: Date(),
+            presentation: .foregroundSheet,
+            userDefaults: defaults
+        ))
+        XCTAssertFalse(defaults.bool(forKey: ReportRoute.requestKey))
+        XCTAssertNil(ReportRoute.consume(userDefaults: defaults))
+    }
 }

@@ -65,7 +65,15 @@ private final class ReminderNotificationDelegate: NSObject, UNUserNotificationCe
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .list, .sound]
+        if ReportRoute.requestFromNotification(
+            userInfo: notification.request.content.userInfo,
+            deliveredAt: notification.date,
+            presentation: .foregroundSheet
+        ) {
+            // App 内会直接展示完整报表；保留声音与通知中心记录，避免再叠加系统横幅。
+            return [.list, .sound]
+        }
+        return [.banner, .list, .sound]
     }
 
     func userNotificationCenter(

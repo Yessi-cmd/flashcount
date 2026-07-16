@@ -1,6 +1,20 @@
 import SwiftUI
 import SwiftData
 
+private enum MainSheetDestination: Identifiable, Equatable {
+    case quickEntry
+    case addCashPoolItem
+    case deliveredReport(ReportRoute.Request)
+
+    var id: String {
+        switch self {
+        case .quickEntry: return "quickEntry"
+        case .addCashPoolItem: return "addCashPoolItem"
+        case .deliveredReport(let request): return "deliveredReport.\(request.id.uuidString)"
+        }
+    }
+}
+
 /// 主标签栏视图
 struct MainTabView: View {
     @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
@@ -8,8 +22,9 @@ struct MainTabView: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @State private var selectedTab: Int
     @State private var animatedSelectedTab: Int
-    @State private var showQuickEntry = false
-    @State private var showAddCashPoolItem = false
+    @State private var presentedSheet: MainSheetDestination?
+    @State private var pendingForegroundReport: ReportRoute.Request?
+    @State private var tabReportRequest: ReportRoute.Request?
     @State private var showPlusActions = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage(QuickEntryRoute.requestKey) private var shouldShowQuickEntry = false
@@ -43,7 +58,10 @@ struct MainTabView: View {
                 Color.clear // 中间占位 (记账按钮)
                     .toolbar(.hidden, for: .tabBar)
                     .tag(2)
-                ReportView(isActive: selectedTab == 3)
+                ReportView(
+                    isActive: selectedTab == 3,
+                    requestedReport: tabReportRequest
+                )
                     .toolbar(.hidden, for: .tabBar)
                     .tag(3)
                 AssetDashboardView(isActive: selectedTab == 4)
@@ -56,11 +74,18 @@ struct MainTabView: View {
             // 自定义底部标签栏
             customTabBar
         }
-        .sheet(isPresented: $showQuickEntry) {
-            QuickEntryView()
-        }
-        .sheet(isPresented: $showAddCashPoolItem) {
-            AddCashPoolItemView(nextSortOrder: cashPoolItems.count)
+        .sheet(item: $presentedSheet) { destination in
+            switch destination {
+            case .quickEntry:
+                QuickEntryView()
+            case .addCashPoolItem:
+                AddCashPoolItemView(nextSortOrder: cashPoolItems.count)
+            case .deliveredReport(let request):
+                ReportView(
+                    requestedReport: request,
+                    showsDismissButton: true
+                )
+            }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding) {
@@ -69,10 +94,10 @@ struct MainTabView: View {
         }
         .confirmationDialog("快捷操作", isPresented: $showPlusActions) {
             Button("记一笔") {
-                showQuickEntry = true
+                presentedSheet = .quickEntry
             }
             Button("添加资金项") {
-                showAddCashPoolItem = true
+                presentedSheet = .addCashPoolItem
             }
             Button("取消", role: .cancel) {}
         } message: {
@@ -84,6 +109,7 @@ struct MainTabView: View {
             }
             processQuickEntryRequestIfNeeded()
             processReportRequestIfNeeded()
+            prepareForegroundReportUITestIfNeeded()
         }
         .onChange(of: shouldShowQuickEntry) { processQuickEntryRequestIfNeeded() }
         .onChange(of: shouldShowReport) { processReportRequestIfNeeded() }
@@ -91,6 +117,17 @@ struct MainTabView: View {
             if !showOnboarding {
                 processQuickEntryRequestIfNeeded()
                 processReportRequestIfNeeded()
+                presentPendingForegroundReportIfPossible()
+            }
+        }
+        .onChange(of: presentedSheet) { _, destination in
+            if destination == nil {
+                presentPendingForegroundReportIfPossible()
+            }
+        }
+        .onChange(of: showPlusActions) { _, isPresented in
+            if !isPresented {
+                presentPendingForegroundReportIfPossible()
             }
         }
         .onOpenURL { url in
@@ -120,7 +157,7 @@ struct MainTabView: View {
                 VStack(spacing: 3) {
                     Image(systemName: "plus")
                         .font(.title3.weight(.semibold))
-                        .symbolEffect(.bounce, value: showQuickEntry || showPlusActions)
+                        .symbolEffect(.bounce, value: isQuickEntryPresented || showPlusActions)
                     Text("记一笔")
                         .font(.caption2.weight(.semibold))
                 }
@@ -208,13 +245,32 @@ struct MainTabView: View {
     private func processQuickEntryRequestIfNeeded() {
         guard shouldShowQuickEntry, hasCompletedOnboarding, !showOnboarding else { return }
         shouldShowQuickEntry = false
-        showQuickEntry = true
+        presentedSheet = .quickEntry
     }
 
     private func processReportRequestIfNeeded() {
         guard shouldShowReport, hasCompletedOnboarding, !showOnboarding else { return }
         shouldShowReport = false
-        selectTab(3, providesHaptic: false)
+        guard let request = ReportRoute.consume() else { return }
+
+        switch request.resolvedPresentation {
+        case .reportTab:
+            tabReportRequest = request
+            selectTab(3, providesHaptic: false)
+        case .foregroundSheet:
+            pendingForegroundReport = request
+            presentPendingForegroundReportIfPossible()
+        }
+    }
+
+    private func presentPendingForegroundReportIfPossible() {
+        guard let request = pendingForegroundReport,
+              hasCompletedOnboarding,
+              !showOnboarding,
+              !showPlusActions,
+              presentedSheet == nil else { return }
+        pendingForegroundReport = nil
+        presentedSheet = .deliveredReport(request)
     }
 
     private func handleDeepLink(_ url: URL) {
@@ -234,9 +290,46 @@ struct MainTabView: View {
         if selectedTab == 4 {
             showPlusActions = true
         } else {
-            showQuickEntry = true
+            presentedSheet = .quickEntry
         }
     }
+
+    private var isQuickEntryPresented: Bool {
+        presentedSheet == .quickEntry
+    }
+
+    private func prepareForegroundReportUITestIfNeeded() {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let marker = arguments.firstIndex(of: "-uiTestForegroundReport"),
+              arguments.indices.contains(marker + 1),
+              let period = uiTestReportPeriod(arguments[marker + 1]),
+              pendingForegroundReport == nil,
+              presentedSheet == nil else { return }
+        if arguments.contains("-uiTestForegroundReportWhileQuickEntry") {
+            presentedSheet = .quickEntry
+        }
+        pendingForegroundReport = ReportRoute.Request(
+            period: period,
+            target: .scheduled(deliveredAt: Date()),
+            presentation: .foregroundSheet
+        )
+        presentPendingForegroundReportIfPossible()
+#endif
+    }
+
+#if DEBUG
+    private func uiTestReportPeriod(_ rawValue: String) -> ReportPeriod? {
+        switch rawValue {
+        case "daily": return .daily
+        case "weekly": return .weekly
+        case "monthly": return .monthly
+        case "yearly": return .yearly
+        case "payCycle": return .payCycle
+        default: return nil
+        }
+    }
+#endif
 
     private func selectTab(_ tag: Int, providesHaptic: Bool = true) {
         guard selectedTab != tag else { return }

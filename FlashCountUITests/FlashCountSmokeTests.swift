@@ -164,6 +164,46 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(payCycle.isSelected)
     }
 
+    func testForegroundReportNotificationPresentsMatchingReport() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestForegroundReport", "monthly"
+        ]
+        app.launch()
+
+        let close = app.buttons["report.foreground.close"]
+        let monthly = app.buttons["report.period.monthly"]
+        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        XCTAssertTrue(monthly.waitForExistence(timeout: 5))
+        XCTAssertTrue(monthly.isSelected)
+        XCTAssertTrue(app.staticTexts["report.range"].waitForExistence(timeout: 5))
+
+        close.tap()
+        XCTAssertTrue(close.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["mainTab.ledger"].isSelected)
+    }
+
+    func testForegroundReportWaitsForQuickEntryToDismiss() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestForegroundReport", "daily",
+            "-uiTestForegroundReportWhileQuickEntry"
+        ]
+        app.launch()
+
+        let quickEntry = app.navigationBars["记一笔"]
+        let closeReport = app.buttons["report.foreground.close"]
+        XCTAssertTrue(quickEntry.waitForExistence(timeout: 5))
+        XCTAssertFalse(closeReport.exists)
+
+        app.buttons["取消"].tap()
+
+        XCTAssertTrue(closeReport.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["report.period.daily"].isSelected)
+    }
+
     func testQuickEntryCategoryWheelImmediatelyAcceptsSubcategorySelection() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]

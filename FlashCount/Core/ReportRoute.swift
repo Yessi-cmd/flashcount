@@ -9,14 +9,31 @@ enum ReportRoute {
             case scheduled(deliveredAt: Date)
         }
 
+        enum Presentation: String, Codable, Equatable {
+            case reportTab
+            case foregroundSheet
+        }
+
         let id: UUID
         let period: ReportPeriod
         let target: Target
+        /// 可选以兼容升级前已经写入 UserDefaults 的路由负载。
+        let presentation: Presentation?
 
-        init(id: UUID = UUID(), period: ReportPeriod, target: Target) {
+        init(
+            id: UUID = UUID(),
+            period: ReportPeriod,
+            target: Target,
+            presentation: Presentation = .reportTab
+        ) {
             self.id = id
             self.period = period
             self.target = target
+            self.presentation = presentation
+        }
+
+        var resolvedPresentation: Presentation {
+            presentation ?? .reportTab
         }
     }
 
@@ -35,22 +52,35 @@ enum ReportRoute {
     static func requestScheduled(
         period: ReportPeriod,
         deliveredAt: Date,
+        presentation: Request.Presentation = .reportTab,
         userDefaults: UserDefaults = .standard
     ) {
         request(
-            Request(period: period, target: .scheduled(deliveredAt: deliveredAt)),
+            Request(
+                period: period,
+                target: .scheduled(deliveredAt: deliveredAt),
+                presentation: presentation
+            ),
             userDefaults: userDefaults
         )
     }
 
+    @discardableResult
     static func requestFromNotification(
         userInfo: [AnyHashable: Any],
         deliveredAt: Date,
+        presentation: Request.Presentation = .reportTab,
         userDefaults: UserDefaults = .standard
-    ) {
+    ) -> Bool {
         guard let rawPeriod = userInfo[notificationPeriodUserInfoKey] as? String,
-              let period = ReportPeriod(rawValue: rawPeriod) else { return }
-        requestScheduled(period: period, deliveredAt: deliveredAt, userDefaults: userDefaults)
+              let period = ReportPeriod(rawValue: rawPeriod) else { return false }
+        requestScheduled(
+            period: period,
+            deliveredAt: deliveredAt,
+            presentation: presentation,
+            userDefaults: userDefaults
+        )
+        return true
     }
 
     static func consume(userDefaults: UserDefaults = .standard) -> Request? {
