@@ -42,6 +42,16 @@ open FlashCount.xcodeproj
 # 4. 选择模拟器，运行 ▶️
 ```
 
+## 📦 打包
+
+AltStore 专用 IPA：
+
+```bash
+./scripts/package-altstore.sh
+```
+
+脚本始终更新 `build/FlashCount-AltStore.ipa`，不生成带版本号或日期的副本。其他分发方式、命名和隐私检查见 [IPA 打包规范](docs/packaging.md)。
+
 ## 🔒 隐私
 
 - ✅ 所有数据存储在设备本地
