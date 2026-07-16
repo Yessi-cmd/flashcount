@@ -5,6 +5,7 @@ import SwiftData
 struct QuickEntryView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("payday") private var payday = 1
 
     @Query(sort: \Ledger.sortOrder) private var ledgers: [Ledger]
@@ -121,22 +122,12 @@ struct QuickEntryView: View {
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollIndicators(.hidden)
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    VStack(spacing: DesignSystem.space12) {
-                        numberPad
-                        submitButton
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, DesignSystem.space12)
-                    .padding(.bottom, DesignSystem.space8)
-                    .background(DesignSystem.cardBackground)
-                    .overlay(alignment: .top) {
-                        Rectangle()
-                            .fill(DesignSystem.dividerColor)
-                            .frame(height: 1)
-                    }
-                    .softReveal(delay: 0.18, distance: 18)
-                }
+                .modifier(
+                    QuickEntryBottomBar(
+                        barContent: bottomControls
+                            .softReveal(delay: 0.18, distance: 18)
+                    )
+                )
             }
             .navigationTitle("记一笔")
             .navigationBarTitleDisplayMode(.inline)
@@ -247,14 +238,53 @@ struct QuickEntryView: View {
         }
     }
 
+    @ViewBuilder
     private var typeToggle: some View {
+        if #available(iOS 26.0, *) {
+            liquidGlassTypeToggle
+        } else {
+            legacyTypeToggle
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var liquidGlassTypeToggle: some View {
+        GlassEffectContainer(spacing: 6) {
+            HStack(spacing: 6) {
+                liquidGlassTypeButton(title: "支出", expense: true, color: DesignSystem.expenseColor)
+                liquidGlassTypeButton(title: "收入", expense: false, color: DesignSystem.incomeColor)
+            }
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private func liquidGlassTypeButton(title: String, expense: Bool, color: Color) -> some View {
+        let isSelected = isExpense == expense
+        return Button {
+            selectTransactionType(expense)
+        } label: {
+            Text(title)
+                .font(DesignSystem.Typography.controlLabel)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .foregroundStyle(isSelected ? color : DesignSystem.textSecondary)
+                .contentShape(Rectangle())
+                .liquidGlassSurface(
+                    tint: isSelected ? color.opacity(0.20) : nil,
+                    shape: .roundedRectangle(13),
+                    isInteractive: true,
+                    isClear: !isSelected
+                )
+                .animation(reduceMotion ? nil : DesignSystem.glassSelectionAnimation, value: isSelected)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private var legacyTypeToggle: some View {
         HStack(spacing: 0) {
             Button {
-                withAnimation(.spring(response: 0.3)) { isExpense = true }
-                selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
-                dailyBudgetOverride = nil
-                showAllCategories = false
-                HapticManager.selection()
+                selectTransactionType(true)
             } label: {
                 Text("支出")
                     .font(DesignSystem.Typography.controlLabel)
@@ -271,11 +301,7 @@ struct QuickEntryView: View {
             }
 
             Button {
-                withAnimation(.spring(response: 0.3)) { isExpense = false }
-                selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
-                dailyBudgetOverride = nil
-                showAllCategories = false
-                HapticManager.selection()
+                selectTransactionType(false)
             } label: {
                 Text("收入")
                     .font(DesignSystem.Typography.controlLabel)
@@ -309,6 +335,7 @@ struct QuickEntryView: View {
                     .monospacedDigit()
                     .foregroundStyle(DesignSystem.textPrimary)
                     .contentTransition(.numericText())
+                    .accessibilityIdentifier("quickEntry.amount")
             }
 
             // 日期选择器 - 始终可见，方便补录历史账单
@@ -470,6 +497,37 @@ struct QuickEntryView: View {
         QuickEntrySubmitButton(isEnabled: !amountText.isEmpty, isExpense: isExpense, action: saveTransaction)
     }
 
+    @ViewBuilder
+    private var bottomControls: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 4) {
+                bottomControlsContent
+            }
+            .padding(.horizontal)
+            .padding(.top, DesignSystem.space12)
+            .padding(.bottom, DesignSystem.space8)
+            .background(DesignSystem.surfaceBackground)
+        } else {
+            bottomControlsContent
+                .padding(.horizontal)
+                .padding(.top, DesignSystem.space12)
+                .padding(.bottom, DesignSystem.space8)
+                .background(DesignSystem.cardBackground)
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(DesignSystem.dividerColor)
+                        .frame(height: 1)
+                }
+        }
+    }
+
+    private var bottomControlsContent: some View {
+        VStack(spacing: DesignSystem.space12) {
+            numberPad
+            submitButton
+        }
+    }
+
     private var successOverlay: some View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.circle.fill")
@@ -553,15 +611,9 @@ struct QuickEntryView: View {
                 }
             }
         case "收入":
-            withAnimation(.spring(response: 0.3)) { isExpense = false }
-            selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
-            dailyBudgetOverride = nil
-            showAllCategories = false
+            selectTransactionType(false, providesHaptic: false)
         case "支出":
-            withAnimation(.spring(response: 0.3)) { isExpense = true }
-            selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
-            dailyBudgetOverride = nil
-            showAllCategories = false
+            selectTransactionType(true, providesHaptic: false)
         default:
             // 限制整数部分最多 12 位
             let intPart = amountText.split(separator: ".").first.map(String.init) ?? amountText
@@ -574,6 +626,21 @@ struct QuickEntryView: View {
                 }
             }
             amountText += key
+        }
+    }
+
+    private func selectTransactionType(_ expense: Bool, providesHaptic: Bool = true) {
+        withAnimation(reduceMotion ? nil : DesignSystem.glassSelectionAnimation) {
+            isExpense = expense
+        }
+        selectedCategory = defaultCategory(
+            from: expense ? expenseCategories : incomeCategories,
+            isExpense: expense
+        )
+        dailyBudgetOverride = nil
+        showAllCategories = false
+        if providesHaptic {
+            HapticManager.selection()
         }
     }
 
@@ -797,6 +864,17 @@ struct QuickEntryView: View {
         case .warning: return DesignSystem.warningColor
         case .danger: return DesignSystem.dangerColor
         default: return DesignSystem.incomeColor
+        }
+    }
+}
+
+/// 键盘高度远大于普通工具栏，始终为其预留安全区，避免滚动内容透到按键下方。
+private struct QuickEntryBottomBar<BarContent: View>: ViewModifier {
+    let barContent: BarContent
+
+    func body(content: Content) -> some View {
+        content.safeAreaInset(edge: .bottom, spacing: 0) {
+            barContent
         }
     }
 }

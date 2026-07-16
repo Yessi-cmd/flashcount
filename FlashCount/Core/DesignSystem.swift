@@ -146,8 +146,47 @@ enum DesignSystem {
     static let quickAnimation = Animation.easeOut(duration: 0.16)
     static let standardAnimation = Animation.easeInOut(duration: 0.24)
     static let emphasisAnimation = Animation.spring(response: 0.36, dampingFraction: 0.84)
+    static let glassSelectionAnimation = Animation.spring(response: 0.42, dampingFraction: 0.82, blendDuration: 0.10)
     static let navigationAnimation = Animation.spring(response: 0.44, dampingFraction: 0.86, blendDuration: 0.08)
     static let pageAnimation = Animation.spring(response: 0.52, dampingFraction: 0.90, blendDuration: 0.10)
+}
+
+/// iOS 26 自定义导航与控制表面的统一 Liquid Glass 配置。
+/// 内容修饰应在调用此修饰器前完成，确保系统能正确捕获最终外观。
+@available(iOS 26.0, *)
+struct LiquidGlassSurface: ViewModifier {
+    enum Shape {
+        case roundedRectangle(CGFloat)
+        case capsule
+        case circle
+    }
+
+    let tint: Color?
+    let shape: Shape
+    let isInteractive: Bool
+    let isClear: Bool
+
+    private var effect: Glass {
+        let base: Glass = isClear ? .clear : .regular
+        return base
+            .tint(tint)
+            .interactive(isInteractive)
+    }
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        switch shape {
+        case .roundedRectangle(let cornerRadius):
+            content
+                .glassEffect(effect, in: .rect(cornerRadius: cornerRadius))
+        case .capsule:
+            content
+                .glassEffect(effect, in: .capsule)
+        case .circle:
+            content
+                .glassEffect(effect, in: .circle)
+        }
+    }
 }
 
 /// B 方向背景：暖灰底色叠加轻微顶部色层，不使用光晕或渐变。
@@ -263,5 +302,22 @@ extension View {
 
     func softReveal(delay: Double = 0, distance: CGFloat = 12) -> some View {
         modifier(SoftReveal(delay: delay, distance: distance))
+    }
+
+    @available(iOS 26.0, *)
+    func liquidGlassSurface(
+        tint: Color? = nil,
+        shape: LiquidGlassSurface.Shape = .capsule,
+        isInteractive: Bool = false,
+        isClear: Bool = false
+    ) -> some View {
+        modifier(
+            LiquidGlassSurface(
+                tint: tint,
+                shape: shape,
+                isInteractive: isInteractive,
+                isClear: isClear
+            )
+        )
     }
 }

@@ -3,6 +3,9 @@ import SwiftUI
 struct QuickEntryNumberPad: View {
     let onKeyPress: (String) -> Void
 
+    private let legacyKeyHeight: CGFloat = 42
+    private let liquidGlassLabelHeight: CGFloat = 32
+
     private let buttons = [
         ["7", "8", "9", "⌫"],
         ["4", "5", "6", "收入"],
@@ -16,32 +19,63 @@ struct QuickEntryNumberPad: View {
                 HStack(spacing: 6) {
                     ForEach(row, id: \.self) { button in
                         if button.isEmpty {
-                            Color.clear.frame(height: 42)
+                            Color.clear.frame(height: legacyKeyHeight)
                         } else {
-                            Button { onKeyPress(button) } label: {
-                                Text(button)
-                                    .font(
-                                        button == "收入" || button == "支出"
-                                            ? DesignSystem.Typography.supportingLabel
-                                            : DesignSystem.Typography.keypadDigit
-                                    )
-                                    .frame(maxWidth: .infinity).frame(height: 42)
-                                    .background(background(for: button))
-                                    .foregroundStyle(foreground(for: button))
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    .overlay {
-                                        if button == "收入" || button == "支出" {
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(button == "收入" ? DesignSystem.incomeColor.opacity(0.3) : DesignSystem.expenseColor.opacity(0.3))
-                                        }
-                                    }
-                            }
-                            .buttonStyle(PressableButtonStyle())
+                            keyButton(for: button)
                         }
                     }
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func keyButton(for button: String) -> some View {
+        if #available(iOS 26.0, *) {
+            Button { onKeyPress(button) } label: {
+                baseKeyLabel(for: button, height: liquidGlassLabelHeight)
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.roundedRectangle(radius: 10))
+            .tint(glassButtonTint(for: button))
+            .accessibilityIdentifier("quickEntry.key.\(button)")
+        } else {
+            Button { onKeyPress(button) } label: {
+                baseKeyLabel(for: button, height: legacyKeyHeight)
+                    .background(background(for: button))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay {
+                        if button == "收入" || button == "支出" {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(
+                                    button == "收入"
+                                        ? DesignSystem.incomeColor.opacity(0.3)
+                                        : DesignSystem.expenseColor.opacity(0.3)
+                                )
+                        }
+                    }
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityIdentifier("quickEntry.key.\(button)")
+        }
+    }
+
+    private func baseKeyLabel(for button: String, height: CGFloat) -> some View {
+        Text(button)
+            .font(
+                button == "收入" || button == "支出"
+                    ? DesignSystem.Typography.supportingLabel
+                    : DesignSystem.Typography.keypadDigit
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .foregroundStyle(foreground(for: button))
+    }
+
+    private func glassButtonTint(for button: String) -> Color {
+        if button == "收入" { return DesignSystem.incomeColor.opacity(0.20) }
+        if button == "支出" { return DesignSystem.expenseColor.opacity(0.20) }
+        return DesignSystem.cardBackground.opacity(0.16)
     }
 
     private func background(for button: String) -> Color {
@@ -63,7 +97,33 @@ struct QuickEntrySubmitButton: View {
     let isExpense: Bool
     let action: () -> Void
 
+    @ViewBuilder
     var body: some View {
+        if #available(iOS 26.0, *) {
+            liquidGlassButton
+        } else {
+            legacyButton
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var liquidGlassButton: some View {
+        Button(action: action) {
+            Text("保存")
+                .font(DesignSystem.Typography.controlLabel)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 34)
+        }
+        .buttonStyle(.glassProminent)
+        .tint(isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor)
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.55)
+        .animation(DesignSystem.quickAnimation, value: isEnabled)
+        .accessibilityIdentifier("quickEntry.save")
+    }
+
+    private var legacyButton: some View {
         Button(action: action) {
             Text("保存")
                 .font(DesignSystem.Typography.controlLabel).foregroundStyle(.white)
@@ -77,5 +137,6 @@ struct QuickEntrySubmitButton: View {
         }
         .disabled(!isEnabled)
         .buttonStyle(PressableButtonStyle())
+        .accessibilityIdentifier("quickEntry.save")
     }
 }

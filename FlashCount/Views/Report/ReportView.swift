@@ -170,15 +170,51 @@ struct ReportView: View {
         )
     }
 
+    @ViewBuilder
     private var periodPicker: some View {
+        if #available(iOS 26.0, *) {
+            liquidGlassPeriodPicker
+        } else {
+            legacyPeriodPicker
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var liquidGlassPeriodPicker: some View {
+        GlassEffectContainer(spacing: 5) {
+            HStack(spacing: 5) {
+                ForEach(ReportPeriod.allCases, id: \.self) { period in
+                    let isSelected = selectedPeriod == period
+                    Button {
+                        selectPeriod(period)
+                    } label: {
+                        Text(period.rawValue)
+                            .font(.subheadline.weight(isSelected ? .semibold : .medium))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                            .contentShape(Rectangle())
+                            .liquidGlassSurface(
+                                tint: isSelected ? DesignSystem.primaryColor.opacity(0.18) : nil,
+                                shape: .roundedRectangle(12),
+                                isInteractive: true,
+                                isClear: !isSelected
+                            )
+                            .animation(reduceMotion ? nil : DesignSystem.glassSelectionAnimation, value: isSelected)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("report.period.\(period.accessibilityKey)")
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
+        }
+    }
+
+    private var legacyPeriodPicker: some View {
         HStack(spacing: 0) {
             ForEach(ReportPeriod.allCases, id: \.self) { period in
                 Button {
-                    withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
-                        selectedPeriod = period
-                        navigationAnchor = .current
-                        referenceDate = Date()
-                    }
+                    selectPeriod(period)
                 } label: {
                     Text(period.rawValue)
                         .font(.subheadline.weight(.semibold))
@@ -195,12 +231,79 @@ struct ReportView: View {
         .overlay(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius).stroke(DesignSystem.borderColor))
     }
 
+    @ViewBuilder
     private var rangeNavigator: some View {
+        if #available(iOS 26.0, *) {
+            liquidGlassRangeNavigator
+        } else {
+            legacyRangeNavigator
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var liquidGlassRangeNavigator: some View {
+        let presentation = ReportDateRangeFormatter().reportRange(selection.reportRange, period: selectedPeriod)
+        return GlassEffectContainer(spacing: 8) {
+            HStack(spacing: 8) {
+                Button(action: showPreviousRange) {
+                    Image(systemName: "chevron.left")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 42, height: 42)
+                        .foregroundStyle(DesignSystem.primaryColor)
+                        .liquidGlassSurface(shape: .circle, isInteractive: true, isClear: true)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("上一个\(selectedPeriod.rawValue)")
+                .accessibilityIdentifier("report.previousPeriod")
+
+                VStack(spacing: 3) {
+                    Text(presentation.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(DesignSystem.textPrimary)
+                        .multilineTextAlignment(.center)
+                        .contentTransition(.numericText())
+                        .accessibilityLabel(presentation.accessibilityLabel)
+                        .accessibilityIdentifier("report.range")
+                    Text(rangeStatusTitle)
+                        .font(.caption2)
+                        .foregroundStyle(DesignSystem.textTertiary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 42)
+                .padding(.horizontal, 10)
+                .liquidGlassSurface(
+                    tint: DesignSystem.primaryColor.opacity(0.06),
+                    shape: .roundedRectangle(14),
+                    isClear: true
+                )
+                .animation(reduceMotion ? nil : DesignSystem.standardAnimation, value: presentation.title)
+
+                Button(action: showNextRange) {
+                    Image(systemName: "chevron.right")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 42, height: 42)
+                        .foregroundStyle(
+                            navigationAnchor.isCurrent
+                                ? DesignSystem.textTertiary
+                                : DesignSystem.primaryColor
+                        )
+                        .liquidGlassSurface(
+                            shape: .circle,
+                            isInteractive: !navigationAnchor.isCurrent,
+                            isClear: true
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(navigationAnchor.isCurrent)
+                .accessibilityLabel("下一个\(selectedPeriod.rawValue)")
+                .accessibilityIdentifier("report.nextPeriod")
+            }
+        }
+    }
+
+    private var legacyRangeNavigator: some View {
         let presentation = ReportDateRangeFormatter().reportRange(selection.reportRange, period: selectedPeriod)
         return HStack(spacing: 12) {
-            Button {
-                navigationAnchor = .completed(calculator.previousCompletedAnchor(for: selection))
-            } label: {
+            Button(action: showPreviousRange) {
                 Image(systemName: "chevron.left")
                     .frame(width: 34, height: 34)
             }
@@ -220,15 +323,7 @@ struct ReportView: View {
             }
             .frame(maxWidth: .infinity)
 
-            Button {
-                guard !navigationAnchor.isCurrent else { return }
-                if let next = calculator.nextCompletedAnchor(for: selection, referenceDate: Date()) {
-                    navigationAnchor = .completed(next)
-                } else {
-                    navigationAnchor = .current
-                    referenceDate = Date()
-                }
-            } label: {
+            Button(action: showNextRange) {
                 Image(systemName: "chevron.right")
                     .frame(width: 34, height: 34)
             }
@@ -237,6 +332,28 @@ struct ReportView: View {
             .accessibilityIdentifier("report.nextPeriod")
         }
         .padding(.horizontal, 6)
+    }
+
+    private func selectPeriod(_ period: ReportPeriod) {
+        withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
+            selectedPeriod = period
+            navigationAnchor = .current
+            referenceDate = Date()
+        }
+    }
+
+    private func showPreviousRange() {
+        navigationAnchor = .completed(calculator.previousCompletedAnchor(for: selection))
+    }
+
+    private func showNextRange() {
+        guard !navigationAnchor.isCurrent else { return }
+        if let next = calculator.nextCompletedAnchor(for: selection, referenceDate: Date()) {
+            navigationAnchor = .completed(next)
+        } else {
+            navigationAnchor = .current
+            referenceDate = Date()
+        }
     }
 
     private var rangeStatusTitle: String {

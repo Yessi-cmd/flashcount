@@ -4,6 +4,7 @@ import SwiftData
 /// 账本主页面 - 展示当前账本的交易列表和统计
 struct LedgerView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("payday") private var payday = 1
     @Query private var allTransactions: [Transaction]
@@ -335,25 +336,7 @@ struct LedgerView: View {
                         }
 
                         // 日期筛选快捷标签
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(LedgerPeriodFilter.allCases, id: \.self) { filter in
-                                    Button {
-                                        withAnimation(.spring(response: 0.3)) { dateFilter = filter }
-                                    } label: {
-                                        Text(filter.rawValue)
-                                            .font(.caption.weight(.medium))
-                                            .lineLimit(1)
-                                            .fixedSize(horizontal: true, vertical: false)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(dateFilter == filter ? DesignSystem.primaryColor.opacity(0.16) : DesignSystem.softFill)
-                                            .foregroundStyle(dateFilter == filter ? DesignSystem.primaryColor : DesignSystem.textSecondary)
-                                            .clipShape(Capsule())
-                                    }
-                                }
-                            }
-                        }
+                        dateFilterStrip
 
                         // 自定义日期范围
                         if dateFilter == .custom {
@@ -597,6 +580,83 @@ struct LedgerView: View {
     }
 
     // MARK: - Components
+
+    @ViewBuilder
+    private var dateFilterStrip: some View {
+        if #available(iOS 26.0, *) {
+            liquidGlassDateFilterStrip
+        } else {
+            legacyDateFilterStrip
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private var liquidGlassDateFilterStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            GlassEffectContainer(spacing: 6) {
+                HStack(spacing: 8) {
+                    ForEach(LedgerPeriodFilter.allCases, id: \.self) { filter in
+                        let isSelected = dateFilter == filter
+                        Button {
+                            selectDateFilter(filter)
+                        } label: {
+                            Text(filter.rawValue)
+                                .font(.caption.weight(isSelected ? .semibold : .medium))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .padding(.horizontal, 13)
+                                .padding(.vertical, 7)
+                                .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                                .contentShape(Capsule())
+                                .liquidGlassSurface(
+                                    tint: isSelected ? DesignSystem.primaryColor.opacity(0.18) : nil,
+                                    shape: .capsule,
+                                    isInteractive: true,
+                                    isClear: !isSelected
+                                )
+                                .animation(reduceMotion ? nil : DesignSystem.glassSelectionAnimation, value: isSelected)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(isSelected ? .isSelected : [])
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private var legacyDateFilterStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(LedgerPeriodFilter.allCases, id: \.self) { filter in
+                    Button {
+                        selectDateFilter(filter)
+                    } label: {
+                        Text(filter.rawValue)
+                            .font(.caption.weight(.medium))
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                dateFilter == filter
+                                    ? DesignSystem.primaryColor.opacity(0.16)
+                                    : DesignSystem.softFill
+                            )
+                            .foregroundStyle(dateFilter == filter ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                            .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+    }
+
+    private func selectDateFilter(_ filter: LedgerPeriodFilter) {
+        withAnimation(reduceMotion ? nil : DesignSystem.glassSelectionAnimation) {
+            dateFilter = filter
+        }
+        HapticManager.selection()
+    }
 
     private func monthlySummaryCard(_ summary: LedgerPresentation.MonthlySummary) -> some View {
         VStack(alignment: .leading, spacing: 17) {
