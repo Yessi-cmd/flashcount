@@ -525,12 +525,99 @@ private struct ReportObservedContent: View {
         VStack(spacing: DesignSystem.sectionSpacing) {
             streakCard(days: data.streakDays)
             summaryCard(data: data)
+            smartAnalysisCard(data: data)
             budgetCard(page.budget)
             timeBucketBarChart(data: data)
             categoryPieChart(data: data)
             topCategoriesCard(data: data)
             insightsCard(data: data)
         }
+    }
+
+    private func smartAnalysisCard(data: ReportData) -> some View {
+        let analysis = data.smartAnalysis
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("智能分析", systemImage: "sparkles")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(DesignSystem.textSecondary)
+                Spacer()
+                Text(data.period.rawValue)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(DesignSystem.primaryColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(DesignSystem.primaryColor.opacity(0.1))
+                    .clipShape(Capsule())
+            }
+
+            HStack(alignment: .top, spacing: 8) {
+                analysisMetric(
+                    title: analysis.averageLabel,
+                    value: analysis.averageExpense.formattedCurrency,
+                    detail: analysis.averageDetail,
+                    icon: "divide.circle.fill"
+                )
+                analysisMetric(
+                    title: peakMetricTitle(data.period),
+                    value: analysis.peakBucket?.label ?? "暂无",
+                    detail: analysis.peakBucket.map {
+                        "\($0.expense.formattedCurrency) · \(ReportPercentageFormatter.categoryShare(analysis.peakShare))"
+                    } ?? "尚无支出",
+                    icon: "waveform.path.ecg.rectangle.fill"
+                )
+                analysisMetric(
+                    title: analysis.activeBucketLabel,
+                    value: "\(analysis.activeBucketCount)",
+                    detail: "共 \(data.timeBuckets.count) 个区间",
+                    icon: "calendar.badge.checkmark"
+                )
+            }
+
+            if let projectedExpense = analysis.projectedExpense, data.period != .daily {
+                HStack(spacing: 8) {
+                    Image(systemName: "scope")
+                        .foregroundStyle(DesignSystem.primaryColor)
+                    Text("按当前节奏，本期预计支出")
+                        .foregroundStyle(DesignSystem.textSecondary)
+                    Spacer()
+                    Text(projectedExpense.formattedCurrency)
+                        .fontWeight(.semibold)
+                        .monospacedDigit()
+                        .foregroundStyle(DesignSystem.textPrimary)
+                }
+                .font(.caption)
+                .padding(.top, 2)
+            }
+        }
+        .glassCard()
+        .accessibilityIdentifier("report.smartAnalysis")
+    }
+
+    private func analysisMetric(
+        title: String,
+        value: String,
+        detail: String,
+        icon: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(DesignSystem.primaryColor)
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(DesignSystem.textTertiary)
+            Text(value)
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(DesignSystem.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            Text(detail)
+                .font(.system(size: 9))
+                .foregroundStyle(DesignSystem.textTertiary)
+                .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @MainActor
@@ -887,20 +974,53 @@ private struct ReportObservedContent: View {
 
     private func insightsCard(data: ReportData) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("🧠 消费洞察").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
-            if data.insights.isEmpty {
+            Label("智能洞察", systemImage: "brain.head.profile.fill")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(DesignSystem.textSecondary)
+            if data.smartAnalysis.insights.isEmpty {
                 Text("该报告期数据不足，暂未生成趋势洞察")
                     .font(.caption).foregroundStyle(DesignSystem.textTertiary)
             } else {
-                ForEach(data.insights, id: \.self) { insight in
-                    Text(insight)
-                        .font(.subheadline)
-                        .foregroundStyle(DesignSystem.textSecondary)
-                        .padding(.vertical, 4)
+                ForEach(data.smartAnalysis.insights) { insight in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: insight.isSensitive && privacyLock.hidesSensitiveAmounts ? "lock.fill" : insight.systemImage)
+                            .font(.caption)
+                            .foregroundStyle(insightColor(insight.tone))
+                            .frame(width: 22, height: 22)
+                            .background(insightColor(insight.tone).opacity(0.12))
+                            .clipShape(Circle())
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(insight.isSensitive && privacyLock.hidesSensitiveAmounts ? "收入洞察已隐藏" : insight.title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(DesignSystem.textPrimary)
+                            Text(insight.isSensitive && privacyLock.hidesSensitiveAmounts ? "验证后显示结余率分析" : insight.detail)
+                                .font(.caption)
+                                .foregroundStyle(DesignSystem.textSecondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
                 }
             }
         }
         .glassCard()
+        .accessibilityIdentifier("report.insights")
+    }
+
+    private func peakMetricTitle(_ period: ReportPeriod) -> String {
+        switch period.bucketGranularity {
+        case .hour: return "峰值时段"
+        case .day: return "峰值日期"
+        case .week: return "峰值周"
+        case .month: return "峰值月"
+        }
+    }
+
+    private func insightColor(_ tone: ReportInsightTone) -> Color {
+        switch tone {
+        case .positive: return DesignSystem.incomeColor
+        case .neutral: return DesignSystem.primaryColor
+        case .attention: return DesignSystem.warningColor
+        }
     }
 
     private func displayedBreakdown(_ items: [CategorySpending]) -> [CategorySpending] {

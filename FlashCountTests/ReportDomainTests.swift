@@ -122,6 +122,46 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.expenseChange, 1)
         XCTAssertEqual(report.timeBuckets.reduce(Decimal.zero) { $0 + $1.expense }, 100)
         XCTAssertEqual(report.transactionCount, 1)
+        XCTAssertEqual(report.smartAnalysis.averageLabel, "天均支出")
+        XCTAssertNotNil(report.smartAnalysis.projectedExpense)
+    }
+
+    func testSmartAnalysisAdaptsMetricsAndPeakInsightToDailyReport() throws {
+        let context = try makeContext()
+        let reference = try date(2026, 7, 12, 20)
+        insertExpense(20, at: try date(2026, 7, 12, 9), into: context)
+        insertExpense(80, at: try date(2026, 7, 12, 18), into: context)
+        try context.save()
+
+        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+            period: .daily,
+            target: .current(referenceDate: reference)
+        )
+
+        XCTAssertEqual(report.smartAnalysis.averageLabel, "笔均支出")
+        XCTAssertEqual(report.smartAnalysis.averageExpense, 50)
+        XCTAssertEqual(report.smartAnalysis.activeBucketCount, 2)
+        XCTAssertEqual(report.smartAnalysis.peakBucket?.expense, 80)
+        XCTAssertEqual(report.smartAnalysis.insights.first?.id, "period-peak")
+        XCTAssertEqual(report.smartAnalysis.insights.first?.title, "今日高峰时段")
+    }
+
+    func testSmartAnalysisDetectsWeekendConcentrationAndSensitiveSavingsRate() throws {
+        let context = try makeContext()
+        insertExpense(90, at: try date(2026, 7, 11, 12), into: context)
+        insertExpense(10, at: try date(2026, 7, 8, 12), into: context)
+        context.insert(Transaction(amount: 200, isExpense: false, date: try date(2026, 7, 7, 12)))
+        try context.save()
+
+        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+            period: .weekly,
+            target: .completed(containing: try date(2026, 7, 8))
+        )
+
+        XCTAssertEqual(report.smartAnalysis.savingsRate, 0.5)
+        XCTAssertTrue(report.smartAnalysis.insights.contains { $0.id == "weekend-share" })
+        XCTAssertEqual(report.smartAnalysis.insights.first(where: { $0.id == "savings-rate" })?.isSensitive, true)
+        XCTAssertNil(report.smartAnalysis.projectedExpense)
     }
 
     func testScheduledWeeklyReportAggregatesDaysAndComparesCompletePriorWeek() throws {
