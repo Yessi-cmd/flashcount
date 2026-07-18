@@ -38,7 +38,7 @@
 - `xcodebuild -project FlashCount.xcodeproj -scheme FlashCount -destination 'platform=iOS Simulator,id=02222C1D-48B3-490A-A9A8-FDC193410982' -derivedDataPath /tmp/flashcount-reminder-swiftdata-tests -only-testing:FlashCountTests/FinanceDomainTests test CODE_SIGNING_ALLOWED=NO`
 - 完整 `FlashCountTests` 单元测试：83/83 通过。
 - `testMainTabBarHidesAfterIdleAndReturnsOnInteraction` UI 测试单独复跑通过；此前一次全量测试中的该项失败为既有时序波动。
-- 已运行 `./scripts/package-altstore.sh`；当前机器的 CoreSimulator 服务不可用，导致 `actool` 在资源编译阶段无法找到 simulator runtime，未生成或替换 IPA。
+- `./scripts/package-altstore.sh` 成功生成并校验 `build/FlashCount-AltStore.ipa`（1.3.0 (3)，仅 arm64、未签名且不含 Widget、签名材料或运行时用户数据）。
 - 新增覆盖：旧 JSON 一次性迁移且保留原文件、提醒 CRUD、备份替换恢复、保留旧文件时的权威替换恢复、以及旧 SwiftData 存储增加 `Reminder` 模型后的交易保留。
 
 ## 剩余限制
@@ -46,4 +46,3 @@
 - 覆盖安装必须保持相同的 App bundle identifier；删除 App、改用不同 bundle identifier，或手动清除系统 App 数据都会清空系统数据容器。
 - 旧 JSON 会作为本地回退副本继续保留，不会自动清理；后续如需提供“清理旧提醒文件”入口，应先让用户确认并保留可恢复备份。
 - 本地通知仍受系统权限、Focus 模式和 iOS 待处理通知容量限制。
-- 当前环境的 CoreSimulator 服务异常；恢复该服务后需要重新执行 AltStore 打包，才能交付已验证的 IPA。
