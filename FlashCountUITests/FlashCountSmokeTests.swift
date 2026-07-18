@@ -23,6 +23,51 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["记一笔"].waitForExistence(timeout: 5))
     }
 
+    func testLedgerBatchActionsStayAboveMainTabBar() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hasCompletedOnboarding", "true"]
+        app.launch()
+
+        let batchSelect = app.buttons["ledger.batchSelect"]
+        let ledgerTab = app.buttons["mainTab.ledger"]
+        XCTAssertTrue(batchSelect.waitForExistence(timeout: 5))
+        XCTAssertTrue(ledgerTab.waitForExistence(timeout: 5))
+        batchSelect.tap()
+
+        let batchDone = app.buttons["ledger.batchDone"]
+        XCTAssertTrue(batchDone.waitForExistence(timeout: 5))
+        XCTAssertLessThanOrEqual(
+            batchDone.frame.maxY,
+            ledgerTab.frame.minY,
+            "账本批量操作栏不应与主标签栏重叠"
+        )
+    }
+
+    func testMainTabBarHidesAfterIdleAndReturnsOnInteraction() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-visualReviewTab", "3",
+            "-uiTestTabBarIdle"
+        ]
+        app.launch()
+
+        let reportTab = app.buttons["mainTab.report"]
+        let weekly = app.buttons["report.period.weekly"]
+        XCTAssertTrue(reportTab.waitForExistence(timeout: 5))
+        XCTAssertTrue(weekly.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            reportTab.waitForNonExistence(timeout: 5),
+            "底部标签栏应在无操作一段时间后隐藏"
+        )
+
+        weekly.tap()
+        XCTAssertTrue(
+            reportTab.waitForExistence(timeout: 2),
+            "点击页面内容后应唤回底部标签栏"
+        )
+    }
+
     func testMainTabBarSelectionKeepsControlsAligned() throws {
         try XCTSkipIf(
             ProcessInfo.processInfo.operatingSystemVersion.majorVersion < 26,
@@ -162,6 +207,33 @@ final class FlashCountSmokeTests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["report.range"].waitForExistence(timeout: 5))
         XCTAssertTrue(payCycle.isSelected)
+    }
+
+    func testReportContentStopsAboveMainTabBar() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-visualReviewTab", "3",
+            "-uiTestReportLayout"
+        ]
+        app.launch()
+
+        let scrollView = app.scrollViews["report.scroll"]
+        let contentEnd = app.otherElements["report.contentEnd"]
+        let reportTab = app.buttons["mainTab.report"]
+        XCTAssertTrue(scrollView.waitForExistence(timeout: 5))
+        XCTAssertTrue(contentEnd.waitForExistence(timeout: 5))
+        XCTAssertTrue(reportTab.waitForExistence(timeout: 5))
+
+        for _ in 0..<12 where contentEnd.frame.maxY > reportTab.frame.minY {
+            scrollView.swipeUp()
+        }
+
+        XCTAssertLessThanOrEqual(
+            contentEnd.frame.maxY,
+            reportTab.frame.minY,
+            "报表内容末尾不应被主标签栏覆盖"
+        )
     }
 
     func testForegroundReportNotificationPresentsMatchingReport() {

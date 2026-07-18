@@ -62,6 +62,7 @@ private struct AppRootView: View {
                         guard !Self.didPrepareData else { return }
                         Self.didPrepareData = true
                         DefaultDataService(modelContext: modelContext).prepareAppData()
+                        prepareReportLayoutUITestDataIfNeeded()
                         Task {
                             _ = try? await NotificationScheduleCoordinator.shared.rebuild()
                         }
@@ -148,5 +149,46 @@ private struct AppRootView: View {
         guard !Self.didPrepareData else { return }
         Self.didPrepareData = true
         DefaultDataService(modelContext: modelContext).prepareAppData()
+    }
+
+    /// 为底部遮挡回归测试提供一份足以生成完整报表、且可重复使用的本地数据。
+    private func prepareReportLayoutUITestDataIfNeeded() {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-uiTestReportLayout") else { return }
+
+        let marker = "__ui_test_report_layout__"
+        let transactionDescriptor = FetchDescriptor<Transaction>(
+            predicate: #Predicate<Transaction> { transaction in
+                transaction.note == marker
+            }
+        )
+        let existingTransaction = (try? modelContext.fetch(transactionDescriptor))?.first
+
+        var categoryDescriptor = FetchDescriptor<Category>(
+            predicate: #Predicate<Category> { category in
+                category.name == "餐饮" && category.isExpense && !category.isArchived
+            }
+        )
+        categoryDescriptor.fetchLimit = 1
+        let category = (try? modelContext.fetch(categoryDescriptor))?.first
+
+        if let existingTransaction {
+            existingTransaction.amount = Decimal(string: "51.90") ?? 51.9
+            existingTransaction.isExpense = true
+            existingTransaction.date = Date().addingTimeInterval(-60)
+            existingTransaction.category = category
+        } else {
+            modelContext.insert(
+                Transaction(
+                    amount: Decimal(string: "51.90") ?? 51.9,
+                    note: marker,
+                    date: Date().addingTimeInterval(-60),
+                    category: category
+                )
+            )
+        }
+        try? modelContext.save()
+#endif
     }
 }

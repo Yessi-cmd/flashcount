@@ -15,13 +15,22 @@ private enum MainSheetDestination: Identifiable, Equatable {
     }
 }
 
+private enum MainTabConstants {
+    static let idleTimeoutNanoseconds: UInt64 = 10_000_000_000
+    static let idleTestTimeoutNanoseconds: UInt64 = 2_000_000_000
+}
+
 /// 主标签栏视图
 struct MainTabView: View {
     @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @State private var selectedTab: Int
     @State private var animatedSelectedTab: Int
+    @State private var isTabBarVisible = true
+    @State private var interactionToken = UUID()
+    @State private var isTrackingInteraction = false
     @State private var presentedSheet: MainSheetDestination?
     @State private var pendingForegroundReport: ReportRoute.Request?
     @State private var tabReportRequest: ReportRoute.Request?
@@ -47,7 +56,7 @@ struct MainTabView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        VStack(spacing: 0) {
             TabView(selection: $selectedTab) {
                 LedgerView()
                     .toolbar(.hidden, for: .tabBar)
@@ -71,9 +80,13 @@ struct MainTabView: View {
             .tint(DesignSystem.primaryColor)
             .toolbar(.hidden, for: .tabBar)
 
-            // 自定义底部标签栏
-            customTabBar
+            // 与页面并列布局，从结构上杜绝所有 Tab 内容进入底栏区域。
+            if isTabBarVisible {
+                customTabBar
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .background(DesignSystem.surfaceBackground)
         .sheet(item: $presentedSheet) { destination in
             switch destination {
             case .quickEntry:
@@ -110,10 +123,12 @@ struct MainTabView: View {
             processQuickEntryRequestIfNeeded()
             processReportRequestIfNeeded()
             prepareForegroundReportUITestIfNeeded()
+            showTabBarAndResetIdleTimer()
         }
         .onChange(of: shouldShowQuickEntry) { processQuickEntryRequestIfNeeded() }
         .onChange(of: shouldShowReport) { processReportRequestIfNeeded() }
-        .onChange(of: showOnboarding) {
+        .onChange(of: showOnboarding) { _, isPresented in
+            handleOverlayStateChange(isPresented: isPresented)
             if !showOnboarding {
                 processQuickEntryRequestIfNeeded()
                 processReportRequestIfNeeded()
@@ -121,18 +136,50 @@ struct MainTabView: View {
             }
         }
         .onChange(of: presentedSheet) { _, destination in
+            handleOverlayStateChange(isPresented: destination != nil)
             if destination == nil {
                 presentPendingForegroundReportIfPossible()
             }
         }
         .onChange(of: showPlusActions) { _, isPresented in
+            handleOverlayStateChange(isPresented: isPresented)
             if !isPresented {
                 presentPendingForegroundReportIfPossible()
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                showTabBarAndResetIdleTimer()
+            } else {
+                interactionToken = UUID()
+                isTabBarVisible = false
             }
         }
         .onOpenURL { url in
             handleDeepLink(url)
         }
+        .task(id: interactionToken) {
+            do {
+                try await Task.sleep(nanoseconds: tabBarIdleTimeoutNanoseconds)
+            } catch {
+                return
+            }
+            guard !Task.isCancelled, canHideTabBar else { return }
+            withAnimation(tabBarVisibilityAnimation) {
+                isTabBarVisible = false
+            }
+        }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    guard !isTrackingInteraction else { return }
+                    isTrackingInteraction = true
+                    showTabBarAndResetIdleTimer()
+                }
+                .onEnded { _ in
+                    isTrackingInteraction = false
+                }
+        )
     }
 
 
@@ -286,6 +333,7 @@ struct MainTabView: View {
     }
 
     private func performPrimaryAction() {
+        showTabBarAndResetIdleTimer()
         HapticManager.impact(.medium)
         if selectedTab == 4 {
             showPlusActions = true
@@ -296,6 +344,51 @@ struct MainTabView: View {
 
     private var isQuickEntryPresented: Bool {
         presentedSheet == .quickEntry
+    }
+
+    private var tabBarIdleTimeoutNanoseconds: UInt64 {
+#if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-uiTestTabBarIdle") {
+            return MainTabConstants.idleTestTimeoutNanoseconds
+        }
+#endif
+        return MainTabConstants.idleTimeoutNanoseconds
+    }
+
+    private var canHideTabBar: Bool {
+        hasCompletedOnboarding
+            && scenePhase == .active
+            && presentedSheet == nil
+            && !showPlusActions
+            && !showOnboarding
+    }
+
+    private var tabBarVisibilityAnimation: Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.24)
+    }
+
+    private func showTabBarAndResetIdleTimer() {
+        guard scenePhase == .active else { return }
+        if !isTabBarVisible {
+            withAnimation(tabBarVisibilityAnimation) {
+                isTabBarVisible = true
+            }
+        }
+        interactionToken = UUID()
+    }
+
+    private func handleOverlayStateChange(isPresented: Bool) {
+        if isPresented {
+            // 弹窗期间主标签栏不参与交互；关闭后从完整可见状态重新计时。
+            if !isTabBarVisible {
+                withAnimation(tabBarVisibilityAnimation) {
+                    isTabBarVisible = true
+                }
+            }
+            interactionToken = UUID()
+        } else {
+            showTabBarAndResetIdleTimer()
+        }
     }
 
     private func prepareForegroundReportUITestIfNeeded() {
@@ -332,6 +425,7 @@ struct MainTabView: View {
 #endif
 
     private func selectTab(_ tag: Int, providesHaptic: Bool = true) {
+        showTabBarAndResetIdleTimer()
         guard selectedTab != tag else { return }
         if providesHaptic {
             HapticManager.selection()

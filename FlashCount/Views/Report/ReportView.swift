@@ -135,9 +135,18 @@ struct ReportView: View {
                             payday: payday
                         )
                         .id(observationScope)
+
+#if DEBUG
+                        Color.clear
+                            .frame(height: 1)
+                            .accessibilityElement()
+                            .accessibilityLabel("报表内容结尾")
+                            .accessibilityIdentifier("report.contentEnd")
+#endif
                     }
                     .padding()
                 }
+                .accessibilityIdentifier("report.scroll")
             }
             .navigationTitle("报表")
             .navigationBarTitleDisplayMode(.large)

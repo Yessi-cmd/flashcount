@@ -440,6 +440,8 @@ struct LedgerView: View {
                                     .font(.subheadline)
                                     .foregroundStyle(DesignSystem.textSecondary)
                             }
+                            .accessibilityLabel("批量选择")
+                            .accessibilityIdentifier("ledger.batchSelect")
 
                             // 筛选按钮
                             Button {
@@ -512,7 +514,7 @@ struct LedgerView: View {
             } message: {
                 Text(batchDeleteError ?? "未知错误")
             }
-            .overlay(alignment: .bottom) {
+            .safeAreaInset(edge: .bottom, spacing: 0) {
                 if isSelecting {
                     batchActionBar(transactions: presentation.filteredTransactions)
                 } else {
@@ -1037,6 +1039,7 @@ struct LedgerView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
             }
+            .accessibilityIdentifier("ledger.batchDone")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
