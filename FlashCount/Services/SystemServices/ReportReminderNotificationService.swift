@@ -4,8 +4,8 @@ import UserNotifications
 protocol ReportReminderNotificationScheduling {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization() async -> Bool
-    func replaceSchedule(with preferences: ReportReminderPreferences) async throws
-    func cancelAll() async
+    func replaceSchedule(with preferences: ReportReminderPreferences, reminders: [ReminderItem]) async throws
+    func cancelAll(reminders: [ReminderItem]) async
 }
 
 struct ReportReminderRequestPlan: Equatable {
@@ -261,24 +261,27 @@ enum ReportReminderNotificationService {
         }
     }
 
-    static func replaceSchedule(with preferences: ReportReminderPreferences) async throws {
+    static func replaceSchedule(
+        with preferences: ReportReminderPreferences,
+        reminders: [ReminderItem]
+    ) async throws {
         _ = preferences
-        try await NotificationScheduleCoordinator.shared.rebuild()
+        try await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
     }
 
-    static func cancelAll() async {
-        _ = try? await NotificationScheduleCoordinator.shared.rebuild()
+    static func cancelAll(reminders: [ReminderItem]) async {
+        _ = try? await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
     }
 
-    static func refreshStoredScheduleIfAuthorized() async {
+    static func refreshStoredScheduleIfAuthorized(reminders: [ReminderItem]) async {
         let preferences = UserDefaultsReportReminderPreferencesStore().load()
         guard !preferences.enabledPeriods.isEmpty else {
-            _ = try? await NotificationScheduleCoordinator.shared.rebuild()
+            _ = try? await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
             return
         }
         let status = await authorizationStatus()
         guard status == .authorized || status == .provisional || status == .ephemeral else { return }
-        _ = try? await NotificationScheduleCoordinator.shared.rebuild()
+        _ = try? await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
     }
 }
 
@@ -291,11 +294,11 @@ struct SystemReportReminderNotificationScheduler: ReportReminderNotificationSche
         await ReportReminderNotificationService.requestAuthorization()
     }
 
-    func replaceSchedule(with preferences: ReportReminderPreferences) async throws {
-        try await ReportReminderNotificationService.replaceSchedule(with: preferences)
+    func replaceSchedule(with preferences: ReportReminderPreferences, reminders: [ReminderItem]) async throws {
+        try await ReportReminderNotificationService.replaceSchedule(with: preferences, reminders: reminders)
     }
 
-    func cancelAll() async {
-        await ReportReminderNotificationService.cancelAll()
+    func cancelAll(reminders: [ReminderItem]) async {
+        await ReportReminderNotificationService.cancelAll(reminders: reminders)
     }
 }

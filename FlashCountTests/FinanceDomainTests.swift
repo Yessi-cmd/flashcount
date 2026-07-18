@@ -37,15 +37,158 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertThrowsError(try store.save([ReminderItem(title: "test", dueDate: Date().addingTimeInterval(60))]))
     }
 
-    func testReminderMutationsKeepCallerStateWhenPersistenceFails() {
-        let original = [ReminderItem(title: "原提醒", dueDate: Date().addingTimeInterval(60))]
-        let service = ReminderMutationService(store: FailingReminderStore())
+    func testLegacyReminderMigrationImportsOnceAndRetainsOriginalJSON() throws {
+        let context = try makeContext()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
 
-        XCTAssertThrowsError(try service.adding(ReminderItem(title: "新提醒", dueDate: Date().addingTimeInterval(120)), to: original))
-        XCTAssertThrowsError(try service.completing(id: original[0].id, in: original))
-        XCTAssertThrowsError(try service.deleting(id: original[0].id, from: original))
-        XCTAssertEqual(original.count, 1)
-        XCTAssertFalse(original[0].isCompleted)
+        let fileURL = directory.appendingPathComponent("flashcount-reminders.json")
+        let legacyStore = FileReminderStore(fileURL: fileURL)
+        let dueDate = Date(timeIntervalSince1970: 1_784_000_000)
+        let pending = ReminderItem(title: "旧提醒", note: "保留", dueDate: dueDate, intensity: .strong)
+        let completed = ReminderItem(
+            title: "已完成提醒",
+            dueDate: dueDate.addingTimeInterval(60),
+            isCompleted: true,
+            completedAt: dueDate.addingTimeInterval(30)
+        )
+        try legacyStore.save([pending, completed])
+
+        let suiteName = "ReminderMigrationTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let service = ReminderDataService(
+            modelContext: context,
+            legacyStore: legacyStore,
+            userDefaults: defaults,
+            migrationKey: "test-reminder-migration"
+        )
+
+        XCTAssertEqual(try service.migrateLegacyFileIfNeeded(), 2)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fileURL.path))
+
+        let migrated = try service.load().sorted { $0.id.uuidString < $1.id.uuidString }
+        let expected = [pending, completed].sorted { $0.id.uuidString < $1.id.uuidString }
+        XCTAssertEqual(migrated.count, expected.count)
+        for (actual, expected) in zip(migrated, expected) {
+            assertReminder(actual, matches: expected)
+        }
+        XCTAssertEqual(try service.migrateLegacyFileIfNeeded(), 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Reminder>()), 2)
+    }
+
+    func testReminderDatabaseMutationsPreserveCompletionAndIdentity() throws {
+        let context = try makeContext()
+        let service = ReminderDataService(modelContext: context)
+        let reminder = ReminderItem(title: "数据库提醒", dueDate: Date().addingTimeInterval(60))
+
+        XCTAssertEqual(try service.add(reminder), [reminder])
+        let completedAt = Date()
+        let completed = try service.complete(id: reminder.id, at: completedAt)
+        XCTAssertEqual(completed.first?.id, reminder.id)
+        XCTAssertTrue(completed.first?.isCompleted == true)
+        XCTAssertEqual(completed.first?.completedAt, completedAt)
+
+        XCTAssertTrue(try service.delete(id: reminder.id).isEmpty)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Reminder>()), 0)
+    }
+
+    func testAuthoritativeRestoreSkipsRetainedLegacyReminderFile() throws {
+        let context = try makeContext()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let fileURL = directory.appendingPathComponent("flashcount-reminders.json")
+        let legacyStore = FileReminderStore(fileURL: fileURL)
+        try legacyStore.save([ReminderItem(title: "过期旧提醒", dueDate: Date().addingTimeInterval(60))])
+
+        let suiteName = "ReminderRestoreTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let service = ReminderDataService(
+            modelContext: context,
+            legacyStore: legacyStore,
+            userDefaults: defaults,
+            migrationKey: "test-reminder-replace"
+        )
+
+        service.markLegacyFileMigrationComplete()
+        XCTAssertEqual(try service.migrateLegacyFileIfNeeded(), 0)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Reminder>()), 0)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: fileURL.path))
+    }
+
+    func testAddingReminderModelPreservesExistingSwiftDataStore() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appendingPathComponent("FlashCount.store")
+
+        let original = Transaction(amount: Decimal(string: "42.50")!, note: "升级前交易")
+        let originalID = original.id
+        let originalAmount = original.amount
+        let originalNote = original.note
+        do {
+            let legacyConfiguration = ModelConfiguration(
+                "FlashCount",
+                schema: Schema(legacyModelTypes),
+                url: storeURL,
+                cloudKitDatabase: .none
+            )
+            let legacyContainer = try ModelContainer(
+                for: Transaction.self,
+                Category.self,
+                Ledger.self,
+                RecurringRule.self,
+                Budget.self,
+                Asset.self,
+                PhysicalAsset.self,
+                CashPoolItem.self,
+                CashPoolState.self,
+                SavingsGoal.self,
+                InstallmentBill.self,
+                TransactionTemplate.self,
+                configurations: legacyConfiguration
+            )
+            let legacyContext = ModelContext(legacyContainer)
+            legacyContext.insert(original)
+            try legacyContext.save()
+        }
+
+        let upgradedConfiguration = ModelConfiguration(
+            "FlashCount",
+            schema: Schema(legacyModelTypes + [Reminder.self]),
+            url: storeURL,
+            cloudKitDatabase: .none
+        )
+        let upgradedContainer = try ModelContainer(
+            for: Transaction.self,
+            Category.self,
+            Ledger.self,
+            RecurringRule.self,
+            Budget.self,
+            Asset.self,
+            PhysicalAsset.self,
+            CashPoolItem.self,
+            CashPoolState.self,
+            SavingsGoal.self,
+            InstallmentBill.self,
+            TransactionTemplate.self,
+            Reminder.self,
+            configurations: upgradedConfiguration
+        )
+        let upgradedContext = ModelContext(upgradedContainer)
+
+        let restored = try XCTUnwrap(upgradedContext.fetch(FetchDescriptor<Transaction>()).first)
+        XCTAssertEqual(restored.id, originalID)
+        XCTAssertEqual(restored.amount, originalAmount)
+        XCTAssertEqual(restored.note, originalNote)
+
+        let reminder = ReminderItem(title: "升级后提醒", dueDate: Date().addingTimeInterval(60))
+        _ = try ReminderDataService(modelContext: upgradedContext).add(reminder)
+        XCTAssertEqual(try upgradedContext.fetchCount(FetchDescriptor<Reminder>()), 1)
     }
 
     func testDuplicateBackupUUIDIsRejectedBeforeReplaceMutatesData() throws {
@@ -551,6 +694,22 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertEqual(states.first?.transactionDelta, -10)
     }
 
+    func testBackupRoundTripRestoresSwiftDataReminders() throws {
+        let context = try makeContext()
+        let service = ReminderDataService(modelContext: context)
+        let original = ReminderItem(title: "备份中的提醒", note: "保留", dueDate: Date().addingTimeInterval(3_600))
+        _ = try service.add(original)
+
+        let backupService = DataBackupService(modelContext: context)
+        let snapshot = try backupService.exportJSON()
+        _ = try service.add(ReminderItem(title: "备份外提醒", dueDate: Date().addingTimeInterval(7_200)))
+
+        _ = try backupService.importJSON(data: snapshot, mode: .replace)
+
+        let restored = try XCTUnwrap(ReminderDataService(modelContext: context).load().first)
+        assertReminder(restored, matches: original)
+    }
+
     func testPreviousBackupWithoutAnchorFieldsRemainsImportable() throws {
         let context = try makeContext()
         let dueDate = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 1, day: 31, hour: 9)))
@@ -588,9 +747,56 @@ final class FinanceDomainTests: XCTestCase {
             SavingsGoal.self,
             InstallmentBill.self,
             TransactionTemplate.self,
+            Reminder.self,
             configurations: configuration
         )
         return ModelContext(container)
+    }
+
+    private var legacyModelTypes: [any PersistentModel.Type] {
+        [
+            Transaction.self,
+            Category.self,
+            Ledger.self,
+            RecurringRule.self,
+            Budget.self,
+            Asset.self,
+            PhysicalAsset.self,
+            CashPoolItem.self,
+            CashPoolState.self,
+            SavingsGoal.self,
+            InstallmentBill.self,
+            TransactionTemplate.self
+        ]
+    }
+
+    private func assertReminder(
+        _ actual: ReminderItem,
+        matches expected: ReminderItem,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(actual.id, expected.id, file: file, line: line)
+        XCTAssertEqual(actual.title, expected.title, file: file, line: line)
+        XCTAssertEqual(actual.note, expected.note, file: file, line: line)
+        XCTAssertEqual(actual.intensity, expected.intensity, file: file, line: line)
+        XCTAssertEqual(actual.isCompleted, expected.isCompleted, file: file, line: line)
+        XCTAssertEqual(actual.dueDate.timeIntervalSince1970, expected.dueDate.timeIntervalSince1970, accuracy: 1, file: file, line: line)
+        XCTAssertEqual(actual.createdAt.timeIntervalSince1970, expected.createdAt.timeIntervalSince1970, accuracy: 1, file: file, line: line)
+        switch (actual.completedAt, expected.completedAt) {
+        case (nil, nil):
+            break
+        case let (.some(actualDate), .some(expectedDate)):
+            XCTAssertEqual(
+                actualDate.timeIntervalSince1970,
+                expectedDate.timeIntervalSince1970,
+                accuracy: 1,
+                file: file,
+                line: line
+            )
+        default:
+            XCTFail("completedAt 不一致", file: file, line: line)
+        }
     }
 
     private func temporaryFile(named name: String, contents: Data) throws -> URL {
@@ -601,10 +807,4 @@ final class FinanceDomainTests: XCTestCase {
         try contents.write(to: url, options: .atomic)
         return url
     }
-}
-
-private struct FailingReminderStore: ReminderPersisting {
-    struct Failure: Error {}
-    func load() -> [ReminderItem] { [] }
-    func save(_ reminders: [ReminderItem]) throws { throw Failure() }
 }

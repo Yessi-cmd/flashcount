@@ -23,7 +23,8 @@ struct FlashCountApp: App {
             CashPoolState.self,
             SavingsGoal.self,
             InstallmentBill.self,
-            TransactionTemplate.self
+            TransactionTemplate.self,
+            Reminder.self
         ])
     }
 }
@@ -63,9 +64,7 @@ private struct AppRootView: View {
                         Self.didPrepareData = true
                         DefaultDataService(modelContext: modelContext).prepareAppData()
                         prepareReportLayoutUITestDataIfNeeded()
-                        Task {
-                            _ = try? await NotificationScheduleCoordinator.shared.rebuild()
-                        }
+                        rebuildNotificationSchedule()
                     }
             }
         }
@@ -111,7 +110,7 @@ private struct AppRootView: View {
             if phase == .background {
                 privacyLock.lock()
             } else if phase == .active, Self.didPrepareData {
-                Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild() }
+                rebuildNotificationSchedule()
             }
         }
     }
@@ -149,6 +148,15 @@ private struct AppRootView: View {
         guard !Self.didPrepareData else { return }
         Self.didPrepareData = true
         DefaultDataService(modelContext: modelContext).prepareAppData()
+    }
+
+    private func rebuildNotificationSchedule() {
+        do {
+            let reminders = try ReminderDataService(modelContext: modelContext).load()
+            Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders) }
+        } catch {
+            print("提醒通知重建前读取失败: \(error.localizedDescription)")
+        }
     }
 
     /// 为底部遮挡回归测试提供一份足以生成完整报表、且可重复使用的本地数据。

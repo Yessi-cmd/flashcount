@@ -253,7 +253,7 @@ actor NotificationScheduleCoordinator {
     init(
         center: any NotificationCenterScheduling = SystemNotificationCenterScheduler(),
         statusStore: NotificationScheduleStatusStore = NotificationScheduleStatusStore(),
-        reminderLoader: @escaping @Sendable () -> [ReminderItem] = { ReminderStore.load() },
+        reminderLoader: @escaping @Sendable () -> [ReminderItem] = { [] },
         preferencesLoader: @escaping @Sendable () -> ReportReminderPreferences = {
             UserDefaultsReportReminderPreferencesStore().load()
         },
@@ -273,7 +273,7 @@ actor NotificationScheduleCoordinator {
     }
 
     @discardableResult
-    func rebuild() async throws -> NotificationScheduleStatus {
+    func rebuild(reminders providedReminders: [ReminderItem]? = nil) async throws -> NotificationScheduleStatus {
         let referenceDate = now()
         let pending = await center.pendingRequests()
         let managedIdentifiers = pending
@@ -285,7 +285,7 @@ actor NotificationScheduleCoordinator {
             0
         )
         let candidates = NotificationSchedulePlanner.candidates(
-            reminders: reminderLoader(),
+            reminders: providedReminders ?? reminderLoader(),
             reportPreferences: preferencesLoader(),
             referenceDate: referenceDate,
             calendar: calendar,

@@ -121,6 +121,7 @@ final class CategoryManagementServiceTests: XCTestCase {
             SavingsGoal.self,
             InstallmentBill.self,
             TransactionTemplate.self,
+            Reminder.self,
             configurations: configuration
         )
         return ModelContext(container)

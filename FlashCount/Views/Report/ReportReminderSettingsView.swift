@@ -1,8 +1,10 @@
 import SwiftUI
+import SwiftData
 import UserNotifications
 
 struct ReportReminderSettingsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("payday") private var payday = 1
 
     @State private var preferences: ReportReminderPreferences
@@ -237,7 +239,8 @@ struct ReportReminderSettingsView: View {
             do {
                 try store.save(normalized)
                 do {
-                    try await scheduler.replaceSchedule(with: normalized)
+                    let reminders = try ReminderDataService(modelContext: modelContext).load()
+                    try await scheduler.replaceSchedule(with: normalized, reminders: reminders)
                     scheduleStatus = NotificationScheduleStatusStore().load()
                     dismiss()
                 } catch {

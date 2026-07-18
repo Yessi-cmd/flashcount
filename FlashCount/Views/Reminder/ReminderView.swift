@@ -1,24 +1,23 @@
 import SwiftUI
+import SwiftData
 import UserNotifications
 
 struct ReminderView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State private var reminders: [ReminderItem] = []
     @State private var showAddReminder = false
     @State private var notificationStatus: UNAuthorizationStatus = .notDetermined
     @State private var scheduleStatus = NotificationScheduleStatus.empty
     @State private var saveError: String?
     private let onClose: (() -> Void)?
-    private let reminderStore: any ReminderPersisting
     private let notificationScheduler: any ReminderNotificationScheduling
 
     init(
         onClose: (() -> Void)? = nil,
-        reminderStore: any ReminderPersisting = FileReminderStore(),
         notificationScheduler: any ReminderNotificationScheduling = SystemReminderNotificationScheduler()
     ) {
         self.onClose = onClose
-        self.reminderStore = reminderStore
         self.notificationScheduler = notificationScheduler
     }
 
@@ -123,7 +122,7 @@ struct ReminderView: View {
                 Text(saveError ?? "")
             }
             .onAppear {
-                reminders = reminderStore.load()
+                loadReminders()
                 scheduleStatus = NotificationScheduleStatusStore().load()
                 refreshNotificationStatus()
             }
@@ -233,8 +232,8 @@ struct ReminderView: View {
     @discardableResult
     private func add(_ reminder: ReminderItem) -> Bool {
         do {
-            reminders = try ReminderMutationService(store: reminderStore).adding(reminder, to: reminders)
-            schedule(reminder)
+            reminders = try ReminderDataService(modelContext: modelContext).add(reminder)
+            rebuildNotifications(requestAuthorizationIfNeeded: true)
             return true
         } catch {
             saveError = "提醒保存失败：\(error.localizedDescription)"
@@ -252,9 +251,8 @@ struct ReminderView: View {
 
     private func close(_ reminder: ReminderItem) {
         do {
-            reminders = try ReminderMutationService(store: reminderStore).completing(id: reminder.id, in: reminders)
-            notificationScheduler.cancel(reminderID: reminder.id)
-            scheduleStatus = NotificationScheduleStatusStore().load()
+            reminders = try ReminderDataService(modelContext: modelContext).complete(id: reminder.id)
+            rebuildNotifications()
         } catch {
             saveError = "提醒保存失败：\(error.localizedDescription)"
         }
@@ -262,22 +260,32 @@ struct ReminderView: View {
 
     private func delete(_ reminder: ReminderItem) {
         do {
-            reminders = try ReminderMutationService(store: reminderStore).deleting(id: reminder.id, from: reminders)
-            notificationScheduler.cancel(reminderID: reminder.id)
-            scheduleStatus = NotificationScheduleStatusStore().load()
+            reminders = try ReminderDataService(modelContext: modelContext).delete(id: reminder.id)
+            rebuildNotifications()
         } catch {
             saveError = "提醒保存失败：\(error.localizedDescription)"
         }
     }
 
-    private func schedule(_ reminder: ReminderItem) {
+    private func loadReminders() {
+        do {
+            reminders = try ReminderDataService(modelContext: modelContext).load()
+        } catch {
+            saveError = "提醒读取失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func rebuildNotifications(requestAuthorizationIfNeeded: Bool = false) {
+        let currentReminders = reminders
         Task {
-            let status = await notificationScheduler.authorizationStatus()
-            if status == .notDetermined {
-                _ = await notificationScheduler.requestAuthorization()
+            if requestAuthorizationIfNeeded {
+                let status = await notificationScheduler.authorizationStatus()
+                if status == .notDetermined {
+                    _ = await notificationScheduler.requestAuthorization()
+                }
             }
             do {
-                try await notificationScheduler.schedule(reminder)
+                try await notificationScheduler.rebuild(reminders: currentReminders)
             } catch {
                 saveError = "提醒已保存，但通知安排失败：\(error.localizedDescription)"
             }

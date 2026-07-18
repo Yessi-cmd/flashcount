@@ -1,6 +1,6 @@
 import Foundation
 
-struct ReminderItem: Identifiable, Codable, Equatable {
+struct ReminderItem: Identifiable, Codable, Equatable, Sendable {
     var id: UUID
     var title: String
     var note: String
@@ -35,7 +35,7 @@ struct ReminderItem: Identifiable, Codable, Equatable {
     }
 }
 
-enum ReminderIntensity: String, CaseIterable, Codable, Identifiable {
+enum ReminderIntensity: String, CaseIterable, Codable, Identifiable, Sendable {
     case normal = "普通提醒"
     case strong = "强提醒"
 

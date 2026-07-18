@@ -71,6 +71,7 @@
 		A251807FC75C217BFDE54A52 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03D1DAE410336C0B0B1944E7 /* Extensions.swift */; };
 		A437C73FD9A2A6A8BA0B9816 /* CategoryPickerComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E27D09CD08C8BE96114E84E /* CategoryPickerComponents.swift */; };
 		A8463ADEDD3C2C41BF65699E /* NotificationScheduleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EFD1230AE17F67A1659B34 /* NotificationScheduleCoordinator.swift */; };
+		AB314B983A9FA9676E868A9F /* Reminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8466A7DFE220F43816D4D85 /* Reminder.swift */; };
 		ABFFFD627940DC5832F15319 /* PhysicalAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495651D53C44DD6B14725323 /* PhysicalAsset.swift */; };
 		AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */; };
 		B9810EFEB42E21055212EDE1 /* TransactionTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8839618ED5DD4131D896BC /* TransactionTemplate.swift */; };
@@ -227,6 +228,7 @@
 		F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceDomainTests.swift; sourceTree = "<group>"; };
 		F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationService.swift; sourceTree = "<group>"; };
 		F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionService.swift; sourceTree = "<group>"; };
+		F8466A7DFE220F43816D4D85 /* Reminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reminder.swift; sourceTree = "<group>"; };
 		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
 		FBFD2135FE36029863FB0A1A /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -256,6 +258,7 @@
 				437BC90EE7A47F7AA13A5C1F /* Category.swift */,
 				AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */,
 				FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */,
+				F8466A7DFE220F43816D4D85 /* Reminder.swift */,
 				576E3BCB6980873E51D3A0B8 /* ReminderItem.swift */,
 				76B154163C08B8060A9DE277 /* Transaction.swift */,
 				6F8839618ED5DD4131D896BC /* TransactionTemplate.swift */,
@@ -744,6 +747,7 @@
 				E7453E3C78C7446597DB37F8 /* RecurringRulesView.swift in Sources */,
 				14A503E907A93958C352D9F4 /* RecurringService.swift in Sources */,
 				D6D8F110738749552014E054 /* RecurringSuggestionService.swift in Sources */,
+				AB314B983A9FA9676E868A9F /* Reminder.swift in Sources */,
 				103A01669289A20425DBF5D4 /* ReminderItem.swift in Sources */,
 				956A8946BB1BABCBF2A2944A /* ReminderNotificationService.swift in Sources */,
 				8ABD1900D21A8334186174CB /* ReminderStore.swift in Sources */,

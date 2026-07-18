@@ -26,6 +26,12 @@ final class DefaultDataService {
             print("未完成的数据导入恢复失败: \(error.localizedDescription)")
         }
 
+        do {
+            _ = try ReminderDataService(modelContext: modelContext).migrateLegacyFileIfNeeded()
+        } catch {
+            print("旧提醒数据迁移失败: \(error.localizedDescription)")
+        }
+
         let recurringService = RecurringService(modelContext: modelContext)
         recurringService.processAllDueRules()
     }

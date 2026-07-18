@@ -4,8 +4,7 @@ import UserNotifications
 protocol ReminderNotificationScheduling {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization() async -> Bool
-    func schedule(_ reminder: ReminderItem) async throws
-    func cancel(reminderID: UUID)
+    func rebuild(reminders: [ReminderItem]) async throws
 }
 
 enum ReminderNotificationService {
@@ -31,14 +30,8 @@ enum ReminderNotificationService {
         }
     }
 
-    static func schedule(_ reminder: ReminderItem) async throws {
-        _ = reminder
-        try await NotificationScheduleCoordinator.shared.rebuild()
-    }
-
-    static func cancel(reminderID: UUID) {
-        _ = reminderID
-        Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild() }
+    static func rebuild(reminders: [ReminderItem]) async throws {
+        try await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
     }
 }
 
@@ -51,12 +44,8 @@ struct SystemReminderNotificationScheduler: ReminderNotificationScheduling {
         await ReminderNotificationService.requestAuthorization()
     }
 
-    func schedule(_ reminder: ReminderItem) async throws {
-        try await ReminderNotificationService.schedule(reminder)
-    }
-
-    func cancel(reminderID: UUID) {
-        ReminderNotificationService.cancel(reminderID: reminderID)
+    func rebuild(reminders: [ReminderItem]) async throws {
+        try await ReminderNotificationService.rebuild(reminders: reminders)
     }
 }
 

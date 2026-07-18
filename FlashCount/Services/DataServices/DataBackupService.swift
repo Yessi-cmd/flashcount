@@ -379,7 +379,7 @@ final class DataBackupService {
         let installmentBills = try modelContext.fetch(FetchDescriptor<InstallmentBill>())
         let savingsGoals = try modelContext.fetch(FetchDescriptor<SavingsGoal>())
         let templates = try modelContext.fetch(FetchDescriptor<TransactionTemplate>())
-        let reminders = ReminderStore.load()
+        let reminders = try ReminderDataService(modelContext: modelContext).load()
 
         let backup = BackupData(
             version: Self.currentBackupVersion,
@@ -892,9 +892,19 @@ final class DataBackupService {
             result.templatesImported += 1
         }
 
-            // 默认数据、单账本整理与本次恢复共用一次数据库事务。
-            try DefaultDataService(modelContext: modelContext).stageDefaultData()
-            try modelContext.save()
+        // 11. 导入提醒。提醒与财务模型处于同一个 SwiftData 提交中，
+        // 不再依赖独立 JSON 文件的第二次写入。
+        let existingReminders = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Reminder>())
+        let existingReminderIDs = Set(existingReminders.map(\.id))
+        for reminder in backup.reminders where !existingReminderIDs.contains(reminder.id) {
+            modelContext.insert(Reminder(item: reminder))
+            result.remindersImported += 1
+        }
+        result.skipped += backup.reminders.count - result.remindersImported
+
+        // 默认数据、单账本整理与本次恢复共用一次数据库事务。
+        try DefaultDataService(modelContext: modelContext).stageDefaultData()
+        try modelContext.save()
         } catch {
             modelContext.rollback()
             try? Self.clearImportJournal()
@@ -903,14 +913,20 @@ final class DataBackupService {
 
         try Self.writeImportJournal(backupData: data, mode: mode, phase: .databaseCommitted)
 
-        result.remindersImported = try Self.applyExternalState(from: backup, mode: mode)
+        let externalSettingsChanged = try applyExternalSettings(from: backup)
+        if mode == .replace {
+            ReminderDataService(modelContext: modelContext).markLegacyFileMigrationComplete()
+        }
+        if mode == .replace || result.remindersImported > 0 || externalSettingsChanged {
+            rebuildNotificationSchedule()
+        }
         try Self.clearImportJournal()
         return result
     }
 
     /// Completes an import that was interrupted between its SwiftData and
-    /// external-file commits. Replaying is idempotent because every imported
-    /// model is keyed by UUID and replace mode clears before inserting.
+    /// external-settings commits. Replaying is idempotent because every
+    /// imported model is keyed by UUID and replace mode clears before inserting.
     @discardableResult
     func recoverPendingImport() throws -> Bool {
         guard let journal = try Self.readImportJournal() else { return false }
@@ -921,7 +937,15 @@ final class DataBackupService {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let backup = try decoder.decode(BackupData.self, from: journal.backupData)
-            _ = try Self.applyExternalState(from: backup, mode: journal.mode)
+            // Journals written by earlier app versions committed reminder JSON
+            // separately. Merge/replace it here so an interrupted upgrade never
+            // loses the reminder payload from that backup.
+            _ = try restoreRemindersFromRecoveredImport(backup.reminders, mode: journal.mode)
+            _ = try applyExternalSettings(from: backup)
+            if journal.mode == .replace {
+                ReminderDataService(modelContext: modelContext).markLegacyFileMigrationComplete()
+            }
+            rebuildNotificationSchedule()
             try Self.clearImportJournal()
         }
         return true
@@ -960,19 +984,8 @@ final class DataBackupService {
         try FileManager.default.removeItem(at: importJournalURL)
     }
 
-    private static func applyExternalState(from backup: BackupData, mode: ImportMode) throws -> Int {
-        let storedReminders = ReminderStore.load()
-        let localReminders = mode == .replace ? [] : storedReminders
-        let localReminderIDs = Set(localReminders.map(\.id))
-        let newReminders = backup.reminders.filter { !localReminderIDs.contains($0.id) }
-        let importedReminders = localReminders + newReminders
-
+    private func applyExternalSettings(from backup: BackupData) throws -> Bool {
         var shouldRebuildNotifications = false
-        if mode == .replace || !newReminders.isEmpty {
-            try ReminderStore.replace(with: importedReminders)
-            shouldRebuildNotifications = true
-        }
-
         if let settings = backup.settings {
             UserDefaults.standard.set(min(max(settings.payday, 1), 31), forKey: "payday")
             if let appearance = settings.appearance { UserDefaults.standard.set(appearance, forKey: "appearance") }
@@ -983,10 +996,7 @@ final class DataBackupService {
                 shouldRebuildNotifications = true
             }
         }
-        if shouldRebuildNotifications {
-            Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild() }
-        }
-        return newReminders.count
+        return shouldRebuildNotifications
     }
 
     private static func validateContents(_ backup: BackupData, mode: ImportMode) throws {
@@ -1002,6 +1012,7 @@ final class DataBackupService {
         try validateUniqueIDs(backup.installmentBills.map(\.id), label: "分期")
         try validateUniqueIDs(backup.savingsGoals.map(\.id), label: "储蓄目标")
         try validateUniqueIDs(backup.templates.map(\.id), label: "模板")
+        try validateUniqueIDs(backup.reminders.map { $0.id.uuidString }, label: "提醒")
 
         guard backup.transactions.allSatisfy({ $0.amount.decimalValue > 0 }) else {
             throw ImportError.invalidContents("账单金额必须大于零")
@@ -1070,9 +1081,45 @@ final class DataBackupService {
         try deleteAll(RecurringRule.self); try deleteAll(Budget.self); try deleteAll(Asset.self)
         try deleteAll(PhysicalAsset.self); try deleteAll(CashPoolItem.self); try deleteAll(CashPoolState.self)
         try deleteAll(SavingsGoal.self); try deleteAll(InstallmentBill.self); try deleteAll(TransactionTemplate.self)
+        try deleteAll(Reminder.self)
     }
 
     private func deleteAll<T: PersistentModel>(_ type: T.Type) throws {
         for item in try modelContext.fetch(FetchDescriptor<T>()) { modelContext.delete(item) }
+    }
+
+    @discardableResult
+    private func restoreRemindersFromRecoveredImport(
+        _ reminders: [ReminderItem],
+        mode: ImportMode
+    ) throws -> Int {
+        do {
+            let existing = try modelContext.fetch(FetchDescriptor<Reminder>())
+            if mode == .replace {
+                for reminder in existing {
+                    modelContext.delete(reminder)
+                }
+            }
+
+            let existingIDs = mode == .replace ? Set<UUID>() : Set(existing.map(\.id))
+            var importedIDs = Set<UUID>()
+            var importedCount = 0
+            for reminder in reminders where
+                !existingIDs.contains(reminder.id) && importedIDs.insert(reminder.id).inserted
+            {
+                modelContext.insert(Reminder(item: reminder))
+                importedCount += 1
+            }
+            try modelContext.save()
+            return importedCount
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
+    }
+
+    private func rebuildNotificationSchedule() {
+        guard let reminders = try? ReminderDataService(modelContext: modelContext).load() else { return }
+        Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders) }
     }
 }
