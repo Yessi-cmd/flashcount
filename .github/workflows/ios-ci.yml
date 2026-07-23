@@ -35,6 +35,7 @@ jobs:
 
       - name: Install iOS Simulator runtime
         run: |
+          xcrun simctl list > /dev/null
           xcodebuild -downloadPlatform iOS
           xcrun simctl list runtimes
 
