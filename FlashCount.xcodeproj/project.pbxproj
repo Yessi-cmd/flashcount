@@ -12,6 +12,7 @@
 		034521543E79940405F4C51F /* CSVTransactionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */; };
 		053C79ED47833B74864A2F20 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF30FA16DCE6E0385B858671 /* OnboardingView.swift */; };
 		06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA07EB27C4CAF30E53F187FB /* LedgerView.swift */; };
+		084E5C7F72EFC8C515770079 /* LiquidGlassContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6F1A9BBC47DE836248A9BE8 /* LiquidGlassContainer.swift */; };
 		08D59C3839B22FBDD92D6EFC /* AppRoutingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DDE23A26293092F1392788D /* AppRoutingTests.swift */; };
 		0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */; };
 		0D6CC3568E879C501B77EE1C /* AddReminderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A25736CBBC2CCA2F7E6527E /* AddReminderView.swift */; };
@@ -235,6 +236,7 @@
 		F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinanceDomainTests.swift; sourceTree = "<group>"; };
 		F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationService.swift; sourceTree = "<group>"; };
 		F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionService.swift; sourceTree = "<group>"; };
+		F6F1A9BBC47DE836248A9BE8 /* LiquidGlassContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassContainer.swift; sourceTree = "<group>"; };
 		F8466A7DFE220F43816D4D85 /* Reminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reminder.swift; sourceTree = "<group>"; };
 		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
 		FBFD2135FE36029863FB0A1A /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
@@ -350,6 +352,7 @@
 			children = (
 				1E27D09CD08C8BE96114E84E /* CategoryPickerComponents.swift */,
 				B8C3F704C0822AEC0F80907D /* CategoryWheelLayout.swift */,
+				F6F1A9BBC47DE836248A9BE8 /* LiquidGlassContainer.swift */,
 				DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */,
 				3C4577B9A4B3DCE41C5A23B6 /* TemplateManagementView.swift */,
 			);
@@ -743,6 +746,7 @@
 				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,
 				96B3F99FAFDD16B3CE9293DC /* LedgerComponents.swift in Sources */,
 				06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */,
+				084E5C7F72EFC8C515770079 /* LiquidGlassContainer.swift in Sources */,
 				1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */,
 				EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */,
 				7267A374058B259F89E85E4D /* MoneyValidation.swift in Sources */,

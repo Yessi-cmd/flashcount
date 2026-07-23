@@ -250,7 +250,7 @@ struct QuickEntryView: View {
 
     @available(iOS 26.0, *)
     private var liquidGlassTypeToggle: some View {
-        GlassEffectContainer(spacing: 6) {
+        LiquidGlassContainer(spacing: 6) {
             HStack(spacing: 6) {
                 liquidGlassTypeButton(title: "支出", expense: true, color: DesignSystem.expenseColor)
                 liquidGlassTypeButton(title: "收入", expense: false, color: DesignSystem.incomeColor)
@@ -501,7 +501,7 @@ struct QuickEntryView: View {
     @ViewBuilder
     private var bottomControls: some View {
         if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 4) {
+            LiquidGlassContainer(spacing: 4) {
                 bottomControlsContent
             }
             .padding(.horizontal)

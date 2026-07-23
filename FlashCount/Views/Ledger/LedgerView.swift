@@ -602,7 +602,7 @@ struct LedgerView: View {
     @available(iOS 26.0, *)
     private var liquidGlassDateFilterStrip: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            GlassEffectContainer(spacing: 6) {
+            LiquidGlassContainer(spacing: 6) {
                 HStack(spacing: 8) {
                     ForEach(LedgerPeriodFilter.allCases, id: \.self) { filter in
                         let isSelected = dateFilter == filter

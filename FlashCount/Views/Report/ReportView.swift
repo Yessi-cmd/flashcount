@@ -224,7 +224,7 @@ struct ReportView: View {
 
     @available(iOS 26.0, *)
     private var liquidGlassPeriodPicker: some View {
-        GlassEffectContainer(spacing: 5) {
+        LiquidGlassContainer(spacing: 5) {
             HStack(spacing: 5) {
                 ForEach(ReportPeriod.allCases, id: \.self) { period in
                     let isSelected = selectedPeriod == period
@@ -286,7 +286,7 @@ struct ReportView: View {
     @available(iOS 26.0, *)
     private var liquidGlassRangeNavigator: some View {
         let presentation = ReportDateRangeFormatter().reportRange(selection.reportRange, period: selectedPeriod)
-        return GlassEffectContainer(spacing: 8) {
+        return LiquidGlassContainer(spacing: 8) {
             HStack(spacing: 8) {
                 Button(action: showPreviousRange) {
                     Image(systemName: "chevron.left")
@@ -1084,10 +1084,12 @@ private struct ReportObservedContent: View {
     }
 
     private func changeColor(_ presentation: ReportChangePresentation) -> Color {
-        switch presentation.isFavorable {
-        case true: return DesignSystem.incomeColor
-        case false: return DesignSystem.expenseColor
-        case nil: return DesignSystem.textTertiary
+        if presentation.isFavorable == true {
+            DesignSystem.incomeColor
+        } else if presentation.isFavorable == false {
+            DesignSystem.expenseColor
+        } else {
+            DesignSystem.textTertiary
         }
     }
 
