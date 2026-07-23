@@ -31,33 +31,48 @@ struct QuickEntryNumberPad: View {
 
     @ViewBuilder
     private func keyButton(for button: String) -> some View {
+#if compiler(>=6.2)
         if #available(iOS 26.0, *) {
-            Button { onKeyPress(button) } label: {
-                baseKeyLabel(for: button, height: liquidGlassLabelHeight)
-            }
-            .buttonStyle(.glass)
-            .buttonBorderShape(.roundedRectangle(radius: 10))
-            .tint(glassButtonTint(for: button))
-            .accessibilityIdentifier("quickEntry.key.\(button)")
+            liquidGlassKeyButton(for: button)
         } else {
-            Button { onKeyPress(button) } label: {
-                baseKeyLabel(for: button, height: legacyKeyHeight)
-                    .background(background(for: button))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .overlay {
-                        if button == "收入" || button == "支出" {
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    button == "收入"
-                                        ? DesignSystem.incomeColor.opacity(0.3)
-                                        : DesignSystem.expenseColor.opacity(0.3)
-                                )
-                        }
-                    }
-            }
-            .buttonStyle(PressableButtonStyle())
-            .accessibilityIdentifier("quickEntry.key.\(button)")
+            legacyKeyButton(for: button)
         }
+#else
+        legacyKeyButton(for: button)
+#endif
+    }
+
+#if compiler(>=6.2)
+    @available(iOS 26.0, *)
+    private func liquidGlassKeyButton(for button: String) -> some View {
+        Button { onKeyPress(button) } label: {
+            baseKeyLabel(for: button, height: liquidGlassLabelHeight)
+        }
+        .buttonStyle(.glass)
+        .buttonBorderShape(.roundedRectangle(radius: 10))
+        .tint(glassButtonTint(for: button))
+        .accessibilityIdentifier("quickEntry.key.\(button)")
+    }
+#endif
+
+    private func legacyKeyButton(for button: String) -> some View {
+        Button { onKeyPress(button) } label: {
+            baseKeyLabel(for: button, height: legacyKeyHeight)
+                .background(background(for: button))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay {
+                    if button == "收入" || button == "支出" {
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(
+                                button == "收入"
+                                    ? DesignSystem.incomeColor.opacity(0.3)
+                                    : DesignSystem.expenseColor.opacity(0.3)
+                            )
+                    }
+                }
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityIdentifier("quickEntry.key.\(button)")
     }
 
     private func baseKeyLabel(for button: String, height: CGFloat) -> some View {
@@ -99,13 +114,18 @@ struct QuickEntrySubmitButton: View {
 
     @ViewBuilder
     var body: some View {
+#if compiler(>=6.2)
         if #available(iOS 26.0, *) {
             liquidGlassButton
         } else {
             legacyButton
         }
+#else
+        legacyButton
+#endif
     }
 
+#if compiler(>=6.2)
     @available(iOS 26.0, *)
     private var liquidGlassButton: some View {
         Button(action: action) {
@@ -122,6 +142,7 @@ struct QuickEntrySubmitButton: View {
         .animation(DesignSystem.quickAnimation, value: isEnabled)
         .accessibilityIdentifier("quickEntry.save")
     }
+#endif
 
     private var legacyButton: some View {
         Button(action: action) {
