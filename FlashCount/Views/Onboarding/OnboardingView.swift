@@ -16,75 +16,66 @@ struct OnboardingView: View {
         ZStack {
             AmbientBackground(accent: DesignSystem.primaryColor)
 
-            VStack(spacing: 0) {
-                Spacer()
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 12) {
+                        Image(systemName: "bolt.circle.fill")
+                            .font(.system(size: 72))
+                            .foregroundStyle(DesignSystem.primaryColor)
+                        Text("FlashCount")
+                            .font(.largeTitle.weight(.bold))
+                            .foregroundStyle(DesignSystem.textPrimary)
+                        Text("你的私人财务分析师")
+                            .font(.subheadline)
+                            .foregroundStyle(DesignSystem.textSecondary)
+                    }
+                    .padding(.top, 36)
 
-                // Logo + Title
-                VStack(spacing: 12) {
-                    Image(systemName: "bolt.circle.fill")
-                        .font(.system(size: 72))
-                        .foregroundStyle(DesignSystem.primaryColor)
-                    Text("FlashCount")
-                        .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(DesignSystem.textPrimary)
-                    Text("你的私人财务分析师")
-                        .font(.subheadline)
-                        .foregroundStyle(DesignSystem.textSecondary)
-                }
-                .padding(.bottom, 40)
-
-                // 功能亮点
-                VStack(spacing: 16) {
-                    ForEach(features, id: \.title) { feature in
-                        HStack(spacing: 16) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(feature.color.opacity(0.15))
-                                    .frame(width: 48, height: 48)
-                                Image(systemName: feature.icon)
-                                    .font(.title3)
-                                    .foregroundStyle(feature.color)
+                    VStack(spacing: 16) {
+                        ForEach(features, id: \.title) { feature in
+                            HStack(spacing: 16) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(feature.color.opacity(0.15))
+                                        .frame(width: 48, height: 48)
+                                    Image(systemName: feature.icon)
+                                        .font(.title3)
+                                        .foregroundStyle(feature.color)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(feature.title)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(DesignSystem.textPrimary)
+                                    Text(feature.desc)
+                                        .font(.caption)
+                                        .foregroundStyle(DesignSystem.textSecondary)
+                                }
+                                Spacer()
                             }
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(feature.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(DesignSystem.textPrimary)
-                                Text(feature.desc)
-                                    .font(.caption)
-                                    .foregroundStyle(DesignSystem.textSecondary)
-                            }
-                            Spacer()
                         }
                     }
-                }
-                .padding(.horizontal, 24)
 
-                Spacer()
-
-                // 快捷方式提示
-                VStack(spacing: 8) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "lightbulb.fill").font(.caption).foregroundStyle(DesignSystem.primaryColor)
-                        Text("小贴士").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.primaryColor)
+                    VStack(spacing: 8) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "lightbulb.fill").font(.caption).foregroundStyle(DesignSystem.primaryColor)
+                            Text("小贴士").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.primaryColor)
+                        }
+                        Text("添加锁屏 Widget 或设置 Back Tap\n让记账快人一步；进入 App 后可在设置中查看教程")
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.textSecondary)
+                            .multilineTextAlignment(.center)
                     }
-                    Text("添加锁屏 Widget 或设置 Back Tap\n让记账快人一步；进入 App 后可在设置中查看教程")
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textSecondary)
-                        .multilineTextAlignment(.center)
+                    .padding()
+                    .background(DesignSystem.softFill)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .padding()
-                .background(DesignSystem.softFill)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
                 .padding(.horizontal, 24)
-
-                Spacer().frame(height: 24)
-
-                // 开始按钮
+                .padding(.bottom, 20)
+            }
+            .safeAreaInset(edge: .bottom) {
                 Button {
                     onComplete()
-                    withAnimation(.spring(response: 0.4)) {
-                        isPresented = false
-                    }
+                    withAnimation(.spring(response: 0.4)) { isPresented = false }
                 } label: {
                     Text("开始使用")
                         .font(.headline)
@@ -95,7 +86,8 @@ struct OnboardingView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
                 }
                 .padding(.horizontal, 24)
-                .padding(.bottom, 32)
+                .padding(.vertical, 12)
+                .background(.regularMaterial)
             }
         }
     }

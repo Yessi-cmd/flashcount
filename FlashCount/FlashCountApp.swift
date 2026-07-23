@@ -3,29 +3,35 @@ import SwiftData
 
 @main
 struct FlashCountApp: App {
+    private let modelContainer: ModelContainer?
+    private let modelContainerError: String?
+
     init() {
         ReminderNotificationService.configure()
+        do {
+            modelContainer = try ModelContainer(
+                for: Schema(versionedSchema: FlashCountSchemaV1.self),
+                migrationPlan: FlashCountMigrationPlan.self
+            )
+            modelContainerError = nil
+        } catch {
+            modelContainer = nil
+            modelContainerError = error.localizedDescription
+        }
     }
 
     var body: some Scene {
         WindowGroup {
-            AppRootView()
+            if let modelContainer {
+                AppRootView()
+                    .modelContainer(modelContainer)
+            } else {
+                StartupFailureView(
+                    title: "无法打开本地账本",
+                    message: "FlashCount 没有删除任何数据。请保留设备上的 App 数据，并重启 App 或联系支持。\n\n\(modelContainerError ?? "未知存储错误")"
+                )
+            }
         }
-        .modelContainer(for: [
-            Transaction.self,
-            Category.self,
-            Ledger.self,
-            RecurringRule.self,
-            Budget.self,
-            Asset.self,
-            PhysicalAsset.self,
-            CashPoolItem.self,
-            CashPoolState.self,
-            SavingsGoal.self,
-            InstallmentBill.self,
-            TransactionTemplate.self,
-            Reminder.self
-        ])
     }
 }
 
@@ -34,7 +40,15 @@ private struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
     @StateObject private var privacyLock = PrivacyLockService()
-    private static var didPrepareData = false
+    @State private var startupState: StartupState = .preparing
+    @State private var backgroundTaskError: String?
+    @State private var startupAttempt = 0
+
+    private enum StartupState: Equatable {
+        case preparing
+        case ready
+        case failed(String)
+    }
 
     var body: some View {
         Group {
@@ -57,15 +71,20 @@ private struct AppRootView: View {
                     )
                 }
             } else {
-                MainTabView()
-                    .environmentObject(privacyLock)
-                    .onAppear {
-                        guard !Self.didPrepareData else { return }
-                        Self.didPrepareData = true
-                        DefaultDataService(modelContext: modelContext).prepareAppData()
-                        prepareReportLayoutUITestDataIfNeeded()
-                        rebuildNotificationSchedule()
-                    }
+                switch startupState {
+                case .preparing:
+                    ProgressView("正在准备本地账本…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .ready:
+                    MainTabView()
+                        .environmentObject(privacyLock)
+                case .failed(let message):
+                    StartupFailureView(
+                        title: "本地数据准备失败",
+                        message: message,
+                        retry: { startupAttempt += 1 }
+                    )
+                }
             }
         }
         .tint(DesignSystem.primaryColor)
@@ -109,9 +128,21 @@ private struct AppRootView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
                 privacyLock.lock()
-            } else if phase == .active, Self.didPrepareData {
+            } else if phase == .active, startupState == .ready {
                 rebuildNotificationSchedule()
             }
+        }
+        .task(id: startupAttempt) {
+            guard visualExplorationDirection == nil, !isBudgetScopeReview, !isQuickEntryReview else { return }
+            await prepareAppData()
+        }
+        .alert("后台处理未完成", isPresented: Binding(
+            get: { backgroundTaskError != nil },
+            set: { if !$0 { backgroundTaskError = nil } }
+        )) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(backgroundTaskError ?? "请稍后在周期性规则中重试。")
         }
     }
 
@@ -145,17 +176,48 @@ private struct AppRootView: View {
     }
 
     private func prepareReviewDataIfNeeded() {
-        guard !Self.didPrepareData else { return }
-        Self.didPrepareData = true
-        DefaultDataService(modelContext: modelContext).prepareAppData()
+        _ = try? DefaultDataService(modelContext: modelContext).prepareAppData()
+    }
+
+    private func prepareAppData() async {
+        startupState = .preparing
+        do {
+            let recurringResult = try DefaultDataService(modelContext: modelContext).prepareAppData()
+            prepareReportLayoutUITestDataIfNeeded()
+            startupState = .ready
+            rebuildNotificationSchedule()
+            if recurringResult.hasRemainingDueRules {
+                Task { await continueRecurringProcessing() }
+            }
+        } catch {
+            startupState = .failed("数据没有被删除或覆盖。请重试；若问题持续，请先导出或保留现有 App 数据后联系支持。\n\n\(error.localizedDescription)")
+        }
+    }
+
+    private func continueRecurringProcessing() async {
+        do {
+            var result = try RecurringService(modelContext: modelContext).processDueRules()
+            while result.hasRemainingDueRules {
+                await Task.yield()
+                result = try RecurringService(modelContext: modelContext).processDueRules()
+            }
+        } catch {
+            backgroundTaskError = "周期交易尚未全部生成：\(error.localizedDescription)。请在“周期性规则”中重试。"
+        }
     }
 
     private func rebuildNotificationSchedule() {
         do {
             let reminders = try ReminderDataService(modelContext: modelContext).load()
-            Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders) }
+            Task {
+                do {
+                    try await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
+                } catch {
+                    backgroundTaskError = "提醒通知未能更新：\(error.localizedDescription)。请在设置中检查通知权限后重试。"
+                }
+            }
         } catch {
-            print("提醒通知重建前读取失败: \(error.localizedDescription)")
+            backgroundTaskError = "提醒通知未能读取本地数据：\(error.localizedDescription)。"
         }
     }
 

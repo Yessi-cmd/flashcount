@@ -140,6 +140,7 @@ struct PhysicalAssetView: View {
             ForEach(hidesMoney ? activeAssets : activeAssets.sorted { $0.dailyCost > $1.dailyCost }, id: \.id) { asset in
                 PhysicalAssetCard(asset: asset, hidesMoney: hidesMoney, maskedText: privacyLock.maskedText)
                     .onTapGesture { revealOrPerform { editingAsset = asset } }
+                    .accessibilityAddTraits(.isButton)
                     .contextMenu {
                         Button {
                             revealOrPerform { editingAsset = asset }
@@ -196,6 +197,7 @@ struct PhysicalAssetView: View {
                 .padding(.vertical, 4)
                 .contentShape(Rectangle())
                 .onTapGesture { revealOrPerform { editingAsset = asset } }
+                .accessibilityAddTraits(.isButton)
                 .contextMenu {
                     Button {
                         revealOrPerform { editingAsset = asset }

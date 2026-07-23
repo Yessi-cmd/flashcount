@@ -78,6 +78,31 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Reminder>()), 2)
     }
 
+    func testCorruptedLegacyReminderFileDoesNotMarkMigrationComplete() throws {
+        let context = try makeContext()
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let fileURL = directory.appendingPathComponent("flashcount-reminders.json")
+        try Data("not-json".utf8).write(to: fileURL)
+        let suiteName = "ReminderCorruptionTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let migrationKey = "test-reminder-corruption"
+        let service = ReminderDataService(
+            modelContext: context,
+            legacyStore: FileReminderStore(fileURL: fileURL),
+            userDefaults: defaults,
+            migrationKey: migrationKey
+        )
+
+        XCTAssertThrowsError(try service.migrateLegacyFileIfNeeded())
+        XCTAssertFalse(defaults.bool(forKey: migrationKey))
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Reminder>()), 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+    }
+
     func testReminderDatabaseMutationsPreserveCompletionAndIdentity() throws {
         let context = try makeContext()
         let service = ReminderDataService(modelContext: context)
@@ -200,12 +225,107 @@ final class FinanceDomainTests: XCTestCase {
 
         var json = try XCTUnwrap(JSONSerialization.jsonObject(with: service.exportJSON()) as? [String: Any])
         var transactions = try XCTUnwrap(json["transactions"] as? [[String: Any]])
-        transactions[1]["id"] = transactions[0]["id"]
+        let duplicateID = try XCTUnwrap(transactions[0]["id"] as? String)
+        transactions[0]["id"] = duplicateID.lowercased()
+        transactions[1]["id"] = duplicateID.uppercased()
         json["transactions"] = transactions
         let invalidBackup = try JSONSerialization.data(withJSONObject: json)
 
         XCTAssertThrowsError(try service.importJSON(data: invalidBackup, mode: .replace))
         XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 2)
+    }
+
+    func testLegacyBackupWithoutCashPoolDeltaRemainsEditableAndDeletable() throws {
+        let context = try makeContext()
+        let ledger = Ledger.defaultLedgers()[0]
+        let transaction = Transaction(amount: 10, note: "旧备份", cashPoolDelta: -10, ledger: ledger)
+        context.insert(ledger)
+        context.insert(transaction)
+        context.insert(CashPoolState(transactionDelta: -10))
+        try context.save()
+
+        let backup = DataBackupService(modelContext: context)
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: backup.exportJSON()) as? [String: Any])
+        var transactions = try XCTUnwrap(json["transactions"] as? [[String: Any]])
+        transactions[0].removeValue(forKey: "cashPoolDelta")
+        json["transactions"] = transactions
+
+        _ = try backup.importJSON(
+            data: JSONSerialization.data(withJSONObject: json),
+            mode: .replace
+        )
+
+        let restored = try XCTUnwrap(context.fetch(FetchDescriptor<Transaction>()).first)
+        XCTAssertEqual(restored.cashPoolDelta, -10)
+        let mutation = TransactionMutationService(modelContext: context)
+        try mutation.update(restored, with: TransactionDraft(amount: 20, isExpense: true, ledger: restored.ledger))
+        XCTAssertEqual(try context.fetch(FetchDescriptor<CashPoolState>()).first?.transactionDelta, -20)
+        try mutation.delete(restored)
+        XCTAssertEqual(try context.fetch(FetchDescriptor<CashPoolState>()).first?.transactionDelta, 0)
+    }
+
+    func testMergedDuplicateCategoryRemapsImportedBudgetToLocalCategory() throws {
+        let source = try makeContext()
+        let sourceCategory = Category(name: "预算测试分类", icon: "tag.fill", colorHex: "#123456")
+        let sourceBudget = Budget(monthlyLimit: 500, year: 2026, month: 7, categoryId: sourceCategory.id)
+        source.insert(sourceCategory)
+        source.insert(sourceBudget)
+        try source.save()
+        let snapshot = try DataBackupService(modelContext: source).exportJSON()
+
+        let destination = try makeContext()
+        let localCategory = Category(name: "预算测试分类", icon: "tag.fill", colorHex: "#654321")
+        destination.insert(localCategory)
+        try destination.save()
+
+        _ = try DataBackupService(modelContext: destination).importJSON(data: snapshot, mode: .merge)
+        let budget = try XCTUnwrap(destination.fetch(FetchDescriptor<Budget>()).first)
+        XCTAssertEqual(budget.categoryId, localCategory.id)
+    }
+
+    func testBackupRoundTripPreservesTimestampsAndRecurringRelationship() throws {
+        let context = try makeContext()
+        let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
+        let ledger = Ledger.defaultLedgers()[0]
+        ledger.createdAt = timestamp
+        let asset = Asset(name: "账户", type: .cash, balance: 12)
+        asset.createdAt = timestamp
+        asset.updatedAt = timestamp.addingTimeInterval(10)
+        let rule = RecurringRule(title: "订阅", amount: 8, nextDueDate: timestamp, ledger: ledger)
+        rule.createdAt = timestamp.addingTimeInterval(20)
+        let transaction = Transaction(amount: 8, note: "关联", date: timestamp, cashPoolDelta: -8, ledger: ledger, recurringRule: rule)
+        transaction.createdAt = timestamp.addingTimeInterval(30)
+        let budget = Budget(monthlyLimit: 300, year: 2026, month: 7, ledger: ledger)
+        budget.createdAt = timestamp.addingTimeInterval(40)
+        let expectedLedgerCreatedAt = ledger.createdAt
+        let expectedAssetCreatedAt = asset.createdAt
+        let expectedAssetUpdatedAt = asset.updatedAt
+        let expectedRuleCreatedAt = rule.createdAt
+        let expectedTransactionCreatedAt = transaction.createdAt
+        let expectedBudgetCreatedAt = budget.createdAt
+        context.insert(ledger)
+        context.insert(asset)
+        context.insert(rule)
+        context.insert(transaction)
+        context.insert(budget)
+        context.insert(CashPoolState(transactionDelta: -8))
+        try context.save()
+
+        let snapshot = try DataBackupService(modelContext: context).exportJSON()
+        _ = try DataBackupService(modelContext: context).importJSON(data: snapshot, mode: .replace)
+
+        let restoredLedger = try XCTUnwrap(context.fetch(FetchDescriptor<Ledger>()).first { $0.name == ledger.name })
+        let restoredAsset = try XCTUnwrap(context.fetch(FetchDescriptor<Asset>()).first { $0.name == asset.name })
+        let restoredRule = try XCTUnwrap(context.fetch(FetchDescriptor<RecurringRule>()).first { $0.title == rule.title })
+        let restoredTransaction = try XCTUnwrap(context.fetch(FetchDescriptor<Transaction>()).first { $0.note == transaction.note })
+        let restoredBudget = try XCTUnwrap(context.fetch(FetchDescriptor<Budget>()).first { $0.monthlyLimit == 300 })
+        XCTAssertEqual(restoredLedger.createdAt, expectedLedgerCreatedAt)
+        XCTAssertEqual(restoredAsset.createdAt, expectedAssetCreatedAt)
+        XCTAssertEqual(restoredAsset.updatedAt, expectedAssetUpdatedAt)
+        XCTAssertEqual(restoredRule.createdAt, expectedRuleCreatedAt)
+        XCTAssertEqual(restoredTransaction.createdAt, expectedTransactionCreatedAt)
+        XCTAssertEqual(restoredTransaction.recurringRule?.id, restoredRule.id)
+        XCTAssertEqual(restoredBudget.createdAt, expectedBudgetCreatedAt)
     }
     private var calendar: Calendar!
 
@@ -587,8 +707,8 @@ final class FinanceDomainTests: XCTestCase {
         context.insert(rule)
         try context.save()
 
-        XCTAssertEqual(RecurringService(modelContext: context).processAllDueRules(), 1)
-        XCTAssertEqual(RecurringService(modelContext: context).processAllDueRules(), 0)
+        XCTAssertEqual(try RecurringService(modelContext: context).processAllDueRules(), 1)
+        XCTAssertEqual(try RecurringService(modelContext: context).processAllDueRules(), 0)
 
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         XCTAssertEqual(transactions.count, 1)
@@ -625,12 +745,34 @@ final class FinanceDomainTests: XCTestCase {
         let transactions = try context.fetch(FetchDescriptor<Transaction>())
         let states = try context.fetch(FetchDescriptor<CashPoolState>())
 
-        XCTAssertEqual(imported, 1)
+        XCTAssertEqual(imported.imported, 1)
+        XCTAssertEqual(imported.skipped, 1)
         XCTAssertEqual(transactions.count, 1)
         XCTAssertEqual(transactions.first?.ledger?.isDefault, true)
         XCTAssertEqual(transactions.first?.cashPoolDelta, Decimal(string: "-12.34"))
         XCTAssertEqual(states.count, 1)
         XCTAssertEqual(states.first?.transactionDelta, Decimal(string: "-12.34"))
+    }
+
+    func testCSVImportSupportsQuotedNewlinesAndReportsSkippedRows() throws {
+        let context = try makeContext()
+        let firstID = UUID()
+        let csv = """
+        id,date,type,amount,category,note,dailyBudget
+        \"\(firstID.uuidString.lowercased())\",\"2026-07-01T08:00:00Z\",\"expense\",\"12.34\",\"餐饮\",\"第一行
+        第二行，含逗号\",\"include\"
+        \"not-a-uuid\",\"2026-07-01T08:00:00Z\",\"expense\",\"12.34\",\"餐饮\",\"坏行\",\"inherit\"
+        """
+        let url = try temporaryFile(named: "multiline-transactions.csv", contents: Data(csv.utf8))
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try CSVTransactionService(modelContext: context).importCSV(from: url)
+        let transaction = try XCTUnwrap(context.fetch(FetchDescriptor<Transaction>()).first)
+        XCTAssertEqual(result.imported, 1)
+        XCTAssertEqual(result.skipped, 1)
+        XCTAssertEqual(transaction.id, firstID)
+        XCTAssertEqual(transaction.note, "第一行\n第二行，含逗号")
+        XCTAssertEqual(transaction.dailyBudgetOverride, true)
     }
 
     func testFutureBackupVersionIsRejectedBeforeReplaceMutatesData() throws {

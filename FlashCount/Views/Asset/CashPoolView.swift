@@ -243,6 +243,7 @@ struct CashPoolView: View {
         .padding(.vertical, 5)
         .contentShape(Rectangle())
         .onTapGesture { revealOrPerform { editingItem = item } }
+        .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button { revealOrPerform { editingItem = item } } label: {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
@@ -300,6 +301,12 @@ struct AddCashPoolItemView: View {
 
     private var isEditing: Bool { editItem != nil }
 
+    private var canSave: Bool {
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let amount = Decimal(string: amountText) else { return false }
+        return !cleanName.isEmpty && amount >= 0
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -333,7 +340,7 @@ struct AddCashPoolItemView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") { save() }
-                        .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || amountText.isEmpty)
+                        .disabled(!canSave)
                 }
             }
             .onAppear(perform: load)
@@ -358,7 +365,7 @@ struct AddCashPoolItemView: View {
 
     private func save() {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Decimal(string: amountText), amount >= 0, !cleanName.isEmpty else { return }
+        guard canSave, let amount = Decimal(string: amountText) else { return }
 
         if let editItem {
             editItem.name = cleanName

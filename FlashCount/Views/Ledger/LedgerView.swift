@@ -523,7 +523,14 @@ struct LedgerView: View {
             }
             .task(id: searchText) {
                 // 防抖：用户停止输入 300ms 后再执行搜索过滤
-                try? await Task.sleep(nanoseconds: 300_000_000)
+                do {
+                    try await Task.sleep(for: .milliseconds(300))
+                } catch is CancellationError {
+                    return
+                } catch {
+                    return
+                }
+                guard !Task.isCancelled else { return }
                 debouncedSearchText = searchText
             }
             .task(id: historyQueryID) {
@@ -874,6 +881,7 @@ struct LedgerView: View {
                                 editingTransaction = transaction
                             }
                         }
+                        .accessibilityAddTraits(.isButton)
                         .contextMenu {
                             if !isSelecting {
                                 Button {

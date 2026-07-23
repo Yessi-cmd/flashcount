@@ -108,13 +108,18 @@ final class NotificationScheduleCoordinatorTests: XCTestCase {
     }
 
     @MainActor
-    func testCoordinatorReservesUnmanagedCapacityAndClearsManagedRequestsAfterFailure() async throws {
+    func testCoordinatorRestoresManagedScheduleWhenReplacementFails() async throws {
         let unmanaged = UNNotificationRequest(
             identifier: "other.app.request",
             content: UNMutableNotificationContent(),
             trigger: nil
         )
-        let center = FakeNotificationCenter(pending: [unmanaged], failAtAdd: 2)
+        let previousManaged = UNNotificationRequest(
+            identifier: "flashcount.reminder.previous.0",
+            content: UNMutableNotificationContent(),
+            trigger: nil
+        )
+        let center = FakeNotificationCenter(pending: [unmanaged, previousManaged], failAtAdd: 2)
         let base = try date(2026, 7, 14, 8)
         let reminders = (0..<3).map { index in
             ReminderItem(
@@ -140,9 +145,10 @@ final class NotificationScheduleCoordinatorTests: XCTestCase {
             XCTFail("Expected injected add failure")
         } catch {
             let pending = await center.pendingRequests()
-            XCTAssertEqual(pending.map(\.identifier), ["other.app.request"])
+            XCTAssertEqual(Set(pending.map(\.identifier)), Set(["other.app.request", previousManaged.identifier]))
             let status = NotificationScheduleStatusStore(userDefaults: defaults).load()
             XCTAssertEqual(status.capacity, 63)
+            XCTAssertEqual(status.scheduledCount, 1)
             XCTAssertNotNil(status.errorMessage)
         }
     }
@@ -169,6 +175,10 @@ private actor FakeNotificationCenter: NotificationCenterScheduling {
 
     func pendingRequests() async -> [UNNotificationRequest] {
         pending
+    }
+
+    func supportsTimeSensitiveNotifications() async -> Bool {
+        false
     }
 
     func add(_ request: UNNotificationRequest) async throws {

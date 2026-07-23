@@ -11,11 +11,18 @@ final class RecurringService {
         self.modelContext = modelContext
     }
 
-    /// 处理所有到期的周期规则，生成交易
-    /// - Returns: 本次生成的交易数量
-    @discardableResult
-    func processAllDueRules() -> Int {
-        let now = Date()
+    struct ProcessingResult: Equatable {
+        let generatedCount: Int
+        let hasRemainingDueRules: Bool
+    }
+
+    /// 处理一个有限批次的到期规则。每一笔交易、资金池变动和规则游标都
+    /// 在同一次保存中提交；读取或保存失败会传递给调用方，绝不静默跳过。
+    func processDueRules(
+        maxOccurrences: Int = 30,
+        now: Date = Date()
+    ) throws -> ProcessingResult {
+        precondition(maxOccurrences > 0, "周期规则批次上限必须大于零")
         var generatedCount = 0
 
         // 获取所有活跃的周期规则
@@ -25,23 +32,18 @@ final class RecurringService {
             }
         )
 
-        let rules: [RecurringRule]
-        do {
-            rules = try modelContext.fetch(descriptor)
-        } catch {
-            print("读取周期规则失败: \(error.localizedDescription)")
-            return 0
-        }
+        let rules = try modelContext.fetch(descriptor)
 
         let cashPoolService = CashPoolService(modelContext: modelContext)
 
         for rule in rules {
-            if rule.anchorDay == nil, rule.frequency == .monthly || rule.frequency == .yearly {
+            if rule.anchorDay == nil,
+               rule.frequency == .monthly || rule.frequency == .yearly {
                 rule.anchorDay = Calendar.current.component(.day, from: rule.nextDueDate)
             }
 
             // 对每个规则，可能需要生成多笔交易（如果用户很久没打开 App）
-            while rule.nextDueDate <= now {
+            while rule.nextDueDate <= now, generatedCount < maxOccurrences {
                 let dueDate = rule.nextDueDate
                 if let endDate = rule.endDate, dueDate > endDate {
                     rule.isActive = false
@@ -78,8 +80,8 @@ final class RecurringService {
                 }
 
                 // Persist the occurrence, cash-pool change, and cursor in one
-                // save. A failed save is rolled back so a later launch cannot
-                // create a duplicate occurrence.
+                // save. A failed save is rolled back and surfaced to the caller
+                // so a later launch cannot silently create a duplicate.
                 do {
                     modelContext.insert(transaction)
                     try cashPoolService.apply(delta: cashDelta)
@@ -88,20 +90,32 @@ final class RecurringService {
                     generatedCount += 1
                 } catch {
                     modelContext.rollback()
-                    break
+                    throw error
                 }
             }
+
+            if generatedCount == maxOccurrences { break }
 
             if modelContext.hasChanges {
                 do {
                     try modelContext.save()
                 } catch {
                     modelContext.rollback()
-                    continue
+                    throw error
                 }
             }
         }
 
-        return generatedCount
+        return ProcessingResult(
+            generatedCount: generatedCount,
+            hasRemainingDueRules: rules.contains { $0.isActive && $0.nextDueDate <= now }
+        )
+    }
+
+    /// Backward-compatible convenience API for call sites that intentionally
+    /// want one bounded startup-sized batch.
+    @discardableResult
+    func processAllDueRules() throws -> Int {
+        try processDueRules().generatedCount
     }
 }

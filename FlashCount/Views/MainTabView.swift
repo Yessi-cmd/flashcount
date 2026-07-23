@@ -15,11 +15,6 @@ private enum MainSheetDestination: Identifiable, Equatable {
     }
 }
 
-private enum MainTabConstants {
-    static let idleTimeoutNanoseconds: UInt64 = 10_000_000_000
-    static let idleTestTimeoutNanoseconds: UInt64 = 2_000_000_000
-}
-
 /// 主标签栏视图
 struct MainTabView: View {
     @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
@@ -28,9 +23,6 @@ struct MainTabView: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @State private var selectedTab: Int
     @State private var animatedSelectedTab: Int
-    @State private var isTabBarVisible = true
-    @State private var interactionToken = UUID()
-    @State private var isTrackingInteraction = false
     @State private var presentedSheet: MainSheetDestination?
     @State private var pendingForegroundReport: ReportRoute.Request?
     @State private var tabReportRequest: ReportRoute.Request?
@@ -81,10 +73,7 @@ struct MainTabView: View {
             .toolbar(.hidden, for: .tabBar)
 
             // 与页面并列布局，从结构上杜绝所有 Tab 内容进入底栏区域。
-            if isTabBarVisible {
-                customTabBar
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
+            customTabBar
         }
         .background(DesignSystem.surfaceBackground)
         .sheet(item: $presentedSheet) { destination in
@@ -123,7 +112,6 @@ struct MainTabView: View {
             processQuickEntryRequestIfNeeded()
             processReportRequestIfNeeded()
             prepareForegroundReportUITestIfNeeded()
-            showTabBarAndResetIdleTimer()
         }
         .onChange(of: shouldShowQuickEntry) { processQuickEntryRequestIfNeeded() }
         .onChange(of: shouldShowReport) { processReportRequestIfNeeded() }
@@ -149,37 +137,13 @@ struct MainTabView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
-                showTabBarAndResetIdleTimer()
-            } else {
-                interactionToken = UUID()
-                isTabBarVisible = false
+                processQuickEntryRequestIfNeeded()
+                processReportRequestIfNeeded()
             }
         }
         .onOpenURL { url in
             handleDeepLink(url)
         }
-        .task(id: interactionToken) {
-            do {
-                try await Task.sleep(nanoseconds: tabBarIdleTimeoutNanoseconds)
-            } catch {
-                return
-            }
-            guard !Task.isCancelled, canHideTabBar else { return }
-            withAnimation(tabBarVisibilityAnimation) {
-                isTabBarVisible = false
-            }
-        }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    guard !isTrackingInteraction else { return }
-                    isTrackingInteraction = true
-                    showTabBarAndResetIdleTimer()
-                }
-                .onEnded { _ in
-                    isTrackingInteraction = false
-                }
-        )
     }
 
 
@@ -346,49 +310,12 @@ struct MainTabView: View {
         presentedSheet == .quickEntry
     }
 
-    private var tabBarIdleTimeoutNanoseconds: UInt64 {
-#if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-uiTestTabBarIdle") {
-            return MainTabConstants.idleTestTimeoutNanoseconds
-        }
-#endif
-        return MainTabConstants.idleTimeoutNanoseconds
-    }
-
-    private var canHideTabBar: Bool {
-        hasCompletedOnboarding
-            && scenePhase == .active
-            && presentedSheet == nil
-            && !showPlusActions
-            && !showOnboarding
-    }
-
-    private var tabBarVisibilityAnimation: Animation? {
-        reduceMotion ? nil : .easeInOut(duration: 0.24)
-    }
-
     private func showTabBarAndResetIdleTimer() {
-        guard scenePhase == .active else { return }
-        if !isTabBarVisible {
-            withAnimation(tabBarVisibilityAnimation) {
-                isTabBarVisible = true
-            }
-        }
-        interactionToken = UUID()
+        // 主导航始终可见，避免用户在阅读或辅助功能操作中失去返回路径。
     }
 
     private func handleOverlayStateChange(isPresented: Bool) {
-        if isPresented {
-            // 弹窗期间主标签栏不参与交互；关闭后从完整可见状态重新计时。
-            if !isTabBarVisible {
-                withAnimation(tabBarVisibilityAnimation) {
-                    isTabBarVisible = true
-                }
-            }
-            interactionToken = UUID()
-        } else {
-            showTabBarAndResetIdleTimer()
-        }
+        // Sheet 会自行阻止底栏交互；无需隐藏主导航。
     }
 
     private func prepareForegroundReportUITestIfNeeded() {
@@ -500,6 +427,7 @@ struct MainTabView: View {
             .animation(reduceMotion ? nil : DesignSystem.quickAnimation, value: selectedTab == tag)
         }
         .buttonStyle(PressableButtonStyle())
+        .accessibilityAddTraits(selectedTab == tag ? .isSelected : [])
         .accessibilityIdentifier(tabAccessibilityIdentifier(for: tag))
     }
 

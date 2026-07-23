@@ -45,6 +45,7 @@ struct CategoryBudgetsView: View {
                         CategoryBudgetRow(snapshot: snapshot)
                             .contentShape(Rectangle())
                             .onTapGesture { editingBudget = snapshot.budget }
+                            .accessibilityAddTraits(.isButton)
                             .swipeActions {
                                 Button(role: .destructive) {
                                     delete(snapshot.budget)

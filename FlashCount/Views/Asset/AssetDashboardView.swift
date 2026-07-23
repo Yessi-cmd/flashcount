@@ -400,6 +400,7 @@ struct AssetDashboardView: View {
                 .padding(.vertical, 4)
                 .contentShape(Rectangle())
                 .onTapGesture { revealOrPerform { editingAsset = asset } }
+                .accessibilityAddTraits(.isButton)
                 .contextMenu {
                     Button {
                         revealOrPerform { editingAsset = asset }

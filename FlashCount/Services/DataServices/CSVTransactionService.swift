@@ -8,6 +8,39 @@ final class CSVTransactionService {
 
     init(modelContext: ModelContext) { self.modelContext = modelContext }
 
+    struct SkippedRow: Equatable {
+        let rowNumber: Int
+        let reason: String
+    }
+
+    struct ImportResult: Equatable {
+        var imported = 0
+        var skippedRows: [SkippedRow] = []
+
+        var skipped: Int { skippedRows.count }
+
+        var summary: String {
+            guard skipped > 0 else { return "已导入 \(imported) 笔账单" }
+            let details = skippedRows.prefix(3)
+                .map { "第 \($0.rowNumber) 行：\($0.reason)" }
+                .joined(separator: "；")
+            let remaining = skipped > 3 ? "等 \(skipped) 行" : ""
+            return "已导入 \(imported) 笔账单，跳过 \(skipped) 行\(details.isEmpty ? "" : "（\(details)\(remaining.isEmpty ? "" : "；\(remaining)")）")"
+        }
+    }
+
+    enum ImportError: LocalizedError {
+        case invalidHeader
+        case malformedCSV
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidHeader: return "CSV 表头必须为 id、date、type、amount、category、note（dailyBudget 可选）"
+            case .malformedCSV: return "CSV 中存在未闭合的引号"
+            }
+        }
+    }
+
     func exportToFile() throws -> URL {
         let transactions = try modelContext.fetch(FetchDescriptor<Transaction>(sortBy: [SortDescriptor(\.date)]))
         let formatter = ISO8601DateFormatter()
@@ -27,26 +60,51 @@ final class CSVTransactionService {
         return url
     }
 
-    func importCSV(from url: URL) throws -> Int {
+    func importCSV(from url: URL) throws -> ImportResult {
         let content = try String(contentsOf: url, encoding: .utf8)
-        let rows = content.split(whereSeparator: \.isNewline).dropFirst()
+        let rows = try parseCSVRecords(content)
+        guard let header = rows.first else { throw ImportError.invalidHeader }
+        var headerValues = header.values
+        if let first = headerValues.first {
+            headerValues[0] = first.trimmingCharacters(in: CharacterSet(charactersIn: "\u{FEFF}"))
+        }
+        guard headerValues.count >= 6,
+              Array(headerValues.prefix(6)) == ["id", "date", "type", "amount", "category", "note"],
+              headerValues.count == 6 || headerValues[6] == "dailyBudget" else {
+            throw ImportError.invalidHeader
+        }
         let categories = try modelContext.fetch(FetchDescriptor<Category>())
         let ledgers = try modelContext.fetch(FetchDescriptor<Ledger>())
         var defaultLedger = ledgers.first(where: { $0.isDefault }) ?? ledgers.first
 
-        var seenIDs = Set(try modelContext.fetch(FetchDescriptor<Transaction>()).map(\.id.uuidString))
+        var seenIDs = Set(try modelContext.fetch(FetchDescriptor<Transaction>()).map(\.id))
         let formatter = ISO8601DateFormatter()
-        var imported = 0
+        var result = ImportResult()
         var importedCashDelta: Decimal = 0
-        for row in rows {
-            let values = parseCSV(String(row))
-            guard values.count >= 6,
-                  !seenIDs.contains(values[0]),
-                  let id = UUID(uuidString: values[0]),
-                  let date = formatter.date(from: values[1]),
-                  let amount = Decimal(string: values[3]),
-                  amount > 0,
-                  values[2] == "expense" || values[2] == "income" else {
+        for row in rows.dropFirst() {
+            let values = row.values
+            guard values.count >= 6 else {
+                result.skippedRows.append(.init(rowNumber: row.number, reason: "列数不足"))
+                continue
+            }
+            guard let id = UUID(uuidString: values[0]) else {
+                result.skippedRows.append(.init(rowNumber: row.number, reason: "ID 不是有效 UUID"))
+                continue
+            }
+            guard !seenIDs.contains(id) else {
+                result.skippedRows.append(.init(rowNumber: row.number, reason: "ID 已存在或在文件中重复"))
+                continue
+            }
+            guard let date = formatter.date(from: values[1]) else {
+                result.skippedRows.append(.init(rowNumber: row.number, reason: "日期不是 ISO 8601 格式"))
+                continue
+            }
+            guard let amount = Decimal(string: values[3]), amount > 0 else {
+                result.skippedRows.append(.init(rowNumber: row.number, reason: "金额必须大于零"))
+                continue
+            }
+            guard values[2] == "expense" || values[2] == "income" else {
+                result.skippedRows.append(.init(rowNumber: row.number, reason: "type 必须为 expense 或 income"))
                 continue
             }
             let isExpense = values[2] == "expense"
@@ -69,9 +127,9 @@ final class CSVTransactionService {
             )
             transaction.id = id
             modelContext.insert(transaction)
-            seenIDs.insert(values[0])
+            seenIDs.insert(id)
             importedCashDelta += cashDelta
-            imported += 1
+            result.imported += 1
         }
 
         do {
@@ -81,7 +139,7 @@ final class CSVTransactionService {
             modelContext.rollback()
             throw error
         }
-        return imported
+        return result
     }
 
     private func csvEscape(_ value: String) -> String {
@@ -96,18 +154,58 @@ final class CSVTransactionService {
         }
     }
 
-    private func parseCSV(_ row: String) -> [String] {
-        var result: [String] = []; var value = ""; var quoted = false; var index = row.startIndex
-        while index < row.endIndex {
-            let char = row[index]
-            if char == "\"" {
-                let next = row.index(after: index)
-                if quoted, next < row.endIndex, row[next] == "\"" { value.append(char); index = next }
-                else { quoted.toggle() }
-            } else if char == ",", !quoted { result.append(value); value = "" }
-            else { value.append(char) }
-            index = row.index(after: index)
+    private struct CSVRecord {
+        let number: Int
+        let values: [String]
+    }
+
+    /// Parses RFC 4180-style records before validating their columns, so a
+    /// note can contain commas, escaped quotes, and physical line breaks.
+    private func parseCSVRecords(_ content: String) throws -> [CSVRecord] {
+        var records: [CSVRecord] = []
+        var fields: [String] = []
+        var field = ""
+        var quoted = false
+        var rowNumber = 1
+        var index = content.startIndex
+
+        func finishRecord() {
+            fields.append(field)
+            records.append(CSVRecord(number: rowNumber, values: fields))
+            fields.removeAll(keepingCapacity: true)
+            field.removeAll(keepingCapacity: true)
+            rowNumber += 1
         }
-        result.append(value); return result
+
+        while index < content.endIndex {
+            let character = content[index]
+            if character == "\"" {
+                let next = content.index(after: index)
+                if quoted, next < content.endIndex, content[next] == "\"" {
+                    field.append(character)
+                    index = next
+                } else {
+                    quoted.toggle()
+                }
+            } else if character == ",", !quoted {
+                fields.append(field)
+                field.removeAll(keepingCapacity: true)
+            } else if (character == "\n" || character == "\r"), !quoted {
+                if character == "\r" {
+                    let next = content.index(after: index)
+                    if next < content.endIndex, content[next] == "\n" { index = next }
+                }
+                finishRecord()
+            } else {
+                field.append(character)
+            }
+            index = content.index(after: index)
+        }
+
+        guard !quoted else { throw ImportError.malformedCSV }
+        if !fields.isEmpty || !field.isEmpty {
+            finishRecord()
+        }
+        return records
     }
 }

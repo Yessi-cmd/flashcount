@@ -5,6 +5,18 @@ import SwiftData
 /// remains untouched after a successful import so an existing installation
 /// always retains its original local data.
 struct FileReminderStore {
+    enum LoadError: LocalizedError {
+        case unreadable(URL, Error)
+        case corrupted(URL, Error)
+
+        var errorDescription: String? {
+            switch self {
+            case .unreadable(let url, _): return "无法读取旧提醒文件：\(url.lastPathComponent)"
+            case .corrupted(let url, _): return "旧提醒文件已损坏，已保留副本：\(url.lastPathComponent)"
+            }
+        }
+    }
+
     let fileURL: URL
 
     init(fileURL: URL? = nil) {
@@ -16,8 +28,14 @@ struct FileReminderStore {
         }
     }
 
-    func load() -> [ReminderItem] {
-        guard let data = try? Data(contentsOf: fileURL) else { return [] }
+    func load() throws -> [ReminderItem] {
+        guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
+        let data: Data
+        do {
+            data = try Data(contentsOf: fileURL)
+        } catch {
+            throw LoadError.unreadable(fileURL, error)
+        }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         do {
@@ -27,7 +45,7 @@ struct FileReminderStore {
                 .appendingPathExtension("corrupted-\(ISO8601DateFormatter().string(from: Date())).json")
             try? FileManager.default.moveItem(at: fileURL, to: backupURL)
             print("提醒文件损坏，已备份到: \(backupURL.lastPathComponent), 错误: \(error.localizedDescription)")
-            return []
+            throw LoadError.corrupted(backupURL, error)
         }
     }
 
@@ -74,7 +92,7 @@ final class ReminderDataService {
 
         let existingIDs = Set(try load().map(\.id))
         var importedIDs = Set<UUID>()
-        let legacyReminders = legacyStore.load()
+        let legacyReminders = try legacyStore.load()
         let newReminders = legacyReminders.filter {
             !existingIDs.contains($0.id) && importedIDs.insert($0.id).inserted
         }

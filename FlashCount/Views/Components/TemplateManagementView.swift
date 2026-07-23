@@ -225,6 +225,12 @@ struct TemplateEditView: View {
         Category.rootCategories(from: categories, isExpense: false)
     }
 
+    private var canSave: Bool {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let amount = Decimal(string: amountText) else { return false }
+        return !trimmedName.isEmpty && amount > 0
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -335,7 +341,7 @@ struct TemplateEditView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") { save() }
-                        .disabled(name.isEmpty || amountText.isEmpty)
+                        .disabled(!canSave)
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
@@ -348,7 +354,7 @@ struct TemplateEditView: View {
             nameError = "名称不能为空"
             return
         }
-        guard let amount = Decimal(string: amountText), amount > 0 else {
+        guard canSave, let amount = Decimal(string: amountText) else {
             return
         }
 

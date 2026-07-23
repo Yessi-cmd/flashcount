@@ -219,6 +219,9 @@ final class DataBackupService {
         let isPrivateIncome: Bool?
         let cashPoolDelta: CodableMoney?
         let dailyBudgetOverride: Bool?
+        /// Optional for compatibility with backups created before recurring
+        /// transaction provenance was persisted.
+        let recurringRuleId: String?
     }
 
     struct AssetDTO: Codable {
@@ -334,6 +337,7 @@ final class DataBackupService {
         let appearance: String?
         let hideAssetBalance: Bool?
         let hasCompletedOnboarding: Bool?
+        let notificationShowReminderDetails: Bool?
         let reportReminderPreferences: ReportReminderPreferences?
 
         init(
@@ -341,12 +345,14 @@ final class DataBackupService {
             appearance: String?,
             hideAssetBalance: Bool?,
             hasCompletedOnboarding: Bool?,
+            notificationShowReminderDetails: Bool? = nil,
             reportReminderPreferences: ReportReminderPreferences? = nil
         ) {
             self.payday = payday
             self.appearance = appearance
             self.hideAssetBalance = hideAssetBalance
             self.hasCompletedOnboarding = hasCompletedOnboarding
+            self.notificationShowReminderDetails = notificationShowReminderDetails
             self.reportReminderPreferences = reportReminderPreferences
         }
     }
@@ -407,7 +413,8 @@ final class DataBackupService {
                               ledgerId: t.ledger?.id.uuidString,
                               isPrivateIncome: t.isPrivateIncome,
                               cashPoolDelta: t.cashPoolDelta.map { CodableMoney($0) },
-                              dailyBudgetOverride: t.dailyBudgetOverride)
+                              dailyBudgetOverride: t.dailyBudgetOverride,
+                              recurringRuleId: t.recurringRule?.id.uuidString)
             },
             assets: assets.map { a in
                 AssetDTO(id: a.id.uuidString, name: a.name, type: a.type.rawValue,
@@ -486,6 +493,7 @@ final class DataBackupService {
                 appearance: UserDefaults.standard.string(forKey: "appearance"),
                 hideAssetBalance: UserDefaults.standard.object(forKey: "hideAssetBalance") as? Bool,
                 hasCompletedOnboarding: UserDefaults.standard.object(forKey: "hasCompletedOnboarding") as? Bool,
+                notificationShowReminderDetails: UserDefaults.standard.object(forKey: "notificationShowReminderDetails") as? Bool,
                 reportReminderPreferences: UserDefaultsReportReminderPreferencesStore().load()
             )
         )
@@ -587,26 +595,28 @@ final class DataBackupService {
 
         // 1. 先导入分类和账本（它们被其他模型引用）
         let existingCategories = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Category>())
-        let existingCategoryIDs = Set(existingCategories.map { $0.id.uuidString })
+        let existingCategoryIDs = Set(existingCategories.map(\.id))
         // 按「名称+收支类型」建立去重索引
         let existingCategoryNames = Dictionary(
             existingCategories.map { ("\($0.name)_\($0.isExpense)", $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        var categoryMap: [String: Category] = [:]
+        var categoryMap: [UUID: Category] = [:]
         // 建立已有映射
-        for c in existingCategories { categoryMap[c.id.uuidString] = c }
+        for category in existingCategories { categoryMap[category.id] = category }
 
         for dto in backup.categories {
+            let dtoID = UUID(uuidString: dto.id)!
             // 按 UUID 去重
-            if existingCategoryIDs.contains(dto.id) {
+            if existingCategoryIDs.contains(dtoID) {
+                categoryMap[dtoID] = existingCategories.first { $0.id == dtoID }
                 result.skipped += 1
                 continue
             }
             // 按名称+收支类型去重：已有同名分类则复用
             let nameKey = "\(dto.name)_\(dto.isExpense)"
             if let existing = existingCategoryNames[nameKey] {
-                categoryMap[dto.id] = existing
+                categoryMap[dtoID] = existing
                 result.skipped += 1
                 continue
             }
@@ -619,50 +629,62 @@ final class DataBackupService {
                 parentCategoryName: dto.parentCategoryName,
                 defaultKey: dto.defaultKey
             )
-            if let id = UUID(uuidString: dto.id) { cat.id = id }
+            cat.id = dtoID
             cat.isArchived = dto.isArchived
             cat.dailyBudgetOverride = dto.dailyBudgetOverride
-            cat.mergedIntoCategoryID = dto.mergedIntoCategoryId.flatMap(UUID.init(uuidString:))
             modelContext.insert(cat)
-            categoryMap[dto.id] = cat
+            categoryMap[dtoID] = cat
             result.categoriesImported += 1
         }
 
+        // 同名分类在合并导入时可能会映射到本地 UUID；所有合并关系都必须
+        // 指向实际持久化分类，而非备份中的原始 UUID。
+        for dto in backup.categories {
+            guard let category = categoryMap[UUID(uuidString: dto.id)!] else { continue }
+            category.mergedIntoCategoryID = dto.mergedIntoCategoryId
+                .flatMap(UUID.init(uuidString:))
+                .flatMap { categoryMap[$0]?.id }
+        }
+
         let existingLedgers = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Ledger>())
-        let existingLedgerIDs = Set(existingLedgers.map { $0.id.uuidString })
+        let existingLedgerIDs = Set(existingLedgers.map(\.id))
         // 按名称建立去重索引
         let existingLedgerNames = Dictionary(
             existingLedgers.map { ($0.name, $0) },
             uniquingKeysWith: { first, _ in first }
         )
-        var ledgerMap: [String: Ledger] = [:]
-        for l in existingLedgers { ledgerMap[l.id.uuidString] = l }
+        var ledgerMap: [UUID: Ledger] = [:]
+        for ledger in existingLedgers { ledgerMap[ledger.id] = ledger }
 
         for dto in backup.ledgers {
+            let dtoID = UUID(uuidString: dto.id)!
             // 按 UUID 去重
-            if existingLedgerIDs.contains(dto.id) {
+            if existingLedgerIDs.contains(dtoID) {
+                ledgerMap[dtoID] = existingLedgers.first { $0.id == dtoID }
                 result.skipped += 1
                 continue
             }
             // 按名称去重：已有同名账本则复用
             if let existing = existingLedgerNames[dto.name] {
-                ledgerMap[dto.id] = existing
+                ledgerMap[dtoID] = existing
                 result.skipped += 1
                 continue
             }
             let ledger = Ledger(name: dto.name, icon: dto.icon, colorHex: dto.colorHex,
                                isDefault: dto.isDefault, sortOrder: dto.sortOrder)
-            if let id = UUID(uuidString: dto.id) { ledger.id = id }
+            ledger.id = dtoID
             ledger.isArchived = dto.isArchived
+            ledger.createdAt = dto.createdAt
             modelContext.insert(ledger)
-            ledgerMap[dto.id] = ledger
+            ledgerMap[dtoID] = ledger
             result.ledgersImported += 1
         }
 
         // 2. 导入交易记录
         let existingTransactions = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Transaction>())
-        let existingTransIDs = Set(existingTransactions.map { $0.id.uuidString })
+        let existingTransIDs = Set(existingTransactions.map(\.id))
         var importedTransactionDelta: Decimal = 0
+        var pendingRecurringRelationships: [(transaction: Transaction, ruleID: UUID)] = []
 
         // 找到默认账本，作为无归属交易的 fallback；旧备份没有账本时就地补建。
         let defaultLedger: Ledger
@@ -671,36 +693,48 @@ final class DataBackupService {
         } else {
             let created = Ledger.defaultLedgers()[0]
             modelContext.insert(created)
-            ledgerMap[created.id.uuidString] = created
+            ledgerMap[created.id] = created
             defaultLedger = created
         }
 
         for dto in backup.transactions {
-            if existingTransIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingTransIDs.contains(dtoID) {
                 result.skipped += 1
                 continue
             }
             // 如果 ledgerId 匹配不到已有账本，则归入默认账本
-            let matchedLedger = dto.ledgerId.flatMap { ledgerMap[$0] } ?? defaultLedger
+            let matchedLedger = dto.ledgerId
+                .flatMap(UUID.init(uuidString:))
+                .flatMap { ledgerMap[$0] } ?? defaultLedger
             let t = Transaction(amount: dto.amount.decimalValue, isExpense: dto.isExpense,
                                note: dto.note, date: dto.date,
                                isPrivateIncome: dto.isPrivateIncome ?? false,
-                               cashPoolDelta: dto.cashPoolDelta?.decimalValue,
+                               cashPoolDelta: nil,
                                dailyBudgetOverride: dto.dailyBudgetOverride,
-                               category: dto.categoryId.flatMap { categoryMap[$0] },
+                               category: dto.categoryId
+                                   .flatMap(UUID.init(uuidString:))
+                                   .flatMap { categoryMap[$0] },
                                ledger: matchedLedger)
-            if let id = UUID(uuidString: dto.id) { t.id = id }
+            t.id = dtoID
+            t.createdAt = dto.createdAt
+            let cashPoolDelta = dto.cashPoolDelta?.decimalValue ?? CashPoolService.transactionDelta(for: t)
+            t.cashPoolDelta = cashPoolDelta
             modelContext.insert(t)
-            importedTransactionDelta += dto.cashPoolDelta?.decimalValue ?? CashPoolService.transactionDelta(for: t)
+            if let ruleID = dto.recurringRuleId.flatMap(UUID.init(uuidString:)) {
+                pendingRecurringRelationships.append((t, ruleID))
+            }
+            importedTransactionDelta += cashPoolDelta
             result.transactionsImported += 1
         }
 
         // 3. 导入资产账户
         let existingAssets = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Asset>())
-        let existingAssetIDs = Set(existingAssets.map { $0.id.uuidString })
+        let existingAssetIDs = Set(existingAssets.map(\.id))
 
         for dto in backup.assets {
-            if existingAssetIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingAssetIDs.contains(dtoID) {
                 result.skipped += 1
                 continue
             }
@@ -709,18 +743,21 @@ final class DataBackupService {
             }
             let asset = Asset(name: dto.name, type: assetType, balance: dto.balance.decimalValue,
                              icon: dto.icon, colorHex: dto.colorHex, note: dto.note)
-            if let id = UUID(uuidString: dto.id) { asset.id = id }
+            asset.id = dtoID
             asset.isArchived = dto.isArchived
+            asset.createdAt = dto.createdAt
+            asset.updatedAt = dto.updatedAt
             modelContext.insert(asset)
             result.assetsImported += 1
         }
 
         // 4. 导入实物资产
         let existingPhysical = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
-        let existingPhysicalIDs = Set(existingPhysical.map { $0.id.uuidString })
+        let existingPhysicalIDs = Set(existingPhysical.map(\.id))
 
         for dto in backup.physicalAssets {
-            if existingPhysicalIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingPhysicalIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
             guard let cat = PhysicalAssetCategory(rawValue: dto.category) else {
@@ -732,7 +769,7 @@ final class DataBackupService {
                                      salvageValue: dto.salvageValue.decimalValue,
                                      targetDailyCost: dto.targetDailyCost.decimalValue,
                                      note: dto.note)
-            if let id = UUID(uuidString: dto.id) { asset.id = id }
+            asset.id = dtoID
             asset.isArchived = dto.isArchived
             asset.soldPrice = dto.soldPrice?.decimalValue
             asset.soldDate = dto.soldDate
@@ -742,10 +779,12 @@ final class DataBackupService {
 
         // 5. 导入周期规则
         let existingRules = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<RecurringRule>())
-        let existingRuleIDs = Set(existingRules.map { $0.id.uuidString })
+        let existingRuleIDs = Set(existingRules.map(\.id))
+        var ruleMap = Dictionary(uniqueKeysWithValues: existingRules.map { ($0.id, $0) })
 
         for dto in backup.recurringRules {
-            if existingRuleIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingRuleIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
             guard let freq = RecurringFrequency(rawValue: dto.frequency) else {
@@ -754,38 +793,55 @@ final class DataBackupService {
             let rule = RecurringRule(title: dto.title, amount: dto.amount.decimalValue,
                                    isExpense: dto.isExpense, frequency: freq,
                                    nextDueDate: dto.nextDueDate, endDate: dto.endDate, note: dto.note,
-                                   category: dto.categoryId.flatMap { categoryMap[$0] },
-                                   ledger: dto.ledgerId.flatMap { ledgerMap[$0] })
-            if let id = UUID(uuidString: dto.id) { rule.id = id }
+                                   category: dto.categoryId
+                                       .flatMap(UUID.init(uuidString:))
+                                       .flatMap { categoryMap[$0] },
+                                   ledger: dto.ledgerId
+                                       .flatMap(UUID.init(uuidString:))
+                                       .flatMap { ledgerMap[$0] })
+            rule.id = dtoID
             rule.anchorDay = dto.anchorDay ?? rule.anchorDay
             rule.isActive = dto.isActive
+            rule.createdAt = dto.createdAt
             modelContext.insert(rule)
+            ruleMap[dtoID] = rule
             result.recurringRulesImported += 1
+        }
+
+        for relationship in pendingRecurringRelationships {
+            relationship.transaction.recurringRule = ruleMap[relationship.ruleID]
         }
 
         // 6. 导入预算
         let existingBudgets = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Budget>())
-        let existingBudgetIDs = Set(existingBudgets.map { $0.id.uuidString })
+        let existingBudgetIDs = Set(existingBudgets.map(\.id))
 
         for dto in backup.budgets {
-            if existingBudgetIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingBudgetIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
             let budget = Budget(monthlyLimit: dto.monthlyLimit.decimalValue,
                                year: dto.year, month: dto.month,
-                               ledger: dto.ledgerId.flatMap { ledgerMap[$0] },
-                               categoryId: dto.categoryId.flatMap { UUID(uuidString: $0) })
-            if let id = UUID(uuidString: dto.id) { budget.id = id }
+                               ledger: dto.ledgerId
+                                   .flatMap(UUID.init(uuidString:))
+                                   .flatMap { ledgerMap[$0] },
+                               categoryId: dto.categoryId
+                                   .flatMap(UUID.init(uuidString:))
+                                   .flatMap { categoryMap[$0]?.id })
+            budget.id = dtoID
+            budget.createdAt = dto.createdAt
             modelContext.insert(budget)
             result.budgetsImported += 1
         }
 
         // 7. 导入资金池
         let existingCashItems = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<CashPoolItem>())
-        let existingCashItemIDs = Set(existingCashItems.map { $0.id.uuidString })
+        let existingCashItemIDs = Set(existingCashItems.map(\.id))
 
         for dto in backup.cashPoolItems {
-            if existingCashItemIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingCashItemIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
             guard let kind = CashPoolItemKind(rawValue: dto.kind) else {
@@ -798,7 +854,7 @@ final class DataBackupService {
                 note: dto.note,
                 sortOrder: dto.sortOrder
             )
-            if let id = UUID(uuidString: dto.id) { item.id = id }
+            item.id = dtoID
             item.isArchived = dto.isArchived
             item.createdAt = dto.createdAt
             item.updatedAt = dto.updatedAt
@@ -809,7 +865,7 @@ final class DataBackupService {
         let existingCashStates = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<CashPoolState>())
         if existingCashStates.isEmpty, let dto = backup.cashPoolStates.max(by: { $0.updatedAt < $1.updatedAt }) {
             let state = CashPoolState(transactionDelta: dto.transactionDelta.decimalValue)
-            if let id = UUID(uuidString: dto.id) { state.id = id }
+            state.id = UUID(uuidString: dto.id)!
             state.updatedAt = dto.updatedAt
             modelContext.insert(state)
         } else if !existingCashStates.isEmpty {
@@ -824,10 +880,11 @@ final class DataBackupService {
 
         // 8. 导入分期账单
         let existingInstallmentBills = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<InstallmentBill>())
-        let existingInstallmentBillIDs = Set(existingInstallmentBills.map { $0.id.uuidString })
+        let existingInstallmentBillIDs = Set(existingInstallmentBills.map(\.id))
 
         for dto in backup.installmentBills {
-            if existingInstallmentBillIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingInstallmentBillIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
             let bill = InstallmentBill(
@@ -839,7 +896,7 @@ final class DataBackupService {
                 firstRepaymentDate: dto.firstRepaymentDate,
                 note: dto.note
             )
-            if let id = UUID(uuidString: dto.id) { bill.id = id }
+            bill.id = dtoID
             bill.isArchived = dto.isArchived
             bill.createdAt = dto.createdAt
             bill.updatedAt = dto.updatedAt
@@ -849,10 +906,11 @@ final class DataBackupService {
 
         // 9. 导入储蓄目标
         let existingSavingsGoals = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<SavingsGoal>())
-        let existingSavingsGoalIDs = Set(existingSavingsGoals.map { $0.id.uuidString })
+        let existingSavingsGoalIDs = Set(existingSavingsGoals.map(\.id))
 
         for dto in backup.savingsGoals {
-            if existingSavingsGoalIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingSavingsGoalIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
             let goal = SavingsGoal(
@@ -862,7 +920,7 @@ final class DataBackupService {
                 targetDate: dto.targetDate,
                 note: dto.note
             )
-            if let id = UUID(uuidString: dto.id) { goal.id = id }
+            goal.id = dtoID
             goal.isCompleted = dto.isCompleted
             goal.isArchived = dto.isArchived
             goal.createdAt = dto.createdAt
@@ -873,10 +931,11 @@ final class DataBackupService {
 
         // 10. 导入记账模板
         let existingTemplates = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<TransactionTemplate>())
-        let existingTemplateIDs = Set(existingTemplates.map { $0.id.uuidString })
+        let existingTemplateIDs = Set(existingTemplates.map(\.id))
 
         for dto in backup.templates {
-            if existingTemplateIDs.contains(dto.id) {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingTemplateIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
             let template = TransactionTemplate(
@@ -887,7 +946,7 @@ final class DataBackupService {
                 categoryName: dto.categoryName,
                 sortOrder: dto.sortOrder
             )
-            if let id = UUID(uuidString: dto.id) { template.id = id }
+            template.id = dtoID
             modelContext.insert(template)
             result.templatesImported += 1
         }
@@ -988,9 +1047,14 @@ final class DataBackupService {
         var shouldRebuildNotifications = false
         if let settings = backup.settings {
             UserDefaults.standard.set(min(max(settings.payday, 1), 31), forKey: "payday")
+            shouldRebuildNotifications = true
             if let appearance = settings.appearance { UserDefaults.standard.set(appearance, forKey: "appearance") }
             if let hideAssetBalance = settings.hideAssetBalance { UserDefaults.standard.set(hideAssetBalance, forKey: "hideAssetBalance") }
             if let hasCompletedOnboarding = settings.hasCompletedOnboarding { UserDefaults.standard.set(hasCompletedOnboarding, forKey: "hasCompletedOnboarding") }
+            if let notificationShowReminderDetails = settings.notificationShowReminderDetails {
+                UserDefaults.standard.set(notificationShowReminderDetails, forKey: "notificationShowReminderDetails")
+                shouldRebuildNotifications = true
+            }
             if let reportPreferences = settings.reportReminderPreferences {
                 try UserDefaultsReportReminderPreferencesStore().save(reportPreferences)
                 shouldRebuildNotifications = true
@@ -1039,19 +1103,27 @@ final class DataBackupService {
         }
 
         if mode == .replace {
-            let categoryIDs = Set(backup.categories.map(\.id))
-            let ledgerIDs = Set(backup.ledgers.map(\.id))
-            let categoryReferences = backup.transactions.compactMap(\.categoryId)
+            let categoryIDs = Set(backup.categories.map { UUID(uuidString: $0.id)! })
+            let ledgerIDs = Set(backup.ledgers.map { UUID(uuidString: $0.id)! })
+            let recurringRuleIDs = Set(backup.recurringRules.map { UUID(uuidString: $0.id)! })
+            let categoryReferences = (backup.transactions.compactMap(\.categoryId)
                 + backup.recurringRules.compactMap(\.categoryId)
-                + backup.categories.compactMap(\.mergedIntoCategoryId)
-            let ledgerReferences = backup.transactions.compactMap(\.ledgerId)
+                + backup.categories.compactMap(\.mergedIntoCategoryId))
+                .map { UUID(uuidString: $0)! }
+            let ledgerReferences = (backup.transactions.compactMap(\.ledgerId)
                 + backup.recurringRules.compactMap(\.ledgerId)
-                + backup.budgets.compactMap(\.ledgerId)
+                + backup.budgets.compactMap(\.ledgerId))
+                .map { UUID(uuidString: $0)! }
+            let recurringRuleReferences = backup.transactions.compactMap(\.recurringRuleId)
+                .map { UUID(uuidString: $0)! }
             guard categoryReferences.allSatisfy(categoryIDs.contains) else {
                 throw ImportError.invalidContents("分类关系引用不存在")
             }
             guard ledgerReferences.allSatisfy(ledgerIDs.contains) else {
                 throw ImportError.invalidContents("账本关系引用不存在")
+            }
+            guard recurringRuleReferences.allSatisfy(recurringRuleIDs.contains) else {
+                throw ImportError.invalidContents("周期规则关系引用不存在")
             }
         }
     }
@@ -1060,7 +1132,7 @@ final class DataBackupService {
         guard ids.allSatisfy({ UUID(uuidString: $0) != nil }) else {
             throw ImportError.invalidContents("\(label)包含无效 UUID")
         }
-        guard Set(ids).count == ids.count else {
+        guard Set(ids.compactMap(UUID.init(uuidString:))).count == ids.count else {
             throw ImportError.invalidContents("\(label)包含重复 UUID")
         }
     }

@@ -49,6 +49,11 @@ struct EditTransactionView: View {
         Category.rootCategories(from: currentCategories, isExpense: isExpense)
     }
 
+    private var hasValidAmount: Bool {
+        guard let amount = Decimal(string: amountText) else { return false }
+        return amount > 0
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -185,7 +190,7 @@ struct EditTransactionView: View {
                         }
 
                         Button("保存") { saveChanges() }
-                            .disabled(amountText.isEmpty)
+                            .disabled(!hasValidAmount)
                             .foregroundStyle(DesignSystem.primaryColor)
                     }
                 }
@@ -342,7 +347,7 @@ struct EditTransactionView: View {
     }
 
     private func saveChanges() {
-        guard let amount = Decimal(string: amountText), amount > 0 else { return }
+        guard hasValidAmount, let amount = Decimal(string: amountText) else { return }
         let draft = TransactionDraft(
             amount: amount,
             isExpense: isExpense,

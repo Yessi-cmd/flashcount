@@ -43,7 +43,7 @@ final class FlashCountSmokeTests: XCTestCase {
         )
     }
 
-    func testMainTabBarHidesAfterIdleAndReturnsOnInteraction() {
+    func testMainTabBarStaysAvailableAfterIdle() {
         let app = XCUIApplication()
         app.launchArguments = [
             "-hasCompletedOnboarding", "true",
@@ -56,15 +56,16 @@ final class FlashCountSmokeTests: XCTestCase {
         let weekly = app.buttons["report.period.weekly"]
         XCTAssertTrue(reportTab.waitForExistence(timeout: 5))
         XCTAssertTrue(weekly.waitForExistence(timeout: 5))
+        sleep(3)
         XCTAssertTrue(
-            reportTab.waitForNonExistence(timeout: 5),
-            "底部标签栏应在无操作一段时间后隐藏"
+            reportTab.waitForExistence(timeout: 3),
+            "底部标签栏应始终提供主导航路径"
         )
 
         weekly.tap()
         XCTAssertTrue(
             reportTab.waitForExistence(timeout: 2),
-            "点击页面内容后应唤回底部标签栏"
+            "页面交互后主导航仍应存在"
         )
     }
 

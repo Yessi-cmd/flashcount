@@ -43,6 +43,12 @@ struct AddRecurringRuleView: View {
         Category.rootCategories(from: categories, isExpense: isExpense)
     }
 
+    private var canSave: Bool {
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let amount = Decimal(string: amountText) else { return false }
+        return !cleanTitle.isEmpty && amount > 0
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -167,7 +173,7 @@ struct AddRecurringRuleView: View {
                 ToolbarItem(placement: .topBarLeading) { Button("取消") { dismiss() }.foregroundStyle(DesignSystem.textSecondary) }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") { saveRule() }
-                        .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || amountText.isEmpty)
+                        .disabled(!canSave)
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
@@ -285,7 +291,7 @@ struct AddRecurringRuleView: View {
 
     private func saveRule() {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Decimal(string: amountText), amount > 0, !cleanTitle.isEmpty else { return }
+        guard canSave, let amount = Decimal(string: amountText) else { return }
 
         if let rule = editRule {
             rule.title = cleanTitle

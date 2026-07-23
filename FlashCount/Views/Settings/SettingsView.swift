@@ -9,6 +9,7 @@ struct SettingsView: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
     @AppStorage("payday") private var payday = 1
+    @AppStorage("notificationShowReminderDetails") private var notificationShowReminderDetails = false
     @State private var showTutorial = false
     @State private var showRecurringRules = false
     @State private var showReminders = false
@@ -67,6 +68,18 @@ struct SettingsView: View {
                         Text("隐私").foregroundStyle(DesignSystem.textSecondary)
                     } footer: {
                         Text("显示前会先确认，再使用 Face ID、Touch ID 或设备密码验证。App 进入后台后自动隐藏。")
+                            .font(.caption2)
+                            .foregroundStyle(DesignSystem.textTertiary)
+                    }
+                    .listRowBackground(DesignSystem.cardBackground)
+
+                    Section {
+                        Toggle("在锁屏通知中显示提醒详情", isOn: $notificationShowReminderDetails)
+                            .foregroundStyle(DesignSystem.textPrimary)
+                    } header: {
+                        Text("通知隐私").foregroundStyle(DesignSystem.textSecondary)
+                    } footer: {
+                        Text("默认仅显示通用提醒，不会在锁屏上展示你输入的标题或备注。")
                             .font(.caption2)
                             .foregroundStyle(DesignSystem.textTertiary)
                     }
@@ -224,11 +237,17 @@ struct SettingsView: View {
                         }
                         Button {
                             let service = DataRepairService(modelContext: modelContext)
-                            let report = service.runRepair()
-                            repairResult = report.summary
-                            showRepairResult = true
-                            if report.totalFixed > 0 {
-                                HapticManager.success()
+                            do {
+                                let report = try service.runRepair()
+                                repairResult = report.summary
+                                showRepairResult = true
+                                if report.totalFixed > 0 {
+                                    HapticManager.success()
+                                }
+                            } catch {
+                                repairResult = "数据修复失败：\(error.localizedDescription)"
+                                showRepairResult = true
+                                HapticManager.error()
                             }
                         } label: {
                             HStack {
@@ -336,6 +355,29 @@ struct SettingsView: View {
             } message: {
                 Text(importResult ?? "")
             }
+            .onChange(of: payday) { _, _ in
+                rebuildNotificationsForSettingsChange()
+            }
+            .onChange(of: notificationShowReminderDetails) { _, _ in
+                rebuildNotificationsForSettingsChange()
+            }
+        }
+    }
+
+    private func rebuildNotificationsForSettingsChange() {
+        do {
+            let reminders = try ReminderDataService(modelContext: modelContext).load()
+            Task {
+                do {
+                    try await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
+                } catch {
+                    importResult = "设置已保存，但通知更新失败：\(error.localizedDescription)"
+                    showImportResult = true
+                }
+            }
+        } catch {
+            importResult = "设置已保存，但提醒读取失败：\(error.localizedDescription)"
+            showImportResult = true
         }
     }
 
@@ -370,8 +412,9 @@ struct SettingsView: View {
         }
         defer { url.stopAccessingSecurityScopedResource() }
         do {
-            let count = try CSVTransactionService(modelContext: modelContext).importCSV(from: url)
-            importResult = "已导入 \(count) 笔账单"; showImportResult = true
+            let report = try CSVTransactionService(modelContext: modelContext).importCSV(from: url)
+            importResult = report.summary
+            showImportResult = true
         } catch {
             importResult = "CSV 导入失败：\(error.localizedDescription)"; showImportResult = true
         }

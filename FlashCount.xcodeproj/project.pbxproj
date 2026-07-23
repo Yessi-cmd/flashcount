@@ -21,6 +21,7 @@
 		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
 		14A503E907A93958C352D9F4 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */; };
 		1A452CBB6A09B051CE15209A /* DefaultDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F8BA17A1077C74363D442E /* DefaultDataService.swift */; };
+		1E594E500C23CE7A65B8CF23 /* FlashCountSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 214FECFB8A46540B23411B24 /* FlashCountSchema.swift */; };
 		1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82942383FFAC85D692A7031 /* MainInterfaceExplorationView.swift */; };
 		1F3FD337430E5786ADA03F40 /* TemplateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */; };
 		24353780EBC756092F19094F /* AddAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232747DAEE35358568E032BA /* AddAssetView.swift */; };
@@ -39,6 +40,7 @@
 		48ABF62D1E1FB42B901F8235 /* ReportReminderPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44ED3657E41E040314D63848 /* ReportReminderPreferencesStore.swift */; };
 		4937879A4084BE8B7C3FB72A /* DailyBudgetScopeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C353AB5561EBD96657B182 /* DailyBudgetScopeView.swift */; };
 		499C894AE855060406B52B76 /* CategoryBudgetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CCF20C66441FB06536D937 /* CategoryBudgetService.swift */; };
+		4AD3D846FD1695BA9132B7FC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1ADA7956C6C99C09B67BA62C /* PrivacyInfo.xcprivacy */; };
 		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
 		50DA9190E88420449175A95D /* CategoryBudgetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D2927DCAF44C764B12376C6 /* CategoryBudgetsView.swift */; };
 		6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */; };
@@ -54,6 +56,7 @@
 		79C405E10782A42CD9094135 /* CategoryManagementServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EEE30A9A79A753F3D97B6A5 /* CategoryManagementServiceTests.swift */; };
 		7A83F34058A971E78961B56A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 462A15F41FD0AD3DFEAAE8A0 /* SettingsView.swift */; };
 		7B2E32BCD75D603E808F3DF5 /* AddRecurringRuleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */; };
+		7F21B166EA9E33F571BDAD4D /* StartupFailureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D8CD218FE5B62A309ABCC2C /* StartupFailureView.swift */; };
 		8ABD1900D21A8334186174CB /* ReminderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC429AB33ED6D42759B6E578 /* ReminderStore.swift */; };
 		8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */; };
 		8E2B8F3AA30DF91D2F8E4A81 /* ReportBudgetSnapshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3474D18D3D98F0E29892BC0 /* ReportBudgetSnapshotService.swift */; };
@@ -148,12 +151,15 @@
 		12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryControls.swift; sourceTree = "<group>"; };
 		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
 		1A25736CBBC2CCA2F7E6527E /* AddReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddReminderView.swift; sourceTree = "<group>"; };
+		1ADA7956C6C99C09B67BA62C /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1DC60DF27B6C57F670C432D9 /* VisualDirectionExplorationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualDirectionExplorationView.swift; sourceTree = "<group>"; };
 		1E27D09CD08C8BE96114E84E /* CategoryPickerComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryPickerComponents.swift; sourceTree = "<group>"; };
+		214FECFB8A46540B23411B24 /* FlashCountSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountSchema.swift; sourceTree = "<group>"; };
 		232747DAEE35358568E032BA /* AddAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAssetView.swift; sourceTree = "<group>"; };
 		25E3F6BCDD308CC403615B0C /* ReportReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderNotificationService.swift; sourceTree = "<group>"; };
 		26A56643F838FD8572D2C332 /* SavingsGoal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsGoal.swift; sourceTree = "<group>"; };
 		28E6DA89B6319DACF056D151 /* CashPoolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashPoolView.swift; sourceTree = "<group>"; };
+		2A6F0FE7E7532EF570AC9E66 /* FlashCount.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FlashCount.entitlements; sourceTree = "<group>"; };
 		2C6FDA81436A9B8623D1B0EA /* SavingsGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsGoalView.swift; sourceTree = "<group>"; };
 		30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryView.swift; sourceTree = "<group>"; };
 		36EFD1230AE17F67A1659B34 /* NotificationScheduleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduleCoordinator.swift; sourceTree = "<group>"; };
@@ -183,6 +189,7 @@
 		6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringService.swift; sourceTree = "<group>"; };
 		6958950D41A4E8CD91DCB2E5 /* QuickAddIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddIntent.swift; sourceTree = "<group>"; };
 		6D2927DCAF44C764B12376C6 /* CategoryBudgetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryBudgetsView.swift; sourceTree = "<group>"; };
+		6D8CD218FE5B62A309ABCC2C /* StartupFailureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupFailureView.swift; sourceTree = "<group>"; };
 		6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduleCoordinatorTests.swift; sourceTree = "<group>"; };
 		6F8839618ED5DD4131D896BC /* TransactionTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionTemplate.swift; sourceTree = "<group>"; };
 		6FC6A8D084532B8B141489D2 /* LedgerComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerComponents.swift; sourceTree = "<group>"; };
@@ -270,8 +277,10 @@
 		18C415E3AE708EE698FBE5FC /* FlashCount */ = {
 			isa = PBXGroup;
 			children = (
+				2A6F0FE7E7532EF570AC9E66 /* FlashCount.entitlements */,
 				5135CC79D6F54B517077FC78 /* FlashCountApp.swift */,
 				0197D9BCB20EB9FAF4DCA417 /* Info.plist */,
+				1ADA7956C6C99C09B67BA62C /* PrivacyInfo.xcprivacy */,
 				B8C4D369A8D12583B9C6483B /* Core */,
 				0CA7977BB8907D50AD80F56F /* Models */,
 				2AA5A582129CCAF2C05184C9 /* Resources */,
@@ -497,6 +506,7 @@
 				49B6F38607655BC6FD7A32D2 /* DesignSystem.swift */,
 				FBFD2135FE36029863FB0A1A /* ErrorHandling.swift */,
 				03D1DAE410336C0B0B1944E7 /* Extensions.swift */,
+				214FECFB8A46540B23411B24 /* FlashCountSchema.swift */,
 				B8F2123F4154B8A530ECE311 /* MoneyValidation.swift */,
 				6958950D41A4E8CD91DCB2E5 /* QuickAddIntent.swift */,
 				B66674F214D250C00FDB12AA /* ReportRoute.swift */,
@@ -517,6 +527,7 @@
 			isa = PBXGroup;
 			children = (
 				454084E97E2460EC422CA4D1 /* MainTabView.swift */,
+				6D8CD218FE5B62A309ABCC2C /* StartupFailureView.swift */,
 				A63D79DB3ED665B56E73A881 /* Asset */,
 				243375D141001E19928FDC81 /* Budget */,
 				369B518C3F71589B04FE2810 /* Components */,
@@ -660,6 +671,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E371EC1E626E145C33A1646D /* Assets.xcassets in Resources */,
+				4AD3D846FD1695BA9132B7FC /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -725,6 +737,7 @@
 				A251807FC75C217BFDE54A52 /* Extensions.swift in Sources */,
 				767FEA5F7D91266230ECD27A /* FilterSheetView.swift in Sources */,
 				2B5D41A4F0E108AF9B69568C /* FlashCountApp.swift in Sources */,
+				1E594E500C23CE7A65B8CF23 /* FlashCountSchema.swift in Sources */,
 				33AC277FE5E36B92BDAEDFF2 /* InstallmentBill.swift in Sources */,
 				29A922DE0C8EC201C201181D /* InstallmentBillView.swift in Sources */,
 				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,
@@ -764,6 +777,7 @@
 				C3C6B2BC947F3488E07D1D30 /* SavingsGoal.swift in Sources */,
 				CD161CD39C37F8747F8F19D5 /* SavingsGoalView.swift in Sources */,
 				7A83F34058A971E78961B56A /* SettingsView.swift in Sources */,
+				7F21B166EA9E33F571BDAD4D /* StartupFailureView.swift in Sources */,
 				1F3FD337430E5786ADA03F40 /* TemplateBarView.swift in Sources */,
 				78BE90FC010275086F0283C1 /* TemplateManagementView.swift in Sources */,
 				14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */,
@@ -807,6 +821,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FlashCount/FlashCount.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = 66WCCRKRLC;
 				INFOPLIST_FILE = FlashCount/Info.plist;
@@ -1023,6 +1038,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FlashCount/FlashCount.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				DEVELOPMENT_TEAM = "";
 				INFOPLIST_FILE = FlashCount/Info.plist;

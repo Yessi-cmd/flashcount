@@ -182,6 +182,7 @@ struct InstallmentBillView: View {
         .glassCard()
         .contentShape(Rectangle())
         .onTapGesture { revealOrPerform { editingBill = bill } }
+        .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button { revealOrPerform { editingBill = bill } } label: {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")

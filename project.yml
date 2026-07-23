@@ -41,6 +41,7 @@ targets:
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
         TARGETED_DEVICE_FAMILY: "1"
+        CODE_SIGN_ENTITLEMENTS: FlashCount/FlashCount.entitlements
       configs:
         Debug:
           DEVELOPMENT_TEAM: ""

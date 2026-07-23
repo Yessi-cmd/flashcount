@@ -66,9 +66,15 @@ enum NotificationSchedulePlanner {
         reportPreferences: ReportReminderPreferences,
         referenceDate: Date = Date(),
         calendar: Calendar = .current,
-        payday: Int = 1
+        payday: Int = 1,
+        includeReminderDetails: Bool = false
     ) -> [NotificationScheduleCandidate] {
-        reminderCandidates(reminders: reminders, referenceDate: referenceDate, calendar: calendar)
+        reminderCandidates(
+            reminders: reminders,
+            referenceDate: referenceDate,
+            calendar: calendar,
+            includeDetails: includeReminderDetails
+        )
             + reportCandidates(
                 preferences: reportPreferences,
                 referenceDate: referenceDate,
@@ -85,7 +91,8 @@ enum NotificationSchedulePlanner {
     private static func reminderCandidates(
         reminders: [ReminderItem],
         referenceDate: Date,
-        calendar: Calendar
+        calendar: Calendar,
+        includeDetails: Bool
     ) -> [NotificationScheduleCandidate] {
         reminders
             .filter { !$0.isCompleted }
@@ -102,10 +109,10 @@ enum NotificationSchedulePlanner {
                             from: fireDate
                         ),
                         repeats: false,
-                        title: reminder.title,
-                        body: reminder.note.isEmpty
-                            ? reminderBody(for: reminder, index: index)
-                            : reminder.note,
+                        title: includeDetails ? reminder.title : "FlashCount 提醒",
+                        body: includeDetails
+                            ? (reminder.note.isEmpty ? reminderBody(for: reminder, index: index) : reminder.note)
+                            : genericReminderBody(for: reminder, index: index),
                         interruption: reminder.intensity == .strong ? .timeSensitive : .active
                     )
                 }
@@ -143,6 +150,13 @@ enum NotificationSchedulePlanner {
             return "还没有标记完成，记得处理这件事。"
         }
         return "到时间了，打开 FlashCount 标记完成。"
+    }
+
+    private static func genericReminderBody(for reminder: ReminderItem, index: Int) -> String {
+        if reminder.intensity == .strong && index > 0 {
+            return "你有一条待处理提醒，打开 FlashCount 标记完成。"
+        }
+        return "你有一条待处理提醒，打开 FlashCount 查看。"
     }
 }
 
@@ -217,6 +231,7 @@ struct NotificationScheduleStatusStore {
 
 protocol NotificationCenterScheduling: Sendable {
     func pendingRequests() async -> [UNNotificationRequest]
+    func supportsTimeSensitiveNotifications() async -> Bool
     func add(_ request: UNNotificationRequest) async throws
     func removePendingRequests(withIdentifiers identifiers: [String]) async
 }
@@ -226,6 +241,14 @@ struct SystemNotificationCenterScheduler: NotificationCenterScheduling {
         await withCheckedContinuation { continuation in
             UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
                 continuation.resume(returning: requests)
+            }
+        }
+    }
+
+    func supportsTimeSensitiveNotifications() async -> Bool {
+        await withCheckedContinuation { continuation in
+            UNUserNotificationCenter.current().getNotificationSettings { settings in
+                continuation.resume(returning: settings.timeSensitiveSetting == .enabled)
             }
         }
     }
@@ -246,6 +269,7 @@ actor NotificationScheduleCoordinator {
     private let statusStore: NotificationScheduleStatusStore
     private let reminderLoader: @Sendable () -> [ReminderItem]
     private let preferencesLoader: @Sendable () -> ReportReminderPreferences
+    private let reminderDetailsLoader: @Sendable () -> Bool
     private let paydayLoader: @Sendable () -> Int
     private let now: @Sendable () -> Date
     private let calendar: Calendar
@@ -257,6 +281,9 @@ actor NotificationScheduleCoordinator {
         preferencesLoader: @escaping @Sendable () -> ReportReminderPreferences = {
             UserDefaultsReportReminderPreferencesStore().load()
         },
+        reminderDetailsLoader: @escaping @Sendable () -> Bool = {
+            UserDefaults.standard.bool(forKey: "notificationShowReminderDetails")
+        },
         paydayLoader: @escaping @Sendable () -> Int = {
             max(UserDefaults.standard.integer(forKey: "payday"), 1)
         },
@@ -267,6 +294,7 @@ actor NotificationScheduleCoordinator {
         self.statusStore = statusStore
         self.reminderLoader = reminderLoader
         self.preferencesLoader = preferencesLoader
+        self.reminderDetailsLoader = reminderDetailsLoader
         self.paydayLoader = paydayLoader
         self.now = now
         self.calendar = calendar
@@ -276,9 +304,10 @@ actor NotificationScheduleCoordinator {
     func rebuild(reminders providedReminders: [ReminderItem]? = nil) async throws -> NotificationScheduleStatus {
         let referenceDate = now()
         let pending = await center.pendingRequests()
-        let managedIdentifiers = pending
-            .map(\.identifier)
-            .filter(NotificationSchedulePlanner.isManaged(identifier:))
+        let managedRequests = pending.filter {
+            NotificationSchedulePlanner.isManaged(identifier: $0.identifier)
+        }
+        let managedIdentifiers = managedRequests.map(\.identifier)
         let unmanagedCount = pending.count - managedIdentifiers.count
         let capacity = max(
             NotificationSchedulePlanner.maximumPendingRequests - unmanagedCount,
@@ -289,17 +318,22 @@ actor NotificationScheduleCoordinator {
             reportPreferences: preferencesLoader(),
             referenceDate: referenceDate,
             calendar: calendar,
-            payday: paydayLoader()
+            payday: paydayLoader(),
+            includeReminderDetails: reminderDetailsLoader()
         )
         let selection = NotificationScheduleSelection.make(
             candidates: candidates,
             capacity: capacity
         )
 
+        let allowsTimeSensitiveNotifications = await center.supportsTimeSensitiveNotifications()
         await center.removePendingRequests(withIdentifiers: managedIdentifiers)
         do {
             for candidate in selection.selected {
-                try await center.add(request(for: candidate))
+                try await center.add(request(
+                    for: candidate,
+                    allowsTimeSensitiveNotifications: allowsTimeSensitiveNotifications
+                ))
             }
         } catch {
             let current = await center.pendingRequests()
@@ -307,11 +341,18 @@ actor NotificationScheduleCoordinator {
                 .map(\.identifier)
                 .filter(NotificationSchedulePlanner.isManaged(identifier:))
             await center.removePendingRequests(withIdentifiers: identifiers)
+            // A failed replacement must not turn a previously working reminder
+            // schedule into no schedule at all. Re-add the exact snapshot after
+            // clearing only partially-added managed requests.
+            for request in managedRequests {
+                try? await center.add(request)
+            }
             let status = status(
                 selection: selection,
                 unmanagedCount: unmanagedCount,
                 errorMessage: error.localizedDescription,
-                updatedAt: referenceDate
+                updatedAt: referenceDate,
+                scheduledCountOnFailure: managedRequests.count
             )
             statusStore.save(status)
             throw error
@@ -327,12 +368,17 @@ actor NotificationScheduleCoordinator {
         return status
     }
 
-    private func request(for candidate: NotificationScheduleCandidate) -> UNNotificationRequest {
+    private func request(
+        for candidate: NotificationScheduleCandidate,
+        allowsTimeSensitiveNotifications: Bool
+    ) -> UNNotificationRequest {
         let content = UNMutableNotificationContent()
         content.title = candidate.title
         content.body = candidate.body
         content.sound = .default
-        content.interruptionLevel = candidate.interruption == .timeSensitive ? .timeSensitive : .active
+        content.interruptionLevel = candidate.interruption == .timeSensitive && allowsTimeSensitiveNotifications
+            ? .timeSensitive
+            : .active
         if case .report(let period) = candidate.kind {
             content.userInfo = [ReportRoute.notificationPeriodUserInfoKey: period.rawValue]
         }
@@ -351,7 +397,8 @@ actor NotificationScheduleCoordinator {
         selection: NotificationScheduleSelection,
         unmanagedCount: Int,
         errorMessage: String?,
-        updatedAt: Date
+        updatedAt: Date,
+        scheduledCountOnFailure: Int? = nil
     ) -> NotificationScheduleStatus {
         let reminderIDs = Set(selection.dropped.compactMap { candidate -> UUID? in
             if case .reminder(let id, _) = candidate.kind { return id }
@@ -362,7 +409,7 @@ actor NotificationScheduleCoordinator {
             return nil
         })
         return NotificationScheduleStatus(
-            scheduledCount: errorMessage == nil ? selection.selected.count : 0,
+            scheduledCount: errorMessage == nil ? selection.selected.count : (scheduledCountOnFailure ?? 0),
             capacity: selection.capacity,
             unmanagedCount: unmanagedCount,
             droppedReminderIDs: reminderIDs.sorted { $0.uuidString < $1.uuidString },

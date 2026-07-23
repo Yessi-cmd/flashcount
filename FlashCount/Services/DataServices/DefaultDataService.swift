@@ -10,30 +10,24 @@ final class DefaultDataService {
         self.modelContext = modelContext
     }
 
-    func prepareAppData() {
+    /// Performs all launch-time data preparation. The caller owns error
+    /// presentation so a failed recovery or migration never appears as a
+    /// successful app launch.
+    func prepareAppData(initialRecurringLimit: Int = 30) throws -> RecurringService.ProcessingResult {
         do {
             try stageDefaultData()
             try modelContext.save()
         } catch {
             modelContext.rollback()
-            print("默认数据初始化失败: \(error.localizedDescription)")
-            return
+            throw error
         }
 
-        do {
-            try DataBackupService(modelContext: modelContext).recoverPendingImport()
-        } catch {
-            print("未完成的数据导入恢复失败: \(error.localizedDescription)")
-        }
+        _ = try DataBackupService(modelContext: modelContext).recoverPendingImport()
 
-        do {
-            _ = try ReminderDataService(modelContext: modelContext).migrateLegacyFileIfNeeded()
-        } catch {
-            print("旧提醒数据迁移失败: \(error.localizedDescription)")
-        }
+        _ = try ReminderDataService(modelContext: modelContext).migrateLegacyFileIfNeeded()
 
         let recurringService = RecurringService(modelContext: modelContext)
-        recurringService.processAllDueRules()
+        return try recurringService.processDueRules(maxOccurrences: initialRecurringLimit)
     }
 
     /// 在当前 ModelContext 中准备默认数据，但不主动保存。

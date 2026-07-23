@@ -130,6 +130,7 @@ struct SavingsGoalView: View {
         .glassCard()
         .contentShape(Rectangle())
         .onTapGesture { revealOrPerform { editingGoal = goal } }
+        .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button { revealOrPerform { editingGoal = goal } } label: {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")

@@ -253,6 +253,7 @@ struct RecurringRulesView: View {
                 editingRule = rule
             }
         }
+        .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button {
                 if hidesIncome {

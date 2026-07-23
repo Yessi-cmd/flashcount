@@ -39,6 +39,7 @@ struct QuickEntryView: View {
     @State private var editingTemplate: TransactionTemplate?
     @State private var isSaving = false
     @State private var dailyBudgetOverride: Bool?
+    @AccessibilityFocusState private var successOverlayFocused: Bool
     @Namespace private var typeSelectionNamespace
 
     init() {
@@ -54,6 +55,11 @@ struct QuickEntryView: View {
 
     private var currentCategories: [Category] {
         isExpense ? expenseCategories : incomeCategories
+    }
+
+    private var hasValidAmount: Bool {
+        guard let amount = Decimal(string: amountText) else { return false }
+        return amount > 0
     }
 
     private var rootCategories: [Category] {
@@ -181,15 +187,10 @@ struct QuickEntryView: View {
                 }
 #endif
             }
-            .task(id: showSuccess) {
-                guard showSuccess else { return }
-                do {
-                    try await Task.sleep(nanoseconds: 2_000_000_000)
-                } catch {
-                    return
+            .onChange(of: showSuccess) { _, isShowing in
+                if isShowing {
+                    successOverlayFocused = true
                 }
-                guard showSuccess, !Task.isCancelled else { return }
-                dismiss()
             }
             .saveErrorAlert($saveError)
             .sheet(isPresented: $showTemplateManager) {
@@ -494,7 +495,7 @@ struct QuickEntryView: View {
     }
 
     private var submitButton: some View {
-        QuickEntrySubmitButton(isEnabled: !amountText.isEmpty, isExpense: isExpense, action: saveTransaction)
+        QuickEntrySubmitButton(isEnabled: hasValidAmount, isExpense: isExpense, action: saveTransaction)
     }
 
     @ViewBuilder
@@ -538,6 +539,7 @@ struct QuickEntryView: View {
             Text("记账成功！")
                 .font(.headline)
                 .foregroundStyle(DesignSystem.textPrimary)
+                .accessibilityFocused($successOverlayFocused)
 
             if let budgetReminderText {
                 HStack(spacing: 6) {
@@ -762,7 +764,7 @@ struct QuickEntryView: View {
     }
 
     private func saveTransaction() {
-        guard !isSaving, let amount = Decimal(string: amountText), amount > 0 else { return }
+        guard !isSaving, hasValidAmount, let amount = Decimal(string: amountText) else { return }
         isSaving = true
         defer { isSaving = false }
 
