@@ -1,0 +1,46 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ios-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Regenerate Xcode project
+        run: |
+          xcodegen generate
+          git diff --exit-code -- FlashCount.xcodeproj
+
+      - name: Build and test on iOS Simulator
+        run: |
+          xcodebuild test \
+            -project FlashCount.xcodeproj \
+            -scheme FlashCount \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -derivedDataPath "$RUNNER_TEMP/FlashCountDerivedData" \
+            CODE_SIGNING_ALLOWED=NO
