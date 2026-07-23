@@ -17,7 +17,7 @@ jobs:
   build-and-test:
     name: Build and test
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Check out source
@@ -33,12 +33,30 @@ jobs:
       - name: Regenerate Xcode project
         run: xcodegen generate
 
+      - name: Install iOS Simulator runtime
+        run: |
+          sudo xcodebuild -downloadPlatform iOS
+          xcrun simctl list runtimes
+
+      - name: Create iOS Simulator
+        id: simulator
+        run: |
+          runtime_id="$(xcrun simctl list runtimes -j | python3 -c 'import json, sys; runtimes = json.load(sys.stdin)["runtimes"]; available = [runtime for runtime in runtimes if runtime.get("isAvailable") and runtime["identifier"].startswith("com.apple.CoreSimulator.SimRuntime.iOS-")]; print(max(available, key=lambda runtime: tuple(map(int, runtime["version"].split("."))))["identifier"])')"
+          device_type_id="$(xcrun simctl list devicetypes -j | python3 -c 'import json, sys; device_types = json.load(sys.stdin)["devicetypes"]; preferred_names = ("iPhone 16 Pro", "iPhone 16", "iPhone 15 Pro"); selected = next((device_type for name in preferred_names for device_type in device_types if device_type["name"] == name), next(device_type for device_type in device_types if device_type["name"].startswith("iPhone"))); print(selected["identifier"])')"
+          device_id="$(xcrun simctl create 'FlashCount CI' "$device_type_id" "$runtime_id")"
+          xcrun simctl bootstatus "$device_id" -b
+          echo "id=$device_id" >> "$GITHUB_OUTPUT"
+
       - name: Build and test on iOS Simulator
         run: |
           xcodebuild test \
             -project FlashCount.xcodeproj \
             -scheme FlashCount \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=latest' \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
             -derivedDataPath "$RUNNER_TEMP/FlashCountDerivedData" \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Delete iOS Simulator
+        if: always() && steps.simulator.outputs.id != ''
+        run: xcrun simctl delete "${{ steps.simulator.outputs.id }}"
