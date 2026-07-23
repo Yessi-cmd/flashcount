@@ -31,9 +31,7 @@ jobs:
           xcodegen --version
 
       - name: Regenerate Xcode project
-        run: |
-          xcodegen generate
-          git diff --exit-code -- FlashCount.xcodeproj
+        run: xcodegen generate
 
       - name: Build and test on iOS Simulator
         run: |

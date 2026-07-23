@@ -10,13 +10,13 @@
 
 ## 行为变化
 
-- 工作流在 macOS 15 Runner 上按需安装 XcodeGen、由 `project.yml` 重新生成工程并验证生成结果没有漂移。
+- 工作流在 macOS 15 Runner 上按需安装 XcodeGen，并由 `project.yml` 重新生成构建所需工程。
 - 工作流在 iPhone 16 Pro 模拟器上以禁用代码签名的 Debug 配置运行完整 `FlashCount` 测试 scheme。
 - 同一分支的新运行会取消旧运行，且工作流只读仓库内容，不使用部署密钥或发布权限。
 
 ## 验证
 
-- 已在本地确认 `xcodegen generate` 和完整模拟器测试可用；本次提交后由 GitHub Actions 首次执行远端验证。
+- 已在本地确认 `xcodegen generate` 和完整模拟器测试可用；首次远端运行确认不同 XcodeGen 小版本会改变无功能的 `.pbxproj` 元数据，因此 CI 不再以字节级工程差异作为门禁，而以真实构建和测试作为验证。
 
 ## 剩余限制
 
