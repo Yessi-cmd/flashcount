@@ -35,7 +35,7 @@ jobs:
 
       - name: Install iOS Simulator runtime
         run: |
-          sudo xcodebuild -downloadPlatform iOS
+          xcodebuild -downloadPlatform iOS
           xcrun simctl list runtimes
 
       - name: Create iOS Simulator
