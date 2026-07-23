@@ -153,6 +153,7 @@ enum DesignSystem {
 
 /// iOS 26 自定义导航与控制表面的统一 Liquid Glass 配置。
 /// 内容修饰应在调用此修饰器前完成，确保系统能正确捕获最终外观。
+/// 较早 SDK 将它编译为透明修饰器，以保持同一视图层级。
 @available(iOS 26.0, *)
 struct LiquidGlassSurface: ViewModifier {
     enum Shape {
@@ -166,15 +167,18 @@ struct LiquidGlassSurface: ViewModifier {
     let isInteractive: Bool
     let isClear: Bool
 
+#if compiler(>=6.2)
     private var effect: Glass {
         let base: Glass = isClear ? .clear : .regular
         return base
             .tint(tint)
             .interactive(isInteractive)
     }
+#endif
 
     @ViewBuilder
     func body(content: Content) -> some View {
+#if compiler(>=6.2)
         switch shape {
         case .roundedRectangle(let cornerRadius):
             content
@@ -186,6 +190,9 @@ struct LiquidGlassSurface: ViewModifier {
             content
                 .glassEffect(effect, in: .circle)
         }
+#else
+        content
+#endif
     }
 }
 
