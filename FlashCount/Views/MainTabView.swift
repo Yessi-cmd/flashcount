@@ -255,7 +255,7 @@ struct MainTabView: View {
 
     private func processQuickEntryRequestIfNeeded() {
         guard shouldShowQuickEntry, hasCompletedOnboarding, !showOnboarding else { return }
-        shouldShowQuickEntry = false
+        guard QuickEntryRoute.consume() else { return }
         presentedSheet = .quickEntry
     }
 

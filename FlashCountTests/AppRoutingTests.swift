@@ -2,6 +2,21 @@ import XCTest
 @testable import FlashCount
 
 final class AppRoutingTests: XCTestCase {
+    func testQuickEntryRouteRequestsAndConsumesExactlyOnce() throws {
+        let suiteName = "AppRoutingTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        XCTAssertFalse(QuickEntryRoute.consume(userDefaults: defaults))
+
+        QuickEntryRoute.request(userDefaults: defaults)
+
+        XCTAssertTrue(defaults.bool(forKey: QuickEntryRoute.requestKey))
+        XCTAssertTrue(QuickEntryRoute.consume(userDefaults: defaults))
+        XCTAssertFalse(defaults.bool(forKey: QuickEntryRoute.requestKey))
+        XCTAssertFalse(QuickEntryRoute.consume(userDefaults: defaults))
+    }
+
     func testQuickEntryDeepLinkParsesOnlyExpectedSchemeAndHost() throws {
         XCTAssertEqual(AppDeepLink(url: AppDeepLink.quickEntryURL), .quickEntry)
         XCTAssertNil(AppDeepLink(url: try XCTUnwrap(URL(string: "https://quick-entry"))))

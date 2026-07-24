@@ -23,6 +23,25 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["记一笔"].waitForExistence(timeout: 5))
     }
 
+    func testBackTapSetupIsDiscoverableFromSettings() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hasCompletedOnboarding", "true"]
+        app.launch()
+
+        let settings = app.buttons["ledger.settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        settings.tap()
+
+        let backTapSetup = app.buttons["settings.backTapSetup"]
+        XCTAssertTrue(backTapSetup.waitForExistence(timeout: 5))
+        backTapSetup.tap()
+
+        XCTAssertTrue(app.navigationBars["轻点背面"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["backTapSetup.shortcutsLink"].waitForExistence(timeout: 5)
+        )
+    }
+
     func testLedgerBatchActionsStayAboveMainTabBar() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]

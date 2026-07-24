@@ -7,6 +7,7 @@ struct FlashCountApp: App {
     private let modelContainerError: String?
 
     init() {
+        FlashCountShortcuts.refreshSystemRegistration()
         ReminderNotificationService.configure()
         do {
             modelContainer = try ModelContainer(

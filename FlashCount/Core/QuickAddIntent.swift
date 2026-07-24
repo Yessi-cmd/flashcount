@@ -2,6 +2,17 @@ import AppIntents
 
 enum QuickEntryRoute {
     static let requestKey = "shouldShowQuickEntry"
+
+    static func request(userDefaults: UserDefaults = .standard) {
+        userDefaults.set(true, forKey: requestKey)
+    }
+
+    @discardableResult
+    static func consume(userDefaults: UserDefaults = .standard) -> Bool {
+        guard userDefaults.bool(forKey: requestKey) else { return false }
+        userDefaults.set(false, forKey: requestKey)
+        return true
+    }
 }
 
 /// 快速记账 App Intent
@@ -12,13 +23,17 @@ struct QuickAddExpenseIntent: AppIntent {
     static var openAppWhenRun: Bool = true
 
     func perform() async throws -> some IntentResult {
-        UserDefaults.standard.set(true, forKey: QuickEntryRoute.requestKey)
+        QuickEntryRoute.request()
         return .result()
     }
 }
 
 /// App Shortcuts Provider - 注册到 Shortcuts App
 struct FlashCountShortcuts: AppShortcutsProvider {
+    static func refreshSystemRegistration() {
+        updateAppShortcutParameters()
+    }
+
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: QuickAddExpenseIntent(),

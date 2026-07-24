@@ -475,6 +475,8 @@ struct LedgerView: View {
                                 Image(systemName: "gearshape")
                                     .foregroundStyle(DesignSystem.textSecondary)
                             }
+                            .accessibilityLabel("设置")
+                            .accessibilityIdentifier("ledger.settings")
                         }
                     }
                 }

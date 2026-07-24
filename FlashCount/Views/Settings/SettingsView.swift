@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage("payday") private var payday = 1
     @AppStorage("notificationShowReminderDetails") private var notificationShowReminderDetails = false
     @State private var showTutorial = false
+    @State private var showBackTapSetup = false
     @State private var showRecurringRules = false
     @State private var showReminders = false
     @State private var showTemplates = false
@@ -119,6 +120,20 @@ struct SettingsView: View {
                     // 快捷方式 + 教程
                     Section {
                         Button {
+                            showBackTapSetup = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "hand.tap.fill").foregroundStyle(DesignSystem.primaryColor)
+                                VStack(alignment: .leading) {
+                                    Text("轻点背面快速记账").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
+                                    Text("轻点两下，立即打开记账页").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                            }
+                        }
+                        .accessibilityIdentifier("settings.backTapSetup")
+                        Button {
                             showReminders = true
                         } label: {
                             HStack {
@@ -138,7 +153,7 @@ struct SettingsView: View {
                                 Image(systemName: "questionmark.circle.fill").foregroundStyle(DesignSystem.primaryColor)
                                 VStack(alignment: .leading) {
                                     Text("快捷记账教程").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
-                                    Text("锁屏 Widget / Back Tap / Siri 设置方法").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                                    Text("锁屏小组件 / 轻点背面 / Siri 设置方法").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(DesignSystem.textTertiary)
@@ -304,6 +319,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showTutorial) {
                 TutorialView()
+            }
+            .sheet(isPresented: $showBackTapSetup) {
+                BackTapSetupView()
             }
             .sheet(isPresented: $showOnboarding) {
                 OnboardingView(isPresented: $showOnboarding)
