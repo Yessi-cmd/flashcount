@@ -78,6 +78,8 @@ enum DesignSystem {
     static let expenseColor = Color(hex: "#B86F69")
     static let warningColor = Color(hex: "#AF8950")
     static let dangerColor = Color(hex: "#B86066")
+    static let weekendColorHex = "#6E8797"
+    static let weekendColor = Color(hex: weekendColorHex)
 
     static let surfaceBackground = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark

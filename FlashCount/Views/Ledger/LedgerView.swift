@@ -761,14 +761,27 @@ struct LedgerView: View {
 
     private func ledgerBudgetCard(_ reminder: BudgetReminder) -> some View {
         let analysis = reminder.analysis
+        let alertAccent = budgetAccent(for: reminder.alertLevel)
+        let borderAccent = reminder.isWeekendAllowanceAdjusted ? DesignSystem.weekendColor : alertAccent
 
         return HStack(spacing: 12) {
-            Image(systemName: reminder.iconName)
-                .font(.headline)
-                .foregroundStyle(budgetAccent(for: reminder.alertLevel))
-                .frame(width: 34, height: 34)
-                .background(budgetAccent(for: reminder.alertLevel).opacity(0.12))
-                .clipShape(Circle())
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: reminder.iconName)
+                    .font(.headline)
+                    .foregroundStyle(alertAccent)
+                if reminder.isWeekendAllowanceAdjusted {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(DesignSystem.cardBackground)
+                        .padding(3)
+                        .background(DesignSystem.weekendColor)
+                        .clipShape(Circle())
+                        .accessibilityLabel("周末额度")
+                }
+            }
+            .frame(width: 34, height: 34)
+            .background(alertAccent.opacity(0.12))
+            .clipShape(Circle())
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(reminder.shortMessage)
@@ -785,7 +798,7 @@ struct LedgerView: View {
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.cornerRadius)
-                .stroke(budgetAccent(for: reminder.alertLevel).opacity(0.18), lineWidth: 1)
+                .stroke(borderAccent.opacity(0.18), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.03), radius: 10, y: 4)
     }

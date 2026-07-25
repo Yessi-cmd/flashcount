@@ -52,7 +52,11 @@ struct BudgetOverviewCard: View {
 
             HStack(spacing: 12) {
                 budgetPill(title: "剩余预算", value: analysis.remainingBudget.formattedCurrency, color: analysis.remainingBudget >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
-                budgetPill(title: analysis.dailyAllowanceTitle, value: analysis.dailyAllowance.formattedCurrency, color: DesignSystem.primaryColor)
+                budgetPill(
+                    title: analysis.dailyAllowanceTitle,
+                    value: analysis.dailyAllowance.formattedCurrency,
+                    color: analysis.isWeekendAllowanceAdjusted ? DesignSystem.weekendColor : DesignSystem.primaryColor
+                )
             }
         }
         .heroCard(accent: alertColor)
@@ -109,7 +113,21 @@ struct BudgetAlertCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: alertIcon).font(.title2).foregroundStyle(alertColor)
+            ZStack(alignment: .bottomTrailing) {
+                Image(systemName: alertIcon)
+                    .font(.title2)
+                    .foregroundStyle(alertColor)
+                if reminder.isWeekendAllowanceAdjusted {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(DesignSystem.cardBackground)
+                        .padding(3)
+                        .background(DesignSystem.weekendColor)
+                        .clipShape(Circle())
+                        .accessibilityLabel("周末额度")
+                }
+            }
+            .frame(width: 30, height: 30)
             VStack(alignment: .leading, spacing: 4) {
                 Text(reminder.title).font(.subheadline.weight(.semibold)).foregroundStyle(DesignSystem.textPrimary)
                 Text(reminder.message).font(.caption).foregroundStyle(DesignSystem.textSecondary)
@@ -119,7 +137,13 @@ struct BudgetAlertCard: View {
         .padding()
         .background(alertColor.opacity(0.1))
         .clipShape(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius))
-        .overlay(RoundedRectangle(cornerRadius: DesignSystem.cornerRadius).stroke(alertColor.opacity(0.3), lineWidth: 1))
+        .overlay {
+            RoundedRectangle(cornerRadius: DesignSystem.cornerRadius)
+                .stroke(
+                    (reminder.isWeekendAllowanceAdjusted ? DesignSystem.weekendColor : alertColor).opacity(0.3),
+                    lineWidth: 1
+                )
+        }
     }
 
     private var alertIcon: String {
@@ -142,8 +166,14 @@ struct BudgetMetricsGrid: View {
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             metricCard(title: "日均消费", value: analysis.dailyAverage.formattedCurrency, icon: "chart.bar.fill", color: "#4E766A")
-            metricCard(title: analysis.dailyAllowanceTitle, value: analysis.dailyAllowance.formattedCurrency, icon: "wallet.pass.fill",
-                       color: analysis.alertLevel == .danger ? "#B86066" : "#4E766A")
+            metricCard(
+                title: analysis.dailyAllowanceTitle,
+                value: analysis.dailyAllowance.formattedCurrency,
+                icon: analysis.isWeekendAllowanceAdjusted ? "calendar" : "wallet.pass.fill",
+                color: analysis.alertLevel == .danger
+                    ? "#B86066"
+                    : analysis.isWeekendAllowanceAdjusted ? DesignSystem.weekendColorHex : "#4E766A"
+            )
             metricCard(title: "剩余预算", value: analysis.remainingBudget.formattedCurrency, icon: "banknote.fill",
                        color: analysis.remainingBudget >= 0 ? "#4E766A" : "#B86066")
             metricCard(title: "剩余天数", value: "\(analysis.daysRemaining) 天", icon: "calendar", color: "#4E766A")

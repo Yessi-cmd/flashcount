@@ -9,6 +9,7 @@ struct BudgetReminder {
 
     var alertLevel: BudgetAlertLevel { analysis.alertLevel }
     var shouldSurfaceAfterSave: Bool { alertLevel != .healthy }
+    var isWeekendAllowanceAdjusted: Bool { analysis.isWeekendAllowanceAdjusted }
 }
 
 enum BudgetReminderService {
@@ -89,16 +90,16 @@ enum BudgetReminderService {
             return BudgetReminder(
                 analysis: analysis,
                 title: "日常预算健康",
-                message: "本发薪周期日常消费节奏不错，剩余 \(analysis.remainingBudget.formattedCurrency)，今天可花 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)。",
-                shortMessage: "日常预算健康，今天可花 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)",
+                message: "本发薪周期日常消费节奏不错，剩余 \(analysis.remainingBudget.formattedCurrency)，今天可花 \(analysis.dailyAllowance.formattedCurrency)。",
+                shortMessage: "日常预算健康，今天可花 \(analysis.dailyAllowance.formattedCurrency)",
                 iconName: "checkmark.shield.fill"
             )
         case .warning:
             return BudgetReminder(
                 analysis: analysis,
                 title: "注意日常消费节奏",
-                message: "按当前日常消费速度，本发薪周期预计花到 \(analysis.projectedTotal.formattedCurrency)。剩余 \(analysis.daysRemaining) 天，今天建议不超过 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)。",
-                shortMessage: "注意日常预算，今天建议不超过 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)",
+                message: "按当前日常消费速度，本发薪周期预计花到 \(analysis.projectedTotal.formattedCurrency)。剩余 \(analysis.daysRemaining) 天，今天建议不超过 \(analysis.dailyAllowance.formattedCurrency)。",
+                shortMessage: "注意日常预算，今天建议不超过 \(analysis.dailyAllowance.formattedCurrency)",
                 iconName: "exclamationmark.triangle.fill"
             )
         case .danger:
@@ -108,7 +109,7 @@ enum BudgetReminderService {
             return BudgetReminder(
                 analysis: analysis,
                 title: "日常预算危险",
-                message: "\(overText)。剩余 \(analysis.daysRemaining) 天，今天建议控制在 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)。",
+                message: "\(overText)。剩余 \(analysis.daysRemaining) 天，今天建议控制在 \(analysis.dailyAllowance.formattedCurrency)。",
                 shortMessage: "日常预算危险，\(overText)",
                 iconName: "flame.fill"
             )
