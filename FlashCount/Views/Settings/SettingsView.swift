@@ -18,9 +18,10 @@ struct SettingsView: View {
     @State private var showReminders = false
     @State private var showTemplates = false
     @State private var showCategoryManagement = false
+    @State private var showDataHealthCenter = false
     @State private var showOnboarding = false
-    @State private var repairResult: String?
-    @State private var showRepairResult = false
+    @State private var dataManagementResult: String?
+    @State private var showDataManagementResult = false
     @State private var showExportShare = false
     @State private var exportFileURL: URL?
     @State private var showImportPicker = false
@@ -276,28 +277,21 @@ struct SettingsView: View {
                             Label("导入账单 CSV", systemImage: "tablecells.badge.ellipsis")
                         }
                         Button {
-                            let service = DataRepairService(modelContext: modelContext)
-                            do {
-                                let report = try service.runRepair()
-                                repairResult = report.summary
-                                showRepairResult = true
-                                if report.totalFixed > 0 {
-                                    HapticManager.success()
-                                }
-                            } catch {
-                                repairResult = "数据修复失败：\(error.localizedDescription)"
-                                showRepairResult = true
-                                HapticManager.error()
-                            }
+                            showDataHealthCenter = true
                         } label: {
                             HStack {
-                                Image(systemName: "wrench.and.screwdriver.fill").foregroundStyle(DesignSystem.primaryColor)
+                                Image(systemName: "heart.text.square.fill").foregroundStyle(DesignSystem.primaryColor)
                                 VStack(alignment: .leading) {
-                                    Text("数据自检修复").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
-                                    Text("检查并修复异常数据").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                                    Text("本地数据健康中心").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
+                                    Text("只读扫描，修复前展示预览").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                                 }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(DesignSystem.textTertiary)
                             }
                         }
+                        .accessibilityIdentifier("settings.dataHealth")
                     } header: {
                         Text("数据管理").foregroundStyle(DesignSystem.textSecondary)
                     } footer: {
@@ -362,6 +356,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showCategoryManagement) {
                 CategoryManagementView()
             }
+            .sheet(isPresented: $showDataHealthCenter) {
+                DataHealthCenterView()
+            }
             .sheet(isPresented: $showReminders) {
                 ReminderView {
                     showReminders = false
@@ -388,10 +385,10 @@ struct SettingsView: View {
             } message: {
                 Text("\(importPreview?.summary ?? "")。合并保留本地数据；替换会删除当前所有本地数据。")
             }
-            .alert("数据自检结果", isPresented: $showRepairResult) {
+            .alert("数据管理", isPresented: $showDataManagementResult) {
                 Button("好的", role: .cancel) {}
             } message: {
-                Text(repairResult ?? "")
+                Text(dataManagementResult ?? "")
             }
             .alert("导入结果", isPresented: $showImportResult) {
                 Button("好的", role: .cancel) {}
@@ -435,8 +432,8 @@ struct SettingsView: View {
             showExportShare = true
             HapticManager.success()
         } catch {
-            repairResult = "导出失败：\(error.localizedDescription)"
-            showRepairResult = true
+            dataManagementResult = "导出失败：\(error.localizedDescription)"
+            showDataManagementResult = true
         }
     }
 

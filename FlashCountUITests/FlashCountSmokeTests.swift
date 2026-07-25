@@ -42,6 +42,27 @@ final class FlashCountSmokeTests: XCTestCase {
         )
     }
 
+    func testDataHealthCenterScansFromSettings() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hasCompletedOnboarding", "true"]
+        app.launch()
+
+        let settings = app.buttons["ledger.settings"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5))
+        settings.tap()
+
+        let dataHealth = app.buttons["settings.dataHealth"]
+        for _ in 0..<5 where !dataHealth.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(dataHealth.waitForExistence(timeout: 5))
+        dataHealth.tap()
+
+        XCTAssertTrue(app.navigationBars["本地数据健康中心"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["检查结果"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dataHealth.rescan"].waitForExistence(timeout: 5))
+    }
+
     func testLedgerBatchActionsStayAboveMainTabBar() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]

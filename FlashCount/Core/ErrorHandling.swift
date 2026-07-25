@@ -40,64 +40,6 @@ extension View {
     }
 }
 
-// MARK: - 数据自检修复
-
-@MainActor
-final class DataRepairService {
-    private let modelContext: ModelContext
-
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
-    }
-
-    struct RepairReport {
-        var missingLedgersFixed: Int = 0
-        var uncategorizedTransactions: Int = 0
-        var invalidAmountTransactions: Int = 0
-
-        var totalFixed: Int { missingLedgersFixed }
-
-        var summary: String {
-            var parts: [String] = []
-            if missingLedgersFixed > 0 { parts.append("已将 \(missingLedgersFixed) 笔无账本交易归入生活账本") }
-            if uncategorizedTransactions > 0 { parts.append("发现 \(uncategorizedTransactions) 笔未分类交易，未自动猜测分类") }
-            if invalidAmountTransactions > 0 { parts.append("发现 \(invalidAmountTransactions) 笔非正金额交易，未篡改金额") }
-            return parts.isEmpty ? "✅ 数据一切正常，无需修复！" : parts.joined(separator: "\n")
-        }
-    }
-
-    func runRepair() throws -> RepairReport {
-        var report = RepairReport()
-
-        let allTransactions = try modelContext.fetch(FetchDescriptor<Transaction>())
-        report.uncategorizedTransactions = allTransactions.filter { $0.category == nil }.count
-        report.invalidAmountTransactions = allTransactions.filter { $0.amount <= 0 }.count
-
-        let ledgers = try modelContext.fetch(FetchDescriptor<Ledger>())
-        let defaultLedger: Ledger
-        if let existing = ledgers.first(where: { $0.isDefault }) ?? ledgers.first {
-            defaultLedger = existing
-        } else {
-            defaultLedger = Ledger.defaultLedgers()[0]
-            modelContext.insert(defaultLedger)
-        }
-
-        for transaction in allTransactions where transaction.ledger == nil {
-            transaction.ledger = defaultLedger
-            report.missingLedgersFixed += 1
-        }
-
-        guard modelContext.hasChanges else { return report }
-        do {
-            try modelContext.save()
-        } catch {
-            modelContext.rollback()
-            throw error
-        }
-        return report
-    }
-}
-
 // MARK: - 触觉反馈
 
 enum HapticManager {
