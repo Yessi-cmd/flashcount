@@ -14,6 +14,8 @@ struct BudgetAnalysis {
     let projectedTotal: Decimal      // 预测月底总消费
     let remainingBudget: Decimal     // 剩余预算
     let dailyAllowance: Decimal      // 每日可花
+    let referenceDateIsWeekend: Bool  // 参考日是否为周末
+    let weekendMultiplier: Decimal    // 周末日额度权重
     let usagePercent: Double         // 已用百分比
     let alertLevel: BudgetAlertLevel // 预警等级
 
@@ -29,15 +31,30 @@ struct BudgetAnalysis {
     var alertMessage: String {
         switch alertLevel {
         case .healthy:
-            return "日常预算健康，今天建议不超过 \(dailyAllowance.formattedCurrency)"
+            return "日常预算健康，今天建议不超过 \(dailyAllowance.formattedCurrency)\(weekendAllowanceNote)"
         case .warning:
-            return "注意消费节奏。剩余 \(daysRemaining) 天，今天建议不超过 \(dailyAllowance.formattedCurrency)"
+            return "注意消费节奏。剩余 \(daysRemaining) 天，今天建议不超过 \(dailyAllowance.formattedCurrency)\(weekendAllowanceNote)"
         case .danger:
             if projectedOverAmount > 0 {
                 return "按目前进度，月底预计超支 \(projectedOverAmount.formattedCurrency)"
             }
-            return "日常预算已用完，请控制接下来的支出"
+            return "日常预算已用完，请控制接下来的支出\(weekendAllowanceNote)"
         }
+    }
+
+    var dailyAllowanceTitle: String {
+        referenceDateIsWeekend && weekendMultiplier > 1
+            ? "今日可花 · 周末 \(weekendMultiplierText) 倍"
+            : "今日可花"
+    }
+
+    var weekendAllowanceNote: String {
+        guard referenceDateIsWeekend, weekendMultiplier > 1 else { return "" }
+        return "（周末按 \(weekendMultiplierText) 倍额度分配）"
+    }
+
+    private var weekendMultiplierText: String {
+        NSDecimalNumber(decimal: weekendMultiplier).stringValue
     }
 }
 
@@ -56,9 +73,10 @@ struct BudgetAnalyzer {
         excludedSpent: Decimal = 0,
         referenceDate: Date = Date(),
         periodStart: Date? = nil,
-        periodEnd: Date? = nil
+        periodEnd: Date? = nil,
+        weekendMultiplier: Decimal = 1,
+        calendar: Calendar = .current
     ) -> BudgetAnalysis {
-        let calendar = Calendar.current
         let referenceDay = calendar.startOfDay(for: referenceDate)
         let defaultStart = calendar.dateInterval(of: .month, for: referenceDate)?.start ?? referenceDay
         let defaultEnd = calendar.dateInterval(of: .month, for: referenceDate)?.end
@@ -78,8 +96,25 @@ struct BudgetAnalyzer {
         let dailyAverage = totalSpent / Decimal(daysElapsed)
         let projectedTotal = dailyAverage * Decimal(totalDaysInMonth)
         let remainingBudget = budgetLimit - totalSpent
-        let dailyAllowance = daysRemaining > 0
-            ? max(remainingBudget / Decimal(daysRemaining), 0)
+        let normalizedWeekendMultiplier = max(weekendMultiplier, Decimal(1))
+        let referenceDateIsWeekend = calendar.isDateInWeekend(referenceDay)
+
+        // 用权重分配剩余预算：周末提高额度后，工作日自动回调，周期总额仍保持不变。
+        let remainingWeight: Decimal
+        if daysRemaining > 0 {
+            var date = referenceDay
+            var weight = Decimal(0)
+            for _ in 0..<daysRemaining {
+                weight += calendar.isDateInWeekend(date) ? normalizedWeekendMultiplier : Decimal(1)
+                date = calendar.date(byAdding: .day, value: 1, to: date) ?? end
+            }
+            remainingWeight = weight
+        } else {
+            remainingWeight = 0
+        }
+        let todayWeight = referenceDateIsWeekend ? normalizedWeekendMultiplier : Decimal(1)
+        let dailyAllowance = daysRemaining > 0 && remainingWeight > 0
+            ? max(remainingBudget * todayWeight / remainingWeight, 0)
             : 0
 
         // 使用百分比
@@ -114,6 +149,8 @@ struct BudgetAnalyzer {
             projectedTotal: projectedTotal,
             remainingBudget: remainingBudget,
             dailyAllowance: dailyAllowance,
+            referenceDateIsWeekend: referenceDateIsWeekend,
+            weekendMultiplier: normalizedWeekendMultiplier,
             usagePercent: usagePercent,
             alertLevel: alertLevel
         )

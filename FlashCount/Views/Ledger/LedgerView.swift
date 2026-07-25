@@ -7,6 +7,7 @@ struct LedgerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("payday") private var payday = 1
+    @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
     @Query private var allTransactions: [Transaction]
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
 
@@ -211,7 +212,8 @@ struct LedgerView: View {
             budgets: allBudgets,
             transactions: allTransactions,
             ledger: nil,
-            payday: payday
+            payday: payday,
+            weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
         )
     }
 

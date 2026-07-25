@@ -7,6 +7,7 @@ struct QuickEntryView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("payday") private var payday = 1
+    @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
 
     @Query(sort: \Ledger.sortOrder) private var ledgers: [Ledger]
     @Query(
@@ -834,7 +835,8 @@ struct QuickEntryView: View {
             transactions: transactions,
             categories: expenseCategories,
             ledger: nil,
-            payday: payday
+            payday: payday,
+            weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
         ), categorySnapshot.alertLevel != .healthy {
             budgetReminderText = categorySnapshot.shortMessage
             budgetReminderLevel = categorySnapshot.alertLevel
@@ -846,7 +848,8 @@ struct QuickEntryView: View {
             transactions: transactions,
             ledger: nil,
             referenceDate: transaction.date,
-            payday: payday
+            payday: payday,
+            weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
         ), reminder.shouldSurfaceAfterSave else { return }
 
         budgetReminderText = reminder.shortMessage

@@ -9,6 +9,7 @@ struct SettingsView: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
     @AppStorage("payday") private var payday = 1
+    @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
     @AppStorage("notificationShowReminderDetails") private var notificationShowReminderDetails = false
     @State private var showTutorial = false
     @State private var showBackTapSetup = false
@@ -94,6 +95,7 @@ struct SettingsView: View {
                             Text("深色").tag(AppearancePreference.dark.rawValue)
                         }
                         .foregroundStyle(DesignSystem.textPrimary)
+                        .accessibilityIdentifier("settings.weekendBudgetMultiplier")
                     } header: {
                         Text("外观设置").foregroundStyle(DesignSystem.textSecondary)
                     }
@@ -109,10 +111,16 @@ struct SettingsView: View {
                                 }
                             }
                         }
+                        Picker("周末额度", selection: $weekendBudgetMultiplierPercent) {
+                            ForEach(WeekendBudgetMultiplier.allCases) { multiplier in
+                                Text(multiplier.title).tag(multiplier.rawValue)
+                            }
+                        }
+                        .foregroundStyle(DesignSystem.textPrimary)
                     } header: {
                         Text("预算周期").foregroundStyle(DesignSystem.textSecondary)
                     } footer: {
-                        Text("如果某个月没有这一天，会自动使用当月最后一天。")
+                        Text("如果某个月没有发薪日，会自动使用当月最后一天。周末按所选倍数提高当天建议额度，工作日会自动平衡，整个发薪周期预算上限不变。")
                             .font(.caption2).foregroundStyle(DesignSystem.textTertiary)
                     }
                     .listRowBackground(DesignSystem.cardBackground)
@@ -372,6 +380,9 @@ struct SettingsView: View {
                 Button("好的", role: .cancel) {}
             } message: {
                 Text(importResult ?? "")
+            }
+            .onAppear {
+                weekendBudgetMultiplierPercent = WeekendBudgetPreferences.normalizedRawValue(weekendBudgetMultiplierPercent)
             }
             .onChange(of: payday) { _, _ in
                 rebuildNotificationsForSettingsChange()

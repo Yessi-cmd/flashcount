@@ -5,6 +5,7 @@ import SwiftData
 struct BudgetView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("payday") private var payday = 1
+    @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
     @Query(sort: \Budget.createdAt) private var allBudgets: [Budget]
     @Query private var recentTransactions: [Transaction]
     @Query(
@@ -33,12 +34,17 @@ struct BudgetView: View {
         )
     }
 
+    private var weekendBudgetMultiplier: Decimal {
+        WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
+    }
+
     private var reminder: BudgetReminder? {
         BudgetReminderService.reminder(
             budgets: allBudgets,
             transactions: recentTransactions,
             ledger: nil,
-            payday: payday
+            payday: payday,
+            weekendMultiplier: weekendBudgetMultiplier
         )
     }
 
@@ -48,7 +54,8 @@ struct BudgetView: View {
             transactions: recentTransactions,
             categories: expenseCategories,
             ledger: nil,
-            payday: payday
+            payday: payday,
+            weekendMultiplier: weekendBudgetMultiplier
         )
     }
 

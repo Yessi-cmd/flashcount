@@ -357,6 +357,59 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertGreaterThan(result.projectedTotal, 1_000)
     }
 
+    func testWeekendBudgetMultiplierRaisesWeekendAllowanceWhileKeepingCycleAllocation() {
+        let reference = calendar.date(from: DateComponents(year: 2026, month: 7, day: 11, hour: 12))!
+        let periodStart = calendar.date(from: DateComponents(year: 2026, month: 7, day: 11))!
+        let periodEnd = calendar.date(from: DateComponents(year: 2026, month: 7, day: 15))!
+
+        let weekend = BudgetAnalyzer.analyze(
+            budgetLimit: 1_000,
+            totalSpent: 0,
+            referenceDate: reference,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
+            weekendMultiplier: WeekendBudgetMultiplier.oneAndHalf.decimalValue,
+            calendar: calendar
+        )
+        let baseline = BudgetAnalyzer.analyze(
+            budgetLimit: 1_000,
+            totalSpent: 0,
+            referenceDate: reference,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
+            weekendMultiplier: 1,
+            calendar: calendar
+        )
+
+        XCTAssertTrue(weekend.referenceDateIsWeekend)
+        XCTAssertEqual(weekend.weekendMultiplier, Decimal(string: "1.5"))
+        XCTAssertEqual(baseline.dailyAllowance, 250)
+        XCTAssertEqual(weekend.dailyAllowance, 300)
+        XCTAssertEqual(weekend.dailyAllowance * 2 + Decimal(200) * 2, 1_000)
+
+        let reminder = BudgetReminderService.reminder(for: weekend)
+        XCTAssertTrue(reminder.shortMessage.contains("周末按 1.5 倍额度分配"))
+
+        let doubleWeekend = BudgetAnalyzer.analyze(
+            budgetLimit: 1_000,
+            totalSpent: 0,
+            referenceDate: reference,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
+            weekendMultiplier: WeekendBudgetMultiplier.double.decimalValue,
+            calendar: calendar
+        )
+        XCTAssertEqual(doubleWeekend.weekendMultiplier, 2)
+        XCTAssertGreaterThan(doubleWeekend.dailyAllowance, weekend.dailyAllowance)
+    }
+
+    func testWeekendBudgetOptionsAreUserSelectable() {
+        XCTAssertEqual(WeekendBudgetMultiplier.allCases.map(\.rawValue), [150, 200])
+        XCTAssertEqual(WeekendBudgetPreferences.option(for: 150), .oneAndHalf)
+        XCTAssertEqual(WeekendBudgetPreferences.option(for: 200), .double)
+        XCTAssertEqual(WeekendBudgetPreferences.option(for: 999), .oneAndHalf)
+    }
+
     func testLedgerPeriodFiltersDistinguishTodayMonthAndPayCycle() throws {
         let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 11, hour: 12)))
         let customStart = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 2)))

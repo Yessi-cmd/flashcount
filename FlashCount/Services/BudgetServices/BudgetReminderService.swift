@@ -64,7 +64,8 @@ enum BudgetReminderService {
         transactions: [Transaction],
         ledger: Ledger?,
         referenceDate: Date = Date(),
-        payday: Int = 1
+        payday: Int = 1,
+        weekendMultiplier: Decimal = 1
     ) -> BudgetReminder? {
         let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday)
         guard let budget = currentBudget(in: budgets, ledger: ledger, referenceDate: referenceDate, payday: payday) else { return nil }
@@ -76,7 +77,8 @@ enum BudgetReminderService {
             excludedSpent: excludedSpent,
             referenceDate: referenceDate,
             periodStart: cycle.start,
-            periodEnd: cycle.end
+            periodEnd: cycle.end,
+            weekendMultiplier: weekendMultiplier
         )
         return reminder(for: analysis)
     }
@@ -87,16 +89,16 @@ enum BudgetReminderService {
             return BudgetReminder(
                 analysis: analysis,
                 title: "日常预算健康",
-                message: "本发薪周期日常消费节奏不错，剩余 \(analysis.remainingBudget.formattedCurrency)，今天可花 \(analysis.dailyAllowance.formattedCurrency)。",
-                shortMessage: "日常预算健康，今天可花 \(analysis.dailyAllowance.formattedCurrency)",
+                message: "本发薪周期日常消费节奏不错，剩余 \(analysis.remainingBudget.formattedCurrency)，今天可花 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)。",
+                shortMessage: "日常预算健康，今天可花 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)",
                 iconName: "checkmark.shield.fill"
             )
         case .warning:
             return BudgetReminder(
                 analysis: analysis,
                 title: "注意日常消费节奏",
-                message: "按当前日常消费速度，本发薪周期预计花到 \(analysis.projectedTotal.formattedCurrency)。剩余 \(analysis.daysRemaining) 天，建议每天不超过 \(analysis.dailyAllowance.formattedCurrency)。",
-                shortMessage: "注意日常预算，今天建议不超过 \(analysis.dailyAllowance.formattedCurrency)",
+                message: "按当前日常消费速度，本发薪周期预计花到 \(analysis.projectedTotal.formattedCurrency)。剩余 \(analysis.daysRemaining) 天，今天建议不超过 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)。",
+                shortMessage: "注意日常预算，今天建议不超过 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)",
                 iconName: "exclamationmark.triangle.fill"
             )
         case .danger:
@@ -106,7 +108,7 @@ enum BudgetReminderService {
             return BudgetReminder(
                 analysis: analysis,
                 title: "日常预算危险",
-                message: "\(overText)。剩余 \(analysis.daysRemaining) 天，接下来每天建议控制在 \(analysis.dailyAllowance.formattedCurrency)。",
+                message: "\(overText)。剩余 \(analysis.daysRemaining) 天，今天建议控制在 \(analysis.dailyAllowance.formattedCurrency)\(analysis.weekendAllowanceNote)。",
                 shortMessage: "日常预算危险，\(overText)",
                 iconName: "flame.fill"
             )

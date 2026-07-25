@@ -52,7 +52,7 @@ struct BudgetOverviewCard: View {
 
             HStack(spacing: 12) {
                 budgetPill(title: "剩余预算", value: analysis.remainingBudget.formattedCurrency, color: analysis.remainingBudget >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor)
-                budgetPill(title: "今日可花", value: analysis.dailyAllowance.formattedCurrency, color: DesignSystem.primaryColor)
+                budgetPill(title: analysis.dailyAllowanceTitle, value: analysis.dailyAllowance.formattedCurrency, color: DesignSystem.primaryColor)
             }
         }
         .heroCard(accent: alertColor)
@@ -142,7 +142,7 @@ struct BudgetMetricsGrid: View {
     var body: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             metricCard(title: "日均消费", value: analysis.dailyAverage.formattedCurrency, icon: "chart.bar.fill", color: "#4E766A")
-            metricCard(title: "今日可花", value: analysis.dailyAllowance.formattedCurrency, icon: "wallet.pass.fill",
+            metricCard(title: analysis.dailyAllowanceTitle, value: analysis.dailyAllowance.formattedCurrency, icon: "wallet.pass.fill",
                        color: analysis.alertLevel == .danger ? "#B86066" : "#4E766A")
             metricCard(title: "剩余预算", value: analysis.remainingBudget.formattedCurrency, icon: "banknote.fill",
                        color: analysis.remainingBudget >= 0 ? "#4E766A" : "#B86066")

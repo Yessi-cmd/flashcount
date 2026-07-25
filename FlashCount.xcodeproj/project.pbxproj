@@ -33,6 +33,7 @@
 		2D6A2C81E34D8CE4F16B8474 /* ReportRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66674F214D250C00FDB12AA /* ReportRoute.swift */; };
 		32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */; };
 		33AC277FE5E36B92BDAEDFF2 /* InstallmentBill.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44850532ED0D315BFCB16D9 /* InstallmentBill.swift */; };
+		33F008A1FD132222A2B1128C /* WeekendBudgetPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */; };
 		3598F1C79B571778BC11A2E3 /* PayCycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8FC52EA4884A4B39278E912 /* PayCycleService.swift */; };
 		36D8A0E12D8A879A682B28BE /* PhysicalAssetCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45E85D7B32A0C90810D5065E /* PhysicalAssetCard.swift */; };
 		37313D9C291DC910A0373683 /* BudgetReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8000784A9F364513ECB6E916 /* BudgetReminderService.swift */; };
@@ -181,6 +182,7 @@
 		49B6F38607655BC6FD7A32D2 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		4A051412B9C908E512258A73 /* BudgetComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetComponents.swift; sourceTree = "<group>"; };
 		4E84B09AC458C202DD5AB64A /* ReportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportService.swift; sourceTree = "<group>"; };
+		4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendBudgetPreferences.swift; sourceTree = "<group>"; };
 		5135CC79D6F54B517077FC78 /* FlashCountApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountApp.swift; sourceTree = "<group>"; };
 		576E3BCB6980873E51D3A0B8 /* ReminderItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderItem.swift; sourceTree = "<group>"; };
 		5B0FCA58CE4730DEE6AFAB0B /* FlashCount.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = FlashCount.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -487,6 +489,7 @@
 				8000784A9F364513ECB6E916 /* BudgetReminderService.swift */,
 				45CCF20C66441FB06536D937 /* CategoryBudgetService.swift */,
 				D3474D18D3D98F0E29892BC0 /* ReportBudgetSnapshotService.swift */,
+				4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */,
 			);
 			path = BudgetServices;
 			sourceTree = "<group>";
@@ -792,6 +795,7 @@
 				9518C01319B7D3B8E9D5F2C0 /* TransactionMutationService.swift in Sources */,
 				B9810EFEB42E21055212EDE1 /* TransactionTemplate.swift in Sources */,
 				C8E5CB5BE7E12308E665826C /* VisualDirectionExplorationView.swift in Sources */,
+				33F008A1FD132222A2B1128C /* WeekendBudgetPreferences.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

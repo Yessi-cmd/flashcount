@@ -4,6 +4,7 @@ import SwiftData
 struct CategoryBudgetsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("payday") private var payday = 1
+    @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
     @Query(sort: \Budget.createdAt) private var budgets: [Budget]
     @Query private var recentTransactions: [Transaction]
     @Query(
@@ -31,7 +32,8 @@ struct CategoryBudgetsView: View {
             transactions: recentTransactions,
             categories: expenseCategories,
             ledger: nil,
-            payday: payday
+            payday: payday,
+            weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
         )
     }
 

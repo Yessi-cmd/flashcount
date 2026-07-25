@@ -53,7 +53,8 @@ enum CategoryBudgetService {
         ledger: Ledger?,
         referenceDate: Date = Date(),
         payday: Int = 1,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        weekendMultiplier: Decimal = 1
     ) -> [CategoryBudgetSnapshot] {
         let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday, calendar: calendar)
         let categoriesByID = Dictionary(uniqueKeysWithValues: categories.map { ($0.id, $0) })
@@ -83,7 +84,9 @@ enum CategoryBudgetService {
                 totalSpent: spent,
                 referenceDate: referenceDate,
                 periodStart: cycle.start,
-                periodEnd: cycle.end
+                periodEnd: cycle.end,
+                weekendMultiplier: weekendMultiplier,
+                calendar: calendar
             )
             return CategoryBudgetSnapshot(budget: budget, category: category, analysis: analysis)
         }
@@ -102,7 +105,8 @@ enum CategoryBudgetService {
         categories: [Category],
         ledger: Ledger?,
         payday: Int = 1,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        weekendMultiplier: Decimal = 1
     ) -> CategoryBudgetSnapshot? {
         guard transaction.isExpense,
               let rootName = transaction.category?.rootCategoryName else { return nil }
@@ -113,7 +117,8 @@ enum CategoryBudgetService {
             ledger: ledger,
             referenceDate: transaction.date,
             payday: payday,
-            calendar: calendar
+            calendar: calendar,
+            weekendMultiplier: weekendMultiplier
         ).first { $0.category.rootCategoryName == rootName }
     }
 

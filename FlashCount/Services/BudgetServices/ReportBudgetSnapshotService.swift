@@ -14,7 +14,8 @@ enum ReportBudgetSnapshotService {
         reportRange: ReportDateRange,
         target: ReportTarget,
         payday: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = .current,
+        weekendMultiplier: Decimal = 1
     ) -> ReportBudgetSnapshot {
         let anchor = target.isCurrent
             ? reportRange.end
@@ -52,7 +53,9 @@ enum ReportBudgetSnapshotService {
             excludedSpent: excluded,
             referenceDate: anchor,
             periodStart: cycle.start,
-            periodEnd: cycle.end
+            periodEnd: cycle.end,
+            weekendMultiplier: weekendMultiplier,
+            calendar: calendar
         )
         return ReportBudgetSnapshot(cycle: cycle, cutoff: cutoff, budget: budget, analysis: analysis)
     }

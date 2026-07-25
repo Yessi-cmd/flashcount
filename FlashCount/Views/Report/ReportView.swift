@@ -52,6 +52,7 @@ struct ReportView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @AppStorage("payday") private var payday = 1
+    @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
 
     let isActive: Bool
     let requestedReport: ReportRoute.Request?
@@ -132,7 +133,8 @@ struct ReportView: View {
                             scope: observationScope,
                             period: selectedPeriod,
                             target: target,
-                            payday: payday
+                            payday: payday,
+                            weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent
                         )
                         .id(observationScope)
 
@@ -438,6 +440,7 @@ private struct ReportObservedContent: View {
     let period: ReportPeriod
     let target: ReportTarget
     let payday: Int
+    let weekendBudgetMultiplierPercent: Int
 
     @State private var state: ReportLoadState = .loading
     @State private var retryToken = 0
@@ -448,12 +451,14 @@ private struct ReportObservedContent: View {
         scope: ReportObservationScope,
         period: ReportPeriod,
         target: ReportTarget,
-        payday: Int
+        payday: Int,
+        weekendBudgetMultiplierPercent: Int
     ) {
         self.scope = scope
         self.period = period
         self.target = target
         self.payday = payday
+        self.weekendBudgetMultiplierPercent = weekendBudgetMultiplierPercent
         let start = scope.start
         let end = scope.end
         _observedTransactions = Query(
@@ -463,6 +468,10 @@ private struct ReportObservedContent: View {
             sort: \Transaction.date,
             order: .reverse
         )
+    }
+
+    private var weekendBudgetMultiplier: Decimal {
+        WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
     }
 
     private var transactionDigest: Int {
@@ -523,7 +532,11 @@ private struct ReportObservedContent: View {
                 reportContent(data)
             }
         }
-        .task(id: GenerationKey(digest: transactionDigest, retry: retryToken)) {
+        .task(id: GenerationKey(
+            digest: transactionDigest,
+            retry: retryToken,
+            weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent
+        )) {
             generateReport()
         }
     }
@@ -641,7 +654,8 @@ private struct ReportObservedContent: View {
                 transactions: observedTransactions,
                 reportRange: report.reportRange,
                 target: target,
-                payday: payday
+                payday: payday,
+                weekendMultiplier: weekendBudgetMultiplier
             )
             let page = ReportPageData(report: report, budget: budget)
             withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
@@ -1113,4 +1127,5 @@ private struct ReportObservedContent: View {
 private struct GenerationKey: Hashable {
     let digest: Int
     let retry: Int
+    let weekendBudgetMultiplierPercent: Int
 }
