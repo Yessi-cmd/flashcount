@@ -66,11 +66,17 @@ struct CashPoolView: View {
                         Button { showCalibration = true } label: {
                             Image(systemName: "scope")
                                 .foregroundStyle(DesignSystem.textSecondary)
+                                .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel("校准可动用资金")
+                        .accessibilityIdentifier("cashPool.calibrate")
                         Button { showAddItem = true } label: {
                             Image(systemName: "plus.circle.fill")
                                 .foregroundStyle(DesignSystem.primaryColor)
+                                .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel("添加资金项")
+                        .accessibilityIdentifier("cashPool.addItem")
                     }
                 }
             }
@@ -109,7 +115,7 @@ struct CashPoolView: View {
             }
 
             Text(hidesMoney ? privacyLock.maskedText : availableAmount.formattedCurrency)
-                .font(.system(size: 40, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.amount)
                 .monospacedDigit()
                 .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (availableAmount >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor))
 
@@ -218,7 +224,10 @@ struct CashPoolView: View {
     }
 
     private func cashPoolItemRow(_ item: CashPoolItem) -> some View {
-        HStack(spacing: 12) {
+        Button {
+            revealOrPerform { editingItem = item }
+        } label: {
+            HStack(spacing: 12) {
             ZStack {
                 Circle()
                     .fill(item.kind.isNegative ? DesignSystem.expenseColor.opacity(0.12) : DesignSystem.incomeColor.opacity(0.12))
@@ -239,11 +248,12 @@ struct CashPoolView: View {
             Text(hidesMoney ? privacyLock.maskedText : item.signedAmount.formattedCurrency)
                 .font(.subheadline.weight(.semibold).monospacedDigit())
                 .foregroundStyle(item.kind.isNegative ? DesignSystem.expenseColor : DesignSystem.incomeColor)
+            }
         }
+        .buttonStyle(.plain)
         .padding(.vertical, 5)
-        .contentShape(Rectangle())
-        .onTapGesture { revealOrPerform { editingItem = item } }
-        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(hidesMoney ? "资金项，验证后编辑" : "编辑资金项\(item.name)")
+        .accessibilityHint("双击编辑")
         .contextMenu {
             Button { revealOrPerform { editingItem = item } } label: {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
@@ -269,7 +279,15 @@ struct CashPoolView: View {
     }
 
     private func calibrate() {
-        guard let target = Decimal(string: calibrationText.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+        let target: Decimal
+        switch MoneyValidation.parse(calibrationText, requirement: .nonNegative) {
+        case .success(let value):
+            target = value
+        case .failure(let error):
+            saveError = error.errorDescription
+            HapticManager.error()
+            return
+        }
         do {
             try CashPoolService(modelContext: modelContext).calibrate(
                 to: target,
@@ -296,15 +314,20 @@ struct AddCashPoolItemView: View {
     @State private var name = ""
     @State private var kind: CashPoolItemKind = .cash
     @State private var amountText = ""
+    @State private var amountError: MoneyValidationError?
     @State private var note = ""
     @State private var saveError: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case amount
+    }
 
     private var isEditing: Bool { editItem != nil }
 
     private var canSave: Bool {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Decimal(string: amountText) else { return false }
-        return !cleanName.isEmpty && amount >= 0
+        return !cleanName.isEmpty && !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -321,6 +344,9 @@ struct AddCashPoolItemView: View {
                         }
                         TextField("金额", text: $amountText)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .amount)
+                            .onChange(of: amountText) { _, _ in amountError = nil }
+                        ValidationMessage(message: amountError?.errorDescription)
                         TextField("备注", text: $note)
                     } header: {
                         Text("资金项")
@@ -365,7 +391,18 @@ struct AddCashPoolItemView: View {
 
     private func save() {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard canSave, let amount = Decimal(string: amountText) else { return }
+        guard !cleanName.isEmpty else { return }
+        let amount: Decimal
+        switch MoneyValidation.parse(amountText, requirement: .nonNegative) {
+        case .success(let value):
+            amount = value
+            amountError = nil
+        case .failure(let error):
+            amountError = error
+            focusedField = .amount
+            HapticManager.error()
+            return
+        }
 
         if let editItem {
             editItem.name = cleanName

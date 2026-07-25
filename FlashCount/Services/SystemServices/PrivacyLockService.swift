@@ -132,6 +132,7 @@ struct PrivacyVisibilityButton: View {
         } label: {
             Image(systemName: privacyLock.isUnlocked ? "eye.fill" : "eye.slash.fill")
                 .foregroundStyle(privacyLock.isUnlocked ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                .frame(width: 44, height: 44)
         }
         .accessibilityLabel(privacyLock.isUnlocked ? "隐藏隐私金额" : "验证并显示隐私金额")
         .accessibilityHint(privacyLock.isUnlocked ? "立即隐藏所有收入和资产金额" : "先确认，再验证设备所有者身份")

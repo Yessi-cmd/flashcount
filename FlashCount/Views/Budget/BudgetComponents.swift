@@ -209,16 +209,21 @@ struct AddBudgetView: View {
     let payday: Int
 
     @State private var amountText = ""
+    @State private var amountError: MoneyValidationError?
     @State private var saveError: String?
     @State private var didLoadInitialAmount = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case amount
+    }
 
     private var trimmedAmountText: String {
         amountText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var canSave: Bool {
-        guard let amount = Decimal(string: trimmedAmountText) else { return false }
-        return amount > 0
+        !trimmedAmountText.isEmpty
     }
 
     var body: some View {
@@ -231,9 +236,12 @@ struct AddBudgetView: View {
                         HStack(alignment: .firstTextBaseline, spacing: 2) {
                             Text("¥").font(.title2).foregroundStyle(DesignSystem.textSecondary)
                             TextField("0", text: $amountText).keyboardType(.decimalPad)
-                                .font(.system(size: 48, weight: .bold, design: .rounded))
+                                .font(DesignSystem.Typography.amount)
                                 .monospacedDigit().foregroundStyle(DesignSystem.textPrimary).multilineTextAlignment(.center)
+                                .focused($focusedField, equals: .amount)
+                                .onChange(of: amountText) { _, _ in amountError = nil }
                         }.padding(.vertical, 20)
+                        ValidationMessage(message: amountError?.errorDescription)
                         Text("发薪周期日常预算上限").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                     }
                     HStack(spacing: 12) {
@@ -288,7 +296,17 @@ struct AddBudgetView: View {
     }
 
     private func saveBudget() {
-        guard let amount = Decimal(string: trimmedAmountText), amount > 0 else { return }
+        let amount: Decimal
+        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        case .success(let value):
+            amount = value
+            amountError = nil
+        case .failure(let error):
+            amountError = error
+            focusedField = .amount
+            HapticManager.error()
+            return
+        }
         let cycle = PayCycleService.cycle(payday: payday)
         let year = cycle.budgetYear
         let month = cycle.budgetMonth

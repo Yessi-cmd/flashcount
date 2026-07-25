@@ -5,6 +5,7 @@ import SwiftData
 struct EditTransactionView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @Query(sort: \Ledger.sortOrder) private var ledgers: [Ledger]
     @Query(
@@ -19,6 +20,7 @@ struct EditTransactionView: View {
     @Bindable var transaction: Transaction
 
     @State private var amountText: String
+    @State private var amountError: MoneyValidationError?
     @State private var isExpense: Bool
     @State private var note: String
     @State private var selectedDate: Date
@@ -29,6 +31,11 @@ struct EditTransactionView: View {
     @State private var wheelSourceFrame: CGRect?
     @State private var showDeleteConfirm = false
     @State private var dailyBudgetOverride: Bool?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case amount
+    }
 
     init(transaction: Transaction) {
         self.transaction = transaction
@@ -49,9 +56,8 @@ struct EditTransactionView: View {
         Category.rootCategories(from: currentCategories, isExpense: isExpense)
     }
 
-    private var hasValidAmount: Bool {
-        guard let amount = Decimal(string: amountText) else { return false }
-        return amount > 0
+    private var canSubmitAmount: Bool {
+        !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -64,7 +70,7 @@ struct EditTransactionView: View {
                         // 收支切换
                         HStack(spacing: 0) {
                             Button {
-                                withAnimation(.spring(response: 0.3)) { isExpense = true }
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) { isExpense = true }
                                 selectedCategory = defaultCategory(from: expenseCategories, isExpense: true)
                                 dailyBudgetOverride = nil
                             } label: {
@@ -74,7 +80,7 @@ struct EditTransactionView: View {
                                     .foregroundStyle(isExpense ? DesignSystem.expenseColor : DesignSystem.textSecondary)
                             }
                             Button {
-                                withAnimation(.spring(response: 0.3)) { isExpense = false }
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) { isExpense = false }
                                 selectedCategory = defaultCategory(from: incomeCategories, isExpense: false)
                                 dailyBudgetOverride = nil
                             } label: {
@@ -96,9 +102,12 @@ struct EditTransactionView: View {
                                     .keyboardType(.decimalPad)
                                     .font(.title2.weight(.semibold)).monospacedDigit()
                                     .foregroundStyle(DesignSystem.textPrimary)
+                                    .focused($focusedField, equals: .amount)
+                                    .onChange(of: amountText) { _, _ in amountError = nil }
                             }
                             .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            ValidationMessage(message: amountError?.errorDescription)
                         }
 
                         // 分类
@@ -190,7 +199,7 @@ struct EditTransactionView: View {
                         }
 
                         Button("保存") { saveChanges() }
-                            .disabled(!hasValidAmount)
+                            .disabled(!canSubmitAmount)
                             .foregroundStyle(DesignSystem.primaryColor)
                     }
                 }
@@ -281,7 +290,7 @@ struct EditTransactionView: View {
         let target = category.name == category.rootCategoryName
             ? rootCategory(for: category.rootCategoryName, in: currentCategories) ?? category
             : category
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             selectedCategory = target
             dailyBudgetOverride = nil
         }
@@ -289,7 +298,7 @@ struct EditTransactionView: View {
     }
 
     private func selectExactCategory(_ category: Category) {
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             selectedCategory = category
             dailyBudgetOverride = nil
             wheelCategory = nil
@@ -304,7 +313,7 @@ struct EditTransactionView: View {
             return
         }
         wheelSourceFrame = sourceFrame
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category
         }
     }
@@ -328,7 +337,7 @@ struct EditTransactionView: View {
                 selectExactCategory(child)
             },
             onDismiss: {
-                withAnimation(.spring(response: 0.18, dampingFraction: 0.9)) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.9)) {
                     wheelCategory = nil
                     wheelSourceFrame = nil
                 }
@@ -347,7 +356,17 @@ struct EditTransactionView: View {
     }
 
     private func saveChanges() {
-        guard hasValidAmount, let amount = Decimal(string: amountText) else { return }
+        let amount: Decimal
+        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        case .success(let value):
+            amount = value
+            amountError = nil
+        case .failure(let error):
+            amountError = error
+            focusedField = .amount
+            HapticManager.error()
+            return
+        }
         let draft = TransactionDraft(
             amount: amount,
             isExpense: isExpense,

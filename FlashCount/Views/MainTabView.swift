@@ -166,9 +166,14 @@ struct MainTabView: View {
 
             Button(action: performPrimaryAction) {
                 VStack(spacing: 3) {
-                    Image(systemName: "plus")
-                        .font(.title3.weight(.semibold))
-                        .symbolEffect(.bounce, value: isQuickEntryPresented || showPlusActions)
+                    if reduceMotion {
+                        Image(systemName: "plus")
+                            .font(.title3.weight(.semibold))
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.title3.weight(.semibold))
+                            .symbolEffect(.bounce, value: isQuickEntryPresented || showPlusActions)
+                    }
                     Text("记一笔")
                         .font(.caption2.weight(.semibold))
                 }

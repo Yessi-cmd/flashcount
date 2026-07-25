@@ -34,6 +34,45 @@ final class RecurringSuggestionServiceTests: XCTestCase {
         XCTAssertTrue(calendar.isDate(suggestion.nextDueDate, inSameDayAs: date(2026, 4, 30)))
     }
 
+    func testValueInputProducesTheSameSuggestionAsModelAdapter() throws {
+        let category = Category(name: "固定服务", icon: "repeat", colorHex: "#123456")
+        let transactions = [
+            transaction(on: (2026, 1, 10), amount: 30, note: "视频会员", category: category),
+            transaction(on: (2026, 2, 10), amount: 30, note: "视频会员", category: category),
+            transaction(on: (2026, 3, 10), amount: 30, note: "视频会员", category: category)
+        ]
+        let input = RecurringSuggestionInput(
+            transactions: transactions.map {
+                RecurringSuggestionTransactionInput(
+                    amount: $0.amount,
+                    date: $0.date,
+                    note: $0.note,
+                    isExpense: $0.isExpense,
+                    recurringRuleID: $0.recurringRule?.id,
+                    categoryID: $0.category?.id,
+                    categoryName: $0.category?.name,
+                    categoryIsArchived: $0.category?.isArchived ?? false,
+                    ledgerID: $0.ledger?.id
+                )
+            },
+            existingRules: []
+        )
+
+        let fromModels = RecurringSuggestionService.suggestions(
+            transactions: transactions,
+            existingRules: [],
+            referenceDate: date(2026, 3, 11),
+            calendar: calendar
+        )
+        let fromValueInput = RecurringSuggestionService.suggestions(
+            input: input,
+            referenceDate: date(2026, 3, 11),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(fromValueInput, fromModels)
+    }
+
     func testDetectsWeeklyPatternWithSmallDateTolerance() throws {
         let category = Category(name: "通勤", icon: "tram", colorHex: "#123456")
         let transactions = [

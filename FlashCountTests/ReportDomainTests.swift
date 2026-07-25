@@ -126,6 +126,50 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertNotNil(report.smartAnalysis.projectedExpense)
     }
 
+    func testReportCalculatorConsumesValueSnapshotAndPreservesPrivacyMetadata() throws {
+        let reference = try date(2026, 7, 12, 12)
+        let expense = ReportTransactionSnapshot(
+            amount: 100,
+            isExpense: true,
+            date: try date(2026, 7, 2),
+            categoryName: "餐饮",
+            categoryIcon: "fork.knife",
+            categoryColor: "#FF6B6B",
+            isProtectedIncome: false,
+            isIncludedInDailyBudget: true
+        )
+        let privateIncome = ReportTransactionSnapshot(
+            amount: 500,
+            isExpense: false,
+            date: try date(2026, 7, 3),
+            categoryName: "工资",
+            categoryIcon: "banknote",
+            categoryColor: "#34C759",
+            isProtectedIncome: true,
+            isIncludedInDailyBudget: false
+        )
+        let snapshot = ReportDataSnapshot(
+            currentTransactions: [expense, privateIncome],
+            comparisonTransactions: [],
+            streakTransactions: [expense],
+            budgetTransactions: [expense],
+            budgets: []
+        )
+
+        let report = ReportCalculator(calendar: calendar).generateReport(
+            period: .monthly,
+            target: .current(referenceDate: reference),
+            snapshot: snapshot,
+            includePrivateIncome: false
+        )
+
+        XCTAssertEqual(report.totalExpense, 100)
+        XCTAssertEqual(report.totalIncome, 0)
+        XCTAssertEqual(report.netChange, -100)
+        XCTAssertTrue(report.hasHiddenPrivateIncome)
+        XCTAssertEqual(report.categoryBreakdown.first?.categoryName, "餐饮")
+    }
+
     func testSmartAnalysisAdaptsMetricsAndPeakInsightToDailyReport() throws {
         let context = try makeContext()
         let reference = try date(2026, 7, 12, 20)

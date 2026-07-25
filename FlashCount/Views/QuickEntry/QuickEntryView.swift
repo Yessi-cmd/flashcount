@@ -22,6 +22,7 @@ struct QuickEntryView: View {
     @Query private var recentTransactions: [Transaction]
 
     @State private var amountText = ""
+    @State private var amountError: MoneyValidationError?
     @State private var isExpense = true
     @State private var selectedCategory: Category?
     @State private var selectedLedger: Ledger?
@@ -58,9 +59,8 @@ struct QuickEntryView: View {
         isExpense ? expenseCategories : incomeCategories
     }
 
-    private var hasValidAmount: Bool {
-        guard let amount = Decimal(string: amountText) else { return false }
-        return amount > 0
+    private var canSubmitAmount: Bool {
+        !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var rootCategories: [Category] {
@@ -89,7 +89,7 @@ struct QuickEntryView: View {
             ZStack {
                 // 背景
                 AmbientBackground(accent: isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor)
-                    .animation(DesignSystem.standardAnimation, value: isExpense)
+                    .animation(reduceMotion ? nil : DesignSystem.standardAnimation, value: isExpense)
 
                 ScrollView {
                     VStack(spacing: 8) {
@@ -154,7 +154,10 @@ struct QuickEntryView: View {
                         } label: {
                             Image(systemName: "note.text")
                                 .foregroundStyle(showNote ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                                .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel(showNote ? "隐藏备注" : "添加备注")
+                        .accessibilityIdentifier("quickEntry.noteToggle")
                     }
                 }
             }
@@ -340,6 +343,8 @@ struct QuickEntryView: View {
                     .accessibilityIdentifier("quickEntry.amount")
             }
 
+            ValidationMessage(message: amountError?.errorDescription)
+
             // 日期选择器 - 始终可见，方便补录历史账单
             HStack(spacing: 4) {
                 Image(systemName: "calendar")
@@ -372,7 +377,7 @@ struct QuickEntryView: View {
     private var allCategoriesToggle: some View {
         HStack(spacing: 8) {
             Button {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.86)) {
                     showAllCategories.toggle()
                 }
             } label: {
@@ -404,6 +409,7 @@ struct QuickEntryView: View {
                         Image(systemName: "arrow.uturn.backward")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(DesignSystem.textTertiary)
+                            .frame(width: 44, height: 44)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("恢复跟随分类")
@@ -496,7 +502,7 @@ struct QuickEntryView: View {
     }
 
     private var submitButton: some View {
-        QuickEntrySubmitButton(isEnabled: hasValidAmount, isExpense: isExpense, action: saveTransaction)
+        QuickEntrySubmitButton(isEnabled: canSubmitAmount, isExpense: isExpense, action: saveTransaction)
     }
 
     @ViewBuilder
@@ -532,10 +538,16 @@ struct QuickEntryView: View {
 
     private var successOverlay: some View {
         VStack(spacing: 16) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 60))
-                .foregroundStyle(DesignSystem.incomeColor)
-                .symbolEffect(.bounce, value: showSuccess)
+            if reduceMotion {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(DesignSystem.Typography.amount)
+                    .foregroundStyle(DesignSystem.incomeColor)
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .font(DesignSystem.Typography.amount)
+                    .foregroundStyle(DesignSystem.incomeColor)
+                    .symbolEffect(.bounce, value: showSuccess)
+            }
 
             Text("记账成功！")
                 .font(.headline)
@@ -592,6 +604,7 @@ struct QuickEntryView: View {
 
     private func handleKeyPress(_ key: String) {
         let maxIntegerDigits = 12  // 最大整数位数（万亿级别）
+        amountError = nil
 
         switch key {
         case "⌫":
@@ -653,7 +666,7 @@ struct QuickEntryView: View {
             ? lastUsedCategory(for: rootName, in: currentCategories, isExpense: isExpense) ?? rootCategory(for: rootName, in: currentCategories) ?? category
             : category
 
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             selectedCategory = target
             dailyBudgetOverride = nil
             showAllCategories = false
@@ -662,7 +675,7 @@ struct QuickEntryView: View {
     }
 
     private func selectExactCategory(_ category: Category) {
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             selectedCategory = category
             dailyBudgetOverride = nil
             wheelCategory = nil
@@ -678,7 +691,7 @@ struct QuickEntryView: View {
             return
         }
         wheelSourceFrame = sourceFrame
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category
         }
     }
@@ -702,7 +715,7 @@ struct QuickEntryView: View {
                 selectExactCategory(child)
             },
             onDismiss: {
-                withAnimation(.spring(response: 0.18, dampingFraction: 0.9)) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.9)) {
                     wheelCategory = nil
                     wheelSourceFrame = nil
                 }
@@ -753,7 +766,7 @@ struct QuickEntryView: View {
 
     /// 应用模板 — 一键填入金额 / 分类 / 备注 / 收支类型
     private func applyTemplate(_ template: TransactionTemplate, category: Category?) {
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             amountText = String(describing: template.amount)
             isExpense = template.isExpense
             note = template.note
@@ -765,7 +778,17 @@ struct QuickEntryView: View {
     }
 
     private func saveTransaction() {
-        guard !isSaving, hasValidAmount, let amount = Decimal(string: amountText) else { return }
+        guard !isSaving else { return }
+        let amount: Decimal
+        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        case .success(let value):
+            amount = value
+            amountError = nil
+        case .failure(let error):
+            amountError = error
+            HapticManager.error()
+            return
+        }
         isSaving = true
         defer { isSaving = false }
 
@@ -790,14 +813,15 @@ struct QuickEntryView: View {
         HapticManager.success()
         updateBudgetReminder(afterSaving: transaction)
 
-        withAnimation(.spring(response: 0.4)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4)) {
             showSuccess = true
         }
     }
 
     private func resetForm() {
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             amountText = ""
+            amountError = nil
             note = ""
             showNote = false
             showSuccess = false

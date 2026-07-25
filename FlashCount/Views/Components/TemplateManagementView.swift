@@ -43,7 +43,10 @@ struct TemplateManagementView: View {
                         } label: {
                             Image(systemName: "plus")
                                 .foregroundStyle(DesignSystem.primaryColor)
+                                .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel("添加记账模板")
+                        .accessibilityIdentifier("templates.add")
                     }
                 }
             }
@@ -205,6 +208,12 @@ struct TemplateEditView: View {
     @State private var note: String
     @State private var selectedCategoryName: String?
     @State private var nameError: String?
+    @State private var amountError: MoneyValidationError?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case amount
+    }
 
     init(categories: [Category], template: TransactionTemplate? = nil, onSave: @escaping (TransactionTemplate) -> Void) {
         self.categories = categories
@@ -227,8 +236,7 @@ struct TemplateEditView: View {
 
     private var canSave: Bool {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Decimal(string: amountText) else { return false }
-        return !trimmedName.isEmpty && amount > 0
+        return !trimmedName.isEmpty && !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -253,6 +261,9 @@ struct TemplateEditView: View {
                         TextField("金额", text: $amountText)
                             .keyboardType(.decimalPad)
                             .foregroundStyle(DesignSystem.textPrimary)
+                            .focused($focusedField, equals: .amount)
+                            .onChange(of: amountText) { _, _ in amountError = nil }
+                        ValidationMessage(message: amountError?.errorDescription)
                     }
                 } header: {
                     Text("金额").foregroundStyle(DesignSystem.textSecondary)
@@ -354,7 +365,14 @@ struct TemplateEditView: View {
             nameError = "名称不能为空"
             return
         }
-        guard canSave, let amount = Decimal(string: amountText) else {
+        let amount: Decimal
+        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        case .success(let value):
+            amount = value
+            amountError = nil
+        case .failure(let error):
+            amountError = error
+            focusedField = .amount
             return
         }
 

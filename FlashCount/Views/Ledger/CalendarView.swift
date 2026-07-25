@@ -3,6 +3,7 @@ import SwiftData
 
 /// 日历视图 - 展示每日收支
 struct CalendarView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var displayedMonth = Date()
     @State private var selectedDate: Date?
 
@@ -22,7 +23,7 @@ struct CalendarView: View {
     private var monthHeader: some View {
         HStack {
             Button {
-                withAnimation(.spring(response: 0.3)) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                     displayedMonth = calendar.date(byAdding: .month, value: -1, to: displayedMonth) ?? displayedMonth
                     selectedDate = nil
                 }
@@ -44,7 +45,7 @@ struct CalendarView: View {
             Spacer()
 
             Button {
-                withAnimation(.spring(response: 0.3)) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                     displayedMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) ?? displayedMonth
                     selectedDate = nil
                 }
@@ -62,6 +63,7 @@ struct CalendarView: View {
 
 /// 指定月份的日历数据与内容。查询范围限定在该月，避免日历入口加载完整历史交易。
 private struct CalendarMonthContent: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @Query private var monthTransactions: [Transaction]
 
@@ -198,7 +200,7 @@ private struct CalendarMonthContent: View {
                 let isSelected = selectedDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
 
                 Button {
-                    withAnimation(.spring(response: 0.3)) {
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                         selectedDate = isSelected ? nil : date
                     }
                 } label: {
@@ -214,19 +216,19 @@ private struct CalendarMonthContent: View {
                         if let summary {
                             if summary.expense > 0 {
                                 Text(summary.expense.compactAmount)
-                                    .font(.system(size: 8).monospacedDigit())
+                                    .font(.caption2.monospacedDigit())
                                     .foregroundStyle(DesignSystem.expenseColor.opacity(0.8))
                                     .lineLimit(1)
                             }
                             if summary.income > 0 && !summary.hasHiddenIncome {
                                 Text(summary.income.compactAmount)
-                                    .font(.system(size: 8).monospacedDigit())
+                                    .font(.caption2.monospacedDigit())
                                     .foregroundStyle(DesignSystem.incomeColor.opacity(0.8))
                                     .lineLimit(1)
                             }
                             if summary.hasHiddenIncome {
                                 Text("****")
-                                    .font(.system(size: 8).monospacedDigit())
+                                    .font(.caption2.monospacedDigit())
                                     .foregroundStyle(DesignSystem.textTertiary)
                                     .lineLimit(1)
                             }

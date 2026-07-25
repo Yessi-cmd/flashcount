@@ -259,10 +259,10 @@ struct CategoryWheelOverlay: View {
         .opacity(labelsVisible ? (dialState.activeIndex == nil || isActive ? 1 : 0.68) : 0)
         .offset(y: labelsVisible ? 0 : 7)
         .animation(
-            .easeOut(duration: 0.12),
+            reduceMotion ? nil : .easeOut(duration: 0.12),
             value: labelsVisible
         )
-        .animation(.easeOut(duration: 0.11), value: isActive)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.11), value: isActive)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(child.name)，\(parentName)")
         .accessibilityIdentifier("categoryWheelChild-\(child.name)")
@@ -434,7 +434,7 @@ struct CategoryWheelOverlay: View {
         HapticManager.prepareCategoryWheel()
         HapticManager.categoryWheelOpened()
 
-        withAnimation(.easeOut(duration: 0.12)) {
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.12)) {
             isPresented = true
         }
 

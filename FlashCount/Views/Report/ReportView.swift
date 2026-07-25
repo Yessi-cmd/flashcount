@@ -28,7 +28,7 @@ private struct ReportObservationScope: Hashable {
 
 private struct ReportPageData {
     let report: ReportData
-    let budget: ReportBudgetSnapshot
+    let budget: ReportBudgetSnapshotValue
 }
 
 private enum ReportLoadState {
@@ -136,7 +136,6 @@ struct ReportView: View {
                             payday: payday,
                             weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent
                         )
-                        .id(observationScope)
 
 #if DEBUG
                         Color.clear
@@ -164,8 +163,10 @@ struct ReportView: View {
                         showReminderSettings = true
                     } label: {
                         Image(systemName: "bell.badge")
+                            .frame(width: 44, height: 44)
                     }
                     .accessibilityLabel("报表提醒")
+                    .accessibilityIdentifier("report.reminders")
                 }
             }
             .sheet(isPresented: $showReminderSettings) {
@@ -350,7 +351,7 @@ struct ReportView: View {
         return HStack(spacing: 12) {
             Button(action: showPreviousRange) {
                 Image(systemName: "chevron.left")
-                    .frame(width: 34, height: 34)
+                    .frame(width: 44, height: 44)
             }
             .accessibilityLabel("上一个\(selectedPeriod.rawValue)")
             .accessibilityIdentifier("report.previousPeriod")
@@ -370,7 +371,7 @@ struct ReportView: View {
 
             Button(action: showNextRange) {
                 Image(systemName: "chevron.right")
-                    .frame(width: 34, height: 34)
+                    .frame(width: 44, height: 44)
             }
             .disabled(navigationAnchor.isCurrent)
             .accessibilityLabel("下一个\(selectedPeriod.rawValue)")
@@ -446,6 +447,7 @@ private struct ReportObservedContent: View {
     @State private var retryToken = 0
     @State private var selectedBucketID: Date?
     @State private var showChartDetails = false
+    @State private var generationToken: UUID?
 
     init(
         scope: ReportObservationScope,
@@ -535,9 +537,13 @@ private struct ReportObservedContent: View {
         .task(id: GenerationKey(
             digest: transactionDigest,
             retry: retryToken,
-            weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent
+            weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent,
+            period: period,
+            payday: payday,
+            targetKind: target.isCurrent ? "current" : (target.isScheduled ? "scheduled" : "completed"),
+            targetReferenceDate: target.referenceDate
         )) {
-            generateReport()
+            await generateReport()
         }
     }
 
@@ -635,7 +641,7 @@ private struct ReportObservedContent: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
             Text(detail)
-                .font(.system(size: 9))
+                .font(.caption2)
                 .foregroundStyle(DesignSystem.textTertiary)
                 .lineLimit(2)
         }
@@ -643,25 +649,36 @@ private struct ReportObservedContent: View {
     }
 
     @MainActor
-    private func generateReport() {
+    private func generateReport() async {
+        let token = UUID()
+        generationToken = token
         let previous = state.visibleData
         state = previous.map(ReportLoadState.refreshing) ?? .loading
         do {
-            let service = ReportService(modelContext: modelContext, payday: payday)
-            let report = try service.generateReport(period: period, target: target, includePrivateIncome: true)
-            let budget = ReportBudgetSnapshotService.snapshot(
-                budgets: budgets,
-                transactions: observedTransactions,
-                reportRange: report.reportRange,
+            let snapshotStore = LocalAnalyticsDataStore(modelContainer: modelContext.container)
+            let snapshot = try await snapshotStore.makeSnapshot(
+                period: period,
                 target: target,
                 payday: payday,
+                calendar: .current
+            )
+            try Task.checkCancellation()
+            let calculation = await ReportComputationWorker().calculatePage(
+                period: period,
+                target: target,
+                payday: payday,
+                calendar: .current,
+                snapshot: snapshot,
                 weekendMultiplier: weekendBudgetMultiplier
             )
-            let page = ReportPageData(report: report, budget: budget)
+            try Task.checkCancellation()
+            guard generationToken == token else { return }
+            let page = ReportPageData(report: calculation.report, budget: calculation.budget)
             withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
-                state = report.transactionCount == 0 ? .empty(page) : .loaded(page)
+                state = calculation.report.transactionCount == 0 ? .empty(page) : .loaded(page)
             }
         } catch {
+            guard !Task.isCancelled, generationToken == token else { return }
             state = .failed(error.localizedDescription)
         }
     }
@@ -751,7 +768,7 @@ private struct ReportObservedContent: View {
                 let presentation = ReportChangePresentation.make(change: change, metric: metric)
                 HStack(spacing: 2) {
                     Image(systemName: changeIcon(presentation.direction))
-                        .font(.system(size: 8))
+                        .font(.caption2)
                     Text(presentation.text)
                         .font(.caption2.monospacedDigit())
                 }
@@ -940,7 +957,7 @@ private struct ReportObservedContent: View {
         .glassCard()
     }
 
-    private func budgetCard(_ snapshot: ReportBudgetSnapshot) -> some View {
+    private func budgetCard(_ snapshot: ReportBudgetSnapshotValue) -> some View {
         let formatter = ReportDateRangeFormatter()
         let range = ReportDateRange(start: snapshot.cycle.start, end: snapshot.cycle.end)
         let cycleTitle = formatter.reportRange(range, period: .monthly).title
@@ -1128,4 +1145,8 @@ private struct GenerationKey: Hashable {
     let digest: Int
     let retry: Int
     let weekendBudgetMultiplierPercent: Int
+    let period: ReportPeriod
+    let payday: Int
+    let targetKind: String
+    let targetReferenceDate: Date
 }

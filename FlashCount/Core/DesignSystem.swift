@@ -26,11 +26,11 @@ enum DesignSystem {
         static let controlLabel = Font.system(.subheadline, design: .rounded, weight: .semibold)
         static let compactLabel = Font.system(.caption, design: .rounded, weight: .medium)
         static let compactLabelEmphasized = Font.system(.caption, design: .rounded, weight: .semibold)
-        static let supportingLabel = Font.system(.caption2, design: .rounded, weight: .medium)
-        static let amount = Font.system(size: 40, weight: .bold, design: .rounded)
+        static let supportingLabel = Font.system(.caption, design: .rounded, weight: .medium)
+        static let amount = Font.system(.largeTitle, design: .rounded, weight: .bold)
         static let keypadDigit = Font.system(.title3, design: .rounded, weight: .medium)
         static let wheelIcon = Font.system(.body, design: .rounded, weight: .semibold)
-        static let wheelLabel = Font.system(.caption2, design: .rounded, weight: .medium)
+        static let wheelLabel = Font.system(.caption, design: .rounded, weight: .medium)
         static let wheelHubTitle = Font.system(.subheadline, design: .rounded, weight: .bold)
     }
 
@@ -73,13 +73,49 @@ enum DesignSystem {
 
     // MARK: - 单色
 
-    static let primaryColor = Color(hex: "#4E766A")
-    static let incomeColor = Color(hex: "#5B887B")
-    static let expenseColor = Color(hex: "#B86F69")
-    static let warningColor = Color(hex: "#AF8950")
-    static let dangerColor = Color(hex: "#B86066")
+    static let primaryColor = Color(uiColor: UIColor { traits in
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 0.53 : 0.36, green: highContrast ? 0.82 : 0.56, blue: highContrast ? 0.70 : 0.48, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.15 : 0.306, green: highContrast ? 0.34 : 0.463, blue: highContrast ? 0.28 : 0.416, alpha: 1)
+    })
+    static let incomeColor = Color(uiColor: UIColor { traits in
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 0.48 : 0.36, green: highContrast ? 0.84 : 0.53, blue: highContrast ? 0.68 : 0.48, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.10 : 0.357, green: highContrast ? 0.39 : 0.533, blue: highContrast ? 0.25 : 0.482, alpha: 1)
+    })
+    static let expenseColor = Color(uiColor: UIColor { traits in
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 1.00 : 0.72, green: highContrast ? 0.55 : 0.44, blue: highContrast ? 0.50 : 0.41, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.55 : 0.722, green: highContrast ? 0.16 : 0.435, blue: highContrast ? 0.13 : 0.412, alpha: 1)
+    })
+    static let warningColor = Color(uiColor: UIColor { traits in
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 1.00 : 0.69, green: highContrast ? 0.80 : 0.54, blue: highContrast ? 0.38 : 0.31, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.43 : 0.686, green: highContrast ? 0.25 : 0.537, blue: highContrast ? 0.02 : 0.314, alpha: 1)
+    })
+    static let dangerColor = Color(uiColor: UIColor { traits in
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 1.00 : 0.72, green: highContrast ? 0.48 : 0.38, blue: highContrast ? 0.52 : 0.40, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.54 : 0.722, green: highContrast ? 0.12 : 0.376, blue: highContrast ? 0.16 : 0.400, alpha: 1)
+    })
     static let weekendColorHex = "#6E8797"
-    static let weekendColor = Color(hex: weekendColorHex)
+    static let weekendColor = Color(uiColor: UIColor { traits in
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 0.68 : 0.43, green: highContrast ? 0.82 : 0.53, blue: highContrast ? 0.90 : 0.59, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.14 : 0.431, green: highContrast ? 0.30 : 0.529, blue: highContrast ? 0.40 : 0.592, alpha: 1)
+    })
 
     static let surfaceBackground = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
@@ -100,15 +136,19 @@ enum DesignSystem {
     })
 
     static let textSecondary = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-        ? UIColor(red: 0.67, green: 0.72, blue: 0.69, alpha: 1)
-        : UIColor(red: 0.392, green: 0.439, blue: 0.416, alpha: 1)
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 0.86 : 0.67, green: highContrast ? 0.90 : 0.72, blue: highContrast ? 0.87 : 0.69, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.17 : 0.392, green: highContrast ? 0.23 : 0.439, blue: highContrast ? 0.20 : 0.416, alpha: 1)
     })
 
     static let textTertiary = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-        ? UIColor(red: 0.47, green: 0.52, blue: 0.49, alpha: 1)
-        : UIColor(red: 0.537, green: 0.573, blue: 0.557, alpha: 1)
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor(red: highContrast ? 0.76 : 0.47, green: highContrast ? 0.81 : 0.52, blue: highContrast ? 0.78 : 0.49, alpha: 1)
+        }
+        return UIColor(red: highContrast ? 0.29 : 0.537, green: highContrast ? 0.35 : 0.573, blue: highContrast ? 0.32 : 0.557, alpha: 1)
     })
 
     static let softFill = Color(uiColor: UIColor { traits in
@@ -118,15 +158,19 @@ enum DesignSystem {
     })
 
     static let borderColor = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-        ? UIColor.white.withAlphaComponent(0.09)
-        : UIColor(red: 0.875, green: 0.898, blue: 0.882, alpha: 1)
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor.white.withAlphaComponent(highContrast ? 0.34 : 0.22)
+        }
+        return UIColor(red: highContrast ? 0.47 : 0.875, green: highContrast ? 0.53 : 0.898, blue: highContrast ? 0.49 : 0.882, alpha: 1)
     })
 
     static let dividerColor = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-        ? UIColor.white.withAlphaComponent(0.10)
-        : UIColor(red: 0.89, green: 0.91, blue: 0.898, alpha: 1)
+        let highContrast = traits.accessibilityContrast == .high
+        if traits.userInterfaceStyle == .dark {
+            return UIColor.white.withAlphaComponent(highContrast ? 0.30 : 0.18)
+        }
+        return UIColor(red: highContrast ? 0.45 : 0.89, green: highContrast ? 0.51 : 0.91, blue: highContrast ? 0.47 : 0.898, alpha: 1)
     })
 
     // MARK: - Layout tokens

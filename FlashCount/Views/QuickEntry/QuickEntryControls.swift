@@ -3,8 +3,8 @@ import SwiftUI
 struct QuickEntryNumberPad: View {
     let onKeyPress: (String) -> Void
 
-    private let legacyKeyHeight: CGFloat = 42
-    private let liquidGlassLabelHeight: CGFloat = 32
+    private let legacyKeyHeight: CGFloat = 44
+    private let liquidGlassLabelHeight: CGFloat = 44
 
     private let buttons = [
         ["7", "8", "9", "⌫"],
@@ -51,6 +51,7 @@ struct QuickEntryNumberPad: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.roundedRectangle(radius: 10))
         .tint(glassButtonTint(for: button))
+        .accessibilityLabel(button == "⌫" ? "删除最后一位" : button)
         .accessibilityIdentifier("quickEntry.key.\(button)")
     }
 #endif
@@ -72,6 +73,7 @@ struct QuickEntryNumberPad: View {
                 }
         }
         .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel(button == "⌫" ? "删除最后一位" : button)
         .accessibilityIdentifier("quickEntry.key.\(button)")
     }
 
@@ -111,6 +113,7 @@ struct QuickEntrySubmitButton: View {
     let isEnabled: Bool
     let isExpense: Bool
     let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @ViewBuilder
     var body: some View {
@@ -133,13 +136,13 @@ struct QuickEntrySubmitButton: View {
                 .font(DesignSystem.Typography.controlLabel)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 34)
+                .frame(minHeight: 44)
         }
         .buttonStyle(.glassProminent)
         .tint(isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor)
         .disabled(!isEnabled)
         .opacity(isEnabled ? 1 : 0.55)
-        .animation(DesignSystem.quickAnimation, value: isEnabled)
+        .animation(reduceMotion ? nil : DesignSystem.quickAnimation, value: isEnabled)
         .accessibilityIdentifier("quickEntry.save")
     }
 #endif

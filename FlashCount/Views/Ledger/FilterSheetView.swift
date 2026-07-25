@@ -3,18 +3,18 @@ import SwiftData
 
 // MARK: - 筛选类型
 
-enum TransactionTypeFilter: String, CaseIterable {
+enum TransactionTypeFilter: String, CaseIterable, Hashable, Sendable {
     case all = "全部"
     case expense = "支出"
     case income = "收入"
 }
 
-enum TransactionSortField: String, CaseIterable {
+enum TransactionSortField: String, CaseIterable, Hashable, Sendable {
     case date = "时间"
     case amount = "金额"
 }
 
-enum TransactionSortDirection: String, CaseIterable {
+enum TransactionSortDirection: String, CaseIterable, Hashable, Sendable {
     case descending = "倒序"
     case ascending = "正序"
 
@@ -31,6 +31,7 @@ enum TransactionSortDirection: String, CaseIterable {
 // MARK: - 筛选面板
 
 struct FilterSheetView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(
         filter: #Predicate<Category> { !$0.isArchived },
         sort: \Category.sortOrder
@@ -87,7 +88,7 @@ struct FilterSheetView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("重置") {
-                        withAnimation { resetAll() }
+                        withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) { resetAll() }
                         HapticManager.selection()
                     }
                     .foregroundStyle(DesignSystem.primaryColor)
@@ -119,7 +120,7 @@ struct FilterSheetView: View {
                     let isExpenseType = newValue == .expense
                     let isIncomeType = newValue == .income
                     if (isExpenseType && !cat.isExpense) || (isIncomeType && cat.isExpense) {
-                        withAnimation { categoryFilterId = nil }
+                        withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) { categoryFilterId = nil }
                     }
                 }
                 expandedRootId = nil
@@ -144,7 +145,7 @@ struct FilterSheetView: View {
                         .foregroundStyle(DesignSystem.textPrimary)
                     Spacer()
                     Button {
-                        withAnimation(.spring(response: 0.3)) {
+                        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                             categoryFilterId = nil
                             expandedRootId = nil
                         }
@@ -169,7 +170,7 @@ struct FilterSheetView: View {
 
                     VStack(spacing: 4) {
                         Button {
-                            withAnimation(.spring(response: 0.3)) {
+                            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                 if isSelected {
                                     categoryFilterId = nil
                                     expandedRootId = nil
@@ -205,7 +206,7 @@ struct FilterSheetView: View {
                             VStack(spacing: 6) {
                                 ForEach(children, id: \.id) { child in
                                     Button {
-                                        withAnimation(.spring(response: 0.3)) {
+                                        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                             categoryFilterId = child.id
                                         }
                                         HapticManager.selection()
@@ -305,7 +306,7 @@ struct FilterSheetView: View {
 
     private func selectionButton(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button {
-            withAnimation(DesignSystem.standardAnimation) { action() }
+            withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) { action() }
             HapticManager.selection()
         } label: {
             HStack(spacing: 6) {
@@ -318,6 +319,7 @@ struct FilterSheetView: View {
             }
             .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textSecondary)
             .frame(maxWidth: .infinity)
+            .frame(minHeight: 44)
             .padding(.vertical, 10)
             .background(isSelected ? DesignSystem.primaryColor.opacity(0.1) : DesignSystem.softFill)
             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius, style: .continuous))

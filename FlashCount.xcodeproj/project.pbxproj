@@ -24,6 +24,7 @@
 		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
 		14A503E907A93958C352D9F4 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */; };
 		1A452CBB6A09B051CE15209A /* DefaultDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F8BA17A1077C74363D442E /* DefaultDataService.swift */; };
+		1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */; };
 		1CA242D14AFB3671390BBF05 /* DataHealthFindingRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3D5D9116336DEFBF736CF6 /* DataHealthFindingRow.swift */; };
 		1E594E500C23CE7A65B8CF23 /* FlashCountSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 214FECFB8A46540B23411B24 /* FlashCountSchema.swift */; };
 		1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82942383FFAC85D692A7031 /* MainInterfaceExplorationView.swift */; };
@@ -43,6 +44,7 @@
 		37313D9C291DC910A0373683 /* BudgetReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8000784A9F364513ECB6E916 /* BudgetReminderService.swift */; };
 		38196E36BC568F0A62B77EA5 /* BudgetAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05285ADD9B6AC2660BBBF3E /* BudgetAnalyzer.swift */; };
 		408D4A9C5FE25933D921CC65 /* QuickEntryControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */; };
+		43FA19D47F572B37BAF472C9 /* ReportAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC9CB89C291CEFB4E009431 /* ReportAnalytics.swift */; };
 		446188EEBD1730677AB7E8EA /* DataHealthCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE26957D3CB28546317F74A /* DataHealthCenterView.swift */; };
 		46CCFBBCF0ED67C7AD57A01E /* LocalActionCenterService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81F7DCDADD9D50A3788689B4 /* LocalActionCenterService.swift */; };
 		477FE6D911C1CB5CF2BD14AE /* ActionCenterSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6C0DD52FD2FB7E04CB69EA0 /* ActionCenterSectionView.swift */; };
@@ -55,12 +57,14 @@
 		4B6BDBD4D494CD302A0B6216 /* DataHealthRepairPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FC2A042FE21B6B6BD477C1 /* DataHealthRepairPlan.swift */; };
 		50DA9190E88420449175A95D /* CategoryBudgetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D2927DCAF44C764B12376C6 /* CategoryBudgetsView.swift */; };
 		566909CCF24EE8E82A4466DD /* DataHealthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */; };
+		57E48658B4E0DE4D34531491 /* LedgerQueryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9135D5FD720592C567187C6E /* LedgerQueryService.swift */; };
 		6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */; };
 		6FF2E927C28F2BC8CF8D8AD9 /* CashFlowForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D151BB6EE2B34C65A55127D /* CashFlowForecastView.swift */; };
 		7169A901830F89B7903D8E89 /* RecurringOccurrence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E790332CC55AA352958CE31 /* RecurringOccurrence.swift */; };
 		7267A374058B259F89E85E4D /* MoneyValidation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F2123F4154B8A530ECE311 /* MoneyValidation.swift */; };
 		72F946F6C71EA33E9C6291F3 /* DataHealthIssueKind.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAA5288E4B0ADB2DA4F1023A /* DataHealthIssueKind.swift */; };
 		753D798DE4FE0527DCA047FB /* FlashCountWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A1267CA21CFC02E8A51C6265 /* FlashCountWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		761B5FD76B5F4ED70574FDA4 /* LedgerSearchDebounce.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */; };
 		766F95A7EBCE7F17716BD6F8 /* CategoryWheelLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43E5ECC46BF137742CF4ACC0 /* CategoryWheelLayoutTests.swift */; };
 		767FEA5F7D91266230ECD27A /* FilterSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C21D4CF12A83838BD6E0C22C /* FilterSheetView.swift */; };
 		76C7819968ECFCD63E637773 /* ReportReminderNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25E3F6BCDD308CC403615B0C /* ReportReminderNotificationService.swift */; };
@@ -97,6 +101,7 @@
 		AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */; };
 		B81D4AC7DDCC78C1344B85F4 /* ActionCenterItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644EEC0E4F8740428A7AA323 /* ActionCenterItemRow.swift */; };
 		B9810EFEB42E21055212EDE1 /* TransactionTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8839618ED5DD4131D896BC /* TransactionTemplate.swift */; };
+		BC127538CDBB6E96B9C45313 /* ValidationMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAB7A360D69781ACB0C93555 /* ValidationMessage.swift */; };
 		C330EC5AF4CAAD47D8700F72 /* DataHealthFinding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A9EBEA175489728B6345C61 /* DataHealthFinding.swift */; };
 		C3C6B2BC947F3488E07D1D30 /* SavingsGoal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A56643F838FD8572D2C332 /* SavingsGoal.swift */; };
 		C64617B89C3C7D615AFF4E54 /* CashFlowForecastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66911680311D897822DE8A7A /* CashFlowForecastService.swift */; };
@@ -121,6 +126,7 @@
 		E7DF1CD725953C8F75956F96 /* LocalActionCenterServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5FEB9024E51A499AAC08A77 /* LocalActionCenterServiceTests.swift */; };
 		EAE5F1B90485C2B9D216D921 /* CashFlowForecastTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A09A3E2CB08BE1306C67F21D /* CashFlowForecastTests.swift */; };
 		EBBF916F14AF425E80258E06 /* CategoryManagementService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB731302FEBB7ACF712BE21C /* CategoryManagementService.swift */; };
+		EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */; };
 		EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454084E97E2460EC422CA4D1 /* MainTabView.swift */; };
 		FD22C948714225832CA36F1E /* ReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E84B09AC458C202DD5AB64A /* ReportService.swift */; };
 		FE3F5BF744046B84CA2050D6 /* CashPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D00BC2D91830E9EF101E56 /* CashPool.swift */; };
@@ -175,6 +181,7 @@
 		09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationServiceTests.swift; sourceTree = "<group>"; };
 		0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderSettingsView.swift; sourceTree = "<group>"; };
 		12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryControls.swift; sourceTree = "<group>"; };
+		14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSearchDebounce.swift; sourceTree = "<group>"; };
 		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
 		1A25736CBBC2CCA2F7E6527E /* AddReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddReminderView.swift; sourceTree = "<group>"; };
 		1A9EBEA175489728B6345C61 /* DataHealthFinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthFinding.swift; sourceTree = "<group>"; };
@@ -189,10 +196,12 @@
 		28E6DA89B6319DACF056D151 /* CashPoolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashPoolView.swift; sourceTree = "<group>"; };
 		2A6F0FE7E7532EF570AC9E66 /* FlashCount.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FlashCount.entitlements; sourceTree = "<group>"; };
 		2C6FDA81436A9B8623D1B0EA /* SavingsGoalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsGoalView.swift; sourceTree = "<group>"; };
+		2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoneyValidationTests.swift; sourceTree = "<group>"; };
 		30159AD8FBCFF39D60087239 /* RecurringCatchUpPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringCatchUpPreferences.swift; sourceTree = "<group>"; };
 		30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryView.swift; sourceTree = "<group>"; };
 		36EFD1230AE17F67A1659B34 /* NotificationScheduleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduleCoordinator.swift; sourceTree = "<group>"; };
 		3C4577B9A4B3DCE41C5A23B6 /* TemplateManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateManagementView.swift; sourceTree = "<group>"; };
+		3CC9CB89C291CEFB4E009431 /* ReportAnalytics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportAnalytics.swift; sourceTree = "<group>"; };
 		3D151BB6EE2B34C65A55127D /* CashFlowForecastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastView.swift; sourceTree = "<group>"; };
 		40E1000D12E1271BE99571BE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetDashboardView.swift; sourceTree = "<group>"; };
@@ -220,6 +229,7 @@
 		5C96AA21D9387521CB6A9D64 /* FlashCountUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FlashCountUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DDE23A26293092F1392788D /* AppRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoutingTests.swift; sourceTree = "<group>"; };
 		60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionServiceTests.swift; sourceTree = "<group>"; };
+		61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerQueryServiceTests.swift; sourceTree = "<group>"; };
 		62F04AD8E1487702754644DD /* InstallmentBillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBillView.swift; sourceTree = "<group>"; };
 		644EEC0E4F8740428A7AA323 /* ActionCenterItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterItemRow.swift; sourceTree = "<group>"; };
 		6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringService.swift; sourceTree = "<group>"; };
@@ -239,6 +249,7 @@
 		833EE24295DF6CB4E0ADCD9E /* DataBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataBackupService.swift; sourceTree = "<group>"; };
 		8E790332CC55AA352958CE31 /* RecurringOccurrence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringOccurrence.swift; sourceTree = "<group>"; };
 		8EEE30A9A79A753F3D97B6A5 /* CategoryManagementServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManagementServiceTests.swift; sourceTree = "<group>"; };
+		9135D5FD720592C567187C6E /* LedgerQueryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerQueryService.swift; sourceTree = "<group>"; };
 		93D00BC2D91830E9EF101E56 /* CashPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashPool.swift; sourceTree = "<group>"; };
 		9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRecurringRuleView.swift; sourceTree = "<group>"; };
 		A09A3E2CB08BE1306C67F21D /* CashFlowForecastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastTests.swift; sourceTree = "<group>"; };
@@ -266,6 +277,7 @@
 		C5ED7B860543EE1DAC1F409D /* RecurringSuggestionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionService.swift; sourceTree = "<group>"; };
 		C8FC52EA4884A4B39278E912 /* PayCycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayCycleService.swift; sourceTree = "<group>"; };
 		CA07EB27C4CAF30E53F187FB /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerView.swift; sourceTree = "<group>"; };
+		CAB7A360D69781ACB0C93555 /* ValidationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValidationMessage.swift; sourceTree = "<group>"; };
 		D3474D18D3D98F0E29892BC0 /* ReportBudgetSnapshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportBudgetSnapshotService.swift; sourceTree = "<group>"; };
 		D46587B0FD88BF215D27EEE1 /* DataHealthReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthReport.swift; sourceTree = "<group>"; };
 		D4F8BA17A1077C74363D442E /* DefaultDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultDataService.swift; sourceTree = "<group>"; };
@@ -413,6 +425,7 @@
 				F6F1A9BBC47DE836248A9BE8 /* LiquidGlassContainer.swift */,
 				DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */,
 				3C4577B9A4B3DCE41C5A23B6 /* TemplateManagementView.swift */,
+				CAB7A360D69781ACB0C93555 /* ValidationMessage.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -426,7 +439,9 @@
 				43E5ECC46BF137742CF4ACC0 /* CategoryWheelLayoutTests.swift */,
 				4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */,
 				F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */,
+				61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */,
 				B5FEB9024E51A499AAC08A77 /* LocalActionCenterServiceTests.swift */,
+				2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */,
 				6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */,
 				60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */,
 				A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */,
@@ -510,12 +525,15 @@
 			children = (
 				66911680311D897822DE8A7A /* CashFlowForecastService.swift */,
 				030061CEC562B81C1B7B0C3D /* CashPoolService.swift */,
+				9135D5FD720592C567187C6E /* LedgerQueryService.swift */,
+				14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */,
 				81F7DCDADD9D50A3788689B4 /* LocalActionCenterService.swift */,
 				C8FC52EA4884A4B39278E912 /* PayCycleService.swift */,
 				30159AD8FBCFF39D60087239 /* RecurringCatchUpPreferences.swift */,
 				5149DDB0778D319390564E4F /* RecurringOccurrenceService.swift */,
 				6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */,
 				C5ED7B860543EE1DAC1F409D /* RecurringSuggestionService.swift */,
+				3CC9CB89C291CEFB4E009431 /* ReportAnalytics.swift */,
 				46165C4E87806B426267358D /* ReportPeriodCalculator.swift */,
 				4E84B09AC458C202DD5AB64A /* ReportService.swift */,
 				F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */,
@@ -771,7 +789,9 @@
 				766F95A7EBCE7F17716BD6F8 /* CategoryWheelLayoutTests.swift in Sources */,
 				566909CCF24EE8E82A4466DD /* DataHealthServiceTests.swift in Sources */,
 				32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */,
+				1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */,
 				E7DF1CD725953C8F75956F96 /* LocalActionCenterServiceTests.swift in Sources */,
+				EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */,
 				0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */,
 				AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */,
 				CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */,
@@ -843,6 +863,8 @@
 				29A922DE0C8EC201C201181D /* InstallmentBillView.swift in Sources */,
 				25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */,
 				96B3F99FAFDD16B3CE9293DC /* LedgerComponents.swift in Sources */,
+				57E48658B4E0DE4D34531491 /* LedgerQueryService.swift in Sources */,
+				761B5FD76B5F4ED70574FDA4 /* LedgerSearchDebounce.swift in Sources */,
 				06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */,
 				084E5C7F72EFC8C515770079 /* LiquidGlassContainer.swift in Sources */,
 				46CCFBBCF0ED67C7AD57A01E /* LocalActionCenterService.swift in Sources */,
@@ -872,6 +894,7 @@
 				956A8946BB1BABCBF2A2944A /* ReminderNotificationService.swift in Sources */,
 				8ABD1900D21A8334186174CB /* ReminderStore.swift in Sources */,
 				79A09BC752DDE1EB972911EB /* ReminderView.swift in Sources */,
+				43FA19D47F572B37BAF472C9 /* ReportAnalytics.swift in Sources */,
 				8E2B8F3AA30DF91D2F8E4A81 /* ReportBudgetSnapshotService.swift in Sources */,
 				A0AC83B2A0FF088F7C84F224 /* ReportPeriodCalculator.swift in Sources */,
 				D284938ECE4AE2580EF1C53F /* ReportPresentation.swift in Sources */,
@@ -890,6 +913,7 @@
 				14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */,
 				9518C01319B7D3B8E9D5F2C0 /* TransactionMutationService.swift in Sources */,
 				B9810EFEB42E21055212EDE1 /* TransactionTemplate.swift in Sources */,
+				BC127538CDBB6E96B9C45313 /* ValidationMessage.swift in Sources */,
 				C8E5CB5BE7E12308E665826C /* VisualDirectionExplorationView.swift in Sources */,
 				33F008A1FD132222A2B1128C /* WeekendBudgetPreferences.swift in Sources */,
 			);
@@ -979,7 +1003,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -993,7 +1017,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.4.2;
+				MARKETING_VERSION = 1.4.3;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1057,7 +1081,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 7;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -1077,7 +1101,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MARKETING_VERSION = 1.4.2;
+				MARKETING_VERSION = 1.4.3;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;

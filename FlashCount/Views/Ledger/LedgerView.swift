@@ -43,8 +43,11 @@ struct LedgerView: View {
     @State private var maxAmountText = ""
     @State private var sortField: TransactionSortField = .date
     @State private var sortDirection: TransactionSortDirection = .descending
-    @State private var visibleTransactionLimit = 200
-    @State private var historicalTransactions: [Transaction] = []
+    @State private var loadedTransactions: [Transaction] = []
+    @State private var totalTransactionCount = 0
+    @State private var ledgerSummary: LedgerSummary?
+    @State private var isLoadingPage = false
+    @State private var pageLoadToken: UUID?
 
     private let transactionPageSize = 200
     private let recentCutoff: Date
@@ -61,7 +64,7 @@ struct LedgerView: View {
     }
 
     private var presentationTransactions: [Transaction] {
-        historicalTransactions + allTransactions
+        loadedTransactions
     }
 
     /// 单次渲染所需的交易数据。筛选、月度统计、按日分组在同一遍历中完成。
@@ -82,15 +85,16 @@ struct LedgerView: View {
 
         let filteredTransactions: [Transaction]
         let visibleTransactionCount: Int
+        let totalTransactionCount: Int
         let monthlySummary: MonthlySummary
         let dayGroups: [DayGroup]
 
         var hasMoreTransactions: Bool {
-            visibleTransactionCount < filteredTransactions.count
+            visibleTransactionCount < totalTransactionCount
         }
     }
 
-    private func makePresentation(visibleTransactionLimit: Int) -> LedgerPresentation {
+    private func makePresentation() -> LedgerPresentation {
         let calendar = Calendar.current
         let now = Date()
         let range = dateFilter.dateRange(
@@ -169,7 +173,7 @@ struct LedgerView: View {
             return lhs.id.uuidString < rhs.id.uuidString
         }
 
-        let visibleTransactions = Array(filteredTransactions.prefix(visibleTransactionLimit))
+        let visibleTransactions = filteredTransactions
         let dayGroups: [LedgerPresentation.DayGroup]
         if sortField == .date {
             for transaction in visibleTransactions {
@@ -203,8 +207,18 @@ struct LedgerView: View {
         return LedgerPresentation(
             filteredTransactions: filteredTransactions,
             visibleTransactionCount: visibleTransactions.count,
+            totalTransactionCount: totalTransactionCount,
             monthlySummary: .init(expense: expense, income: income, hasHiddenIncome: hasHiddenIncome),
             dayGroups: dayGroups
+        )
+    }
+
+    private var displayedMonthlySummary: LedgerPresentation.MonthlySummary {
+        guard let ledgerSummary else { return makePresentation().monthlySummary }
+        return LedgerPresentation.MonthlySummary(
+            expense: ledgerSummary.expense,
+            income: ledgerSummary.income,
+            hasHiddenIncome: ledgerSummary.hasHiddenIncome
         )
     }
 
@@ -255,7 +269,7 @@ struct LedgerView: View {
     }
 
     var body: some View {
-        let presentation = makePresentation(visibleTransactionLimit: visibleTransactionLimit)
+        let presentation = makePresentation()
 
         return NavigationStack {
             ZStack {
@@ -264,7 +278,7 @@ struct LedgerView: View {
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
                         // B 方向先呈现核心结论，再提供搜索与筛选工具。
-                        monthlySummaryCard(presentation.monthlySummary)
+                        monthlySummaryCard(displayedMonthlySummary)
 
                         if let budgetReminder {
                             ledgerBudgetCard(budgetReminder)
@@ -285,7 +299,10 @@ struct LedgerView: View {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(.caption)
                                         .foregroundStyle(DesignSystem.textTertiary)
+                                        .frame(width: 44, height: 44)
                                 }
+                                .accessibilityLabel("清除搜索")
+                                .accessibilityIdentifier("ledger.clearSearch")
                             }
                         }
                         .padding(10)
@@ -322,7 +339,7 @@ struct LedgerView: View {
                                         ) { maxAmountText = "" }
                                     }
                                     Button {
-                                        withAnimation(.spring(response: 0.3)) {
+                                        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                             typeFilter = .all
                                             categoryFilterId = nil
                                             minAmountText = ""
@@ -344,7 +361,7 @@ struct LedgerView: View {
                         // 自定义日期范围
                         if dateFilter == .custom {
                             Button {
-                                withAnimation(.spring(response: 0.3)) {
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                     showCustomDatePicker.toggle()
                                 }
                             } label: {
@@ -395,7 +412,7 @@ struct LedgerView: View {
                 if isSelecting {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("取消") {
-                            withAnimation(.spring(response: 0.3)) {
+                            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                 isSelecting = false
                                 selectedIds.removeAll()
                             }
@@ -408,12 +425,12 @@ struct LedgerView: View {
                                 .font(.subheadline.weight(.medium))
                                 .foregroundStyle(DesignSystem.textSecondary)
 
-                            Button(selectedIds.count == presentation.filteredTransactions.count ? "取消全选" : "全选") {
-                                withAnimation(.spring(response: 0.3)) {
-                                    if selectedIds.count == presentation.filteredTransactions.count {
+                            Button(selectedIds.count == presentation.totalTransactionCount ? "取消全选" : "全选") {
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
+                                    if selectedIds.count == presentation.totalTransactionCount {
                                         selectedIds.removeAll()
                                     } else {
-                                        selectedIds = Set(presentation.filteredTransactions.map(\.id))
+                                        selectAllMatchingTransactions()
                                     }
                                 }
                             }
@@ -423,25 +440,29 @@ struct LedgerView: View {
                 } else {
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
-                            withAnimation(.spring(response: 0.3)) {
+                            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                 showCalendar.toggle()
                             }
                         } label: {
                             Image(systemName: showCalendar ? "list.bullet" : "calendar")
                                 .foregroundStyle(DesignSystem.textSecondary)
+                                .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel(showCalendar ? "显示列表" : "显示日历")
+                        .accessibilityIdentifier("ledger.calendarToggle")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         HStack(spacing: 12) {
                             // 批量选择
                             Button {
-                                withAnimation(.spring(response: 0.3)) {
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                     isSelecting = true
                                 }
                             } label: {
                                 Image(systemName: "checkmark.circle")
                                     .font(.subheadline)
                                     .foregroundStyle(DesignSystem.textSecondary)
+                                    .frame(width: 44, height: 44)
                             }
                             .accessibilityLabel("批量选择")
                             .accessibilityIdentifier("ledger.batchSelect")
@@ -463,14 +484,17 @@ struct LedgerView: View {
                                             .clipShape(Circle())
                                     }
                                 }
+                                .frame(minWidth: 44, minHeight: 44)
                             }
                             .accessibilityLabel("筛选与排序，当前\(sortDirection.detail(for: sortField))")
+                            .accessibilityIdentifier("ledger.filter")
 
                             Button {
                                 showActionCenter = true
                             } label: {
                                 Image(systemName: "bolt.badge.clock")
                                     .foregroundStyle(DesignSystem.warningColor)
+                                    .frame(width: 44, height: 44)
                             }
                             .accessibilityLabel("本地行动中心")
                             .accessibilityIdentifier("ledger.actionCenter")
@@ -480,12 +504,16 @@ struct LedgerView: View {
                             } label: {
                                 Image(systemName: "bell.badge.fill")
                                     .foregroundStyle(DesignSystem.textSecondary)
+                                    .frame(width: 44, height: 44)
                             }
+                            .accessibilityLabel("提醒事项")
+                            .accessibilityIdentifier("ledger.reminders")
                             Button {
                                 showSettings = true
                             } label: {
                                 Image(systemName: "gearshape")
                                     .foregroundStyle(DesignSystem.textSecondary)
+                                    .frame(width: 44, height: 44)
                             }
                             .accessibilityLabel("设置")
                             .accessibilityIdentifier("ledger.settings")
@@ -542,6 +570,7 @@ struct LedgerView: View {
             }
             .task(id: searchText) {
                 // 防抖：用户停止输入 300ms 后再执行搜索过滤
+                let query = searchText
                 do {
                     try await Task.sleep(for: .milliseconds(300))
                 } catch is CancellationError {
@@ -549,62 +578,165 @@ struct LedgerView: View {
                 } catch {
                     return
                 }
-                guard !Task.isCancelled else { return }
-                debouncedSearchText = searchText
+                guard LedgerSearchQueryGate.accepts(
+                    query: query,
+                    latestQuery: searchText,
+                    isCancelled: Task.isCancelled
+                ) else { return }
+                debouncedSearchText = query
             }
-            .task(id: historyQueryID) {
-                loadHistoricalTransactionsIfNeeded()
+            .task(id: ledgerQueryID) {
+                await loadFirstPage()
             }
-            .onChange(of: debouncedSearchText) { resetVisibleTransactionLimit() }
-            .onChange(of: dateFilter) { resetVisibleTransactionLimit() }
-            .onChange(of: typeFilter) { resetVisibleTransactionLimit() }
-            .onChange(of: categoryFilterId) { resetVisibleTransactionLimit() }
-            .onChange(of: minAmountText) { resetVisibleTransactionLimit() }
-            .onChange(of: maxAmountText) { resetVisibleTransactionLimit() }
-            .onChange(of: customStartDate) { resetVisibleTransactionLimit() }
-            .onChange(of: customEndDate) { resetVisibleTransactionLimit() }
-            .onChange(of: sortField) { resetVisibleTransactionLimit() }
-            .onChange(of: sortDirection) { resetVisibleTransactionLimit() }
+            .onChange(of: debouncedSearchText) { resetLedgerPage() }
+            .onChange(of: dateFilter) { resetLedgerPage() }
+            .onChange(of: typeFilter) { resetLedgerPage() }
+            .onChange(of: categoryFilterId) { resetLedgerPage() }
+            .onChange(of: minAmountText) { resetLedgerPage() }
+            .onChange(of: maxAmountText) { resetLedgerPage() }
+            .onChange(of: customStartDate) { resetLedgerPage() }
+            .onChange(of: customEndDate) { resetLedgerPage() }
+            .onChange(of: sortField) { resetLedgerPage() }
+            .onChange(of: sortDirection) { resetLedgerPage() }
         }
     }
 
-    private func resetVisibleTransactionLimit() {
-        visibleTransactionLimit = transactionPageSize
+    private func resetLedgerPage() {
+        loadedTransactions.removeAll()
+        totalTransactionCount = 0
+        ledgerSummary = nil
+        selectedIds.removeAll()
     }
 
-    private var historyQueryID: String {
-        "\(dateFilter.rawValue)-\(customStartDate.timeIntervalSinceReferenceDate)-\(customEndDate.timeIntervalSinceReferenceDate)"
+    private var ledgerQueryID: String {
+        "\(dateFilter.rawValue)-\(customStartDate.timeIntervalSinceReferenceDate)-\(customEndDate.timeIntervalSinceReferenceDate)-\(typeFilter.rawValue)-\(categoryFilterId?.uuidString ?? "all")-\(minAmountText)-\(maxAmountText)-\(debouncedSearchText)-\(sortField.rawValue)-\(sortDirection.rawValue)-\(privacyLock.isUnlocked)-\(ledgerDataDigest)"
     }
 
-    private func loadHistoricalTransactionsIfNeeded() {
-        let requiresHistory = dateFilter == .all
-            || (dateFilter == .custom && min(customStartDate, customEndDate) < recentCutoff)
-        guard requiresHistory else {
-            historicalTransactions = []
-            return
+    private var ledgerDataDigest: Int {
+        var hasher = Hasher()
+        for transaction in allTransactions {
+            hasher.combine(transaction.id)
+            hasher.combine(transaction.amount)
+            hasher.combine(transaction.isExpense)
+            hasher.combine(transaction.date)
+            hasher.combine(transaction.createdAt)
+            hasher.combine(transaction.note)
+            hasher.combine(transaction.isPrivateIncome)
+            hasher.combine(transaction.category?.id)
+            hasher.combine(transaction.category?.name)
+            hasher.combine(transaction.category?.rootCategoryName)
+        }
+        return hasher.finalize()
+    }
+
+    private var currentLedgerFilter: LedgerFilter {
+        let calendar = Calendar.current
+        let range = dateFilter.dateRange(
+            referenceDate: Date(),
+            payday: payday,
+            customStart: customStartDate,
+            customEnd: customEndDate,
+            calendar: calendar
+        )
+        let selectedCategory = categoryFilterId.flatMap { id in allCategories.first { $0.id == id } }
+        let rootName = selectedCategory?.rootCategoryName == selectedCategory?.name
+            ? selectedCategory?.name
+            : nil
+        let minimum = try? MoneyValidation.parse(minAmountText, requirement: .positive).get()
+        let maximum = try? MoneyValidation.parse(maxAmountText, requirement: .positive).get()
+        return LedgerFilter(
+            startDate: range?.lowerBound,
+            endDate: range?.upperBound,
+            isExpense: typeFilter == .all ? nil : typeFilter == .expense,
+            categoryID: rootName == nil ? selectedCategory?.id : nil,
+            categoryRootName: rootName,
+            minAmount: minimum,
+            maxAmount: maximum,
+            searchText: debouncedSearchText.isEmpty ? nil : debouncedSearchText,
+            includeProtectedIncomeMetadata: privacyLock.isUnlocked,
+            sortField: sortField,
+            sortDirection: sortDirection
+        )
+    }
+
+    private func loadFirstPage() async {
+        let requestID = UUID()
+        pageLoadToken = requestID
+        isLoadingPage = true
+        defer {
+            if pageLoadToken == requestID {
+                isLoadingPage = false
+            }
         }
 
-        let upperBound = recentCutoff
-        let descriptor: FetchDescriptor<Transaction>
-        if dateFilter == .custom {
-            let calendar = Calendar.current
-            let start = calendar.startOfDay(for: min(customStartDate, customEndDate))
-            descriptor = FetchDescriptor(
-                predicate: #Predicate<Transaction> { $0.date >= start && $0.date < upperBound },
-                sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
-            )
-        } else {
-            descriptor = FetchDescriptor(
-                predicate: #Predicate<Transaction> { $0.date < upperBound },
-                sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
-            )
-        }
+        let queryID = ledgerQueryID
+        let filter = currentLedgerFilter
         do {
-            historicalTransactions = try modelContext.fetch(descriptor)
+            let store = LedgerQueryDataStore(modelContainer: modelContext.container)
+            let page = try await store.fetchPage(filter: filter, offset: 0, limit: transactionPageSize)
+            let summary = try await store.summary(filter: filter)
+            try Task.checkCancellation()
+            guard queryID == ledgerQueryID else { return }
+            loadedTransactions = materialize(page.persistentIDs)
+            totalTransactionCount = page.totalCount
+            ledgerSummary = summary
         } catch {
-            historicalTransactions = []
+            guard !Task.isCancelled, queryID == ledgerQueryID else { return }
+            loadedTransactions = []
+            totalTransactionCount = 0
+            ledgerSummary = nil
             deleteError = error.localizedDescription
         }
+    }
+
+    private func loadNextPage() async {
+        guard !isLoadingPage, loadedTransactions.count < totalTransactionCount else { return }
+        let offset = loadedTransactions.count
+        let queryID = ledgerQueryID
+        let filter = currentLedgerFilter
+        let requestID = UUID()
+        pageLoadToken = requestID
+        isLoadingPage = true
+        defer {
+            if pageLoadToken == requestID {
+                isLoadingPage = false
+            }
+        }
+
+        do {
+            let store = LedgerQueryDataStore(modelContainer: modelContext.container)
+            let page = try await store.fetchPage(filter: filter, offset: offset, limit: transactionPageSize)
+            try Task.checkCancellation()
+            guard queryID == ledgerQueryID, loadedTransactions.count == offset else { return }
+            let existingIDs = Set(loadedTransactions.map(\.id))
+            loadedTransactions.append(contentsOf: materialize(page.persistentIDs).filter { !existingIDs.contains($0.id) })
+            totalTransactionCount = page.totalCount
+        } catch {
+            guard !Task.isCancelled, queryID == ledgerQueryID else { return }
+            deleteError = error.localizedDescription
+        }
+    }
+
+    private func selectAllMatchingTransactions() {
+        let queryID = ledgerQueryID
+        let filter = currentLedgerFilter
+        Task {
+            do {
+                let ids = try await LedgerQueryDataStore(modelContainer: modelContext.container)
+                    .fetchMatchingTransactionIDs(filter: filter)
+                try Task.checkCancellation()
+                guard queryID == ledgerQueryID else { return }
+                selectedIds = ids
+            } catch is CancellationError {
+                return
+            } catch {
+                batchDeleteError = error.localizedDescription
+            }
+        }
+    }
+
+    private func materialize(_ persistentIDs: [PersistentIdentifier]) -> [Transaction] {
+        persistentIDs.compactMap { modelContext.model(for: $0) as? Transaction }
     }
 
     // MARK: - Components
@@ -695,7 +827,7 @@ struct LedgerView: View {
                 Spacer()
                 PrivacyVisibilityButton()
                     .font(.subheadline)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .background(DesignSystem.softFill)
                     .clipShape(Circle())
                     .buttonStyle(PressableButtonStyle())
@@ -706,7 +838,7 @@ struct LedgerView: View {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
                 Text(summary.expense.formattedCurrency)
-                    .font(.system(size: 38, weight: .semibold, design: .rounded).monospacedDigit())
+                    .font(DesignSystem.Typography.amount.monospacedDigit())
                     .foregroundStyle(DesignSystem.textPrimary)
             }
 
@@ -842,7 +974,7 @@ struct LedgerView: View {
                             .foregroundStyle(DesignSystem.textTertiary)
                         if hasActiveFilters {
                             Button("清除筛选") {
-                                withAnimation {
+                                withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                                     typeFilter = .all
                                     categoryFilterId = nil
                                     minAmountText = ""
@@ -877,7 +1009,7 @@ struct LedgerView: View {
                 HStack(spacing: 0) {
                     if isSelecting {
                         Button {
-                            withAnimation(.spring(response: 0.2)) {
+                            withAnimation(reduceMotion ? nil : .spring(response: 0.2)) {
                                 if isSelected {
                                     selectedIds.remove(transaction.id)
                                 } else {
@@ -888,32 +1020,36 @@ struct LedgerView: View {
                             Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                                 .font(.title3)
                                 .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textTertiary)
-                                .frame(width: 36, height: 36)
-                        }
+                                .frame(width: 44, height: 44)
+                            }
+                            .accessibilityLabel(isSelected ? "取消选择交易" : "选择交易")
+                            .accessibilityIdentifier("ledger.select.\(transaction.id.uuidString)")
                     }
 
-                    TransactionRow(
-                        transaction: transaction,
-                        revealsPrivateIncome: privacyLock.isUnlocked,
-                        hidesIncome: privacyLock.hidesSensitiveAmounts
-                    )
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            if isSelecting {
-                                withAnimation(.spring(response: 0.2)) {
-                                    if isSelected {
-                                        selectedIds.remove(transaction.id)
-                                    } else {
-                                        selectedIds.insert(transaction.id)
-                                    }
+                    Button {
+                        if isSelecting {
+                            withAnimation(reduceMotion ? nil : .spring(response: 0.2)) {
+                                if isSelected {
+                                    selectedIds.remove(transaction.id)
+                                } else {
+                                    selectedIds.insert(transaction.id)
                                 }
-                            } else if isIncomeHidden(transaction) {
-                                privacyLock.requestReveal()
-                            } else {
-                                editingTransaction = transaction
                             }
+                        } else if isIncomeHidden(transaction) {
+                            privacyLock.requestReveal()
+                        } else {
+                            editingTransaction = transaction
                         }
-                        .accessibilityAddTraits(.isButton)
+                    } label: {
+                        TransactionRow(
+                            transaction: transaction,
+                            revealsPrivateIncome: privacyLock.isUnlocked,
+                            hidesIncome: privacyLock.hidesSensitiveAmounts
+                        )
+                    }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(isSelecting ? "选择交易" : (isIncomeHidden(transaction) ? "隐私收入，验证后查看" : "编辑交易"))
+                        .accessibilityHint(isSelecting ? "双击切换选择状态" : "双击打开编辑")
                         .contextMenu {
                             if !isSelecting {
                                 Button {
@@ -926,7 +1062,7 @@ struct LedgerView: View {
                                     Label(isIncomeHidden(transaction) ? "验证后查看" : "编辑", systemImage: isIncomeHidden(transaction) ? "lock.open" : "pencil")
                                 }
                                 Button(role: .destructive) {
-                                    withAnimation {
+                                    withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                                         deleteTransaction(transaction)
                                     }
                                 } label: {
@@ -937,7 +1073,7 @@ struct LedgerView: View {
                         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                             if !isSelecting {
                                 Button(role: .destructive) {
-                                    withAnimation {
+                                    withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                                         deleteTransaction(transaction)
                                     }
                                 } label: {
@@ -981,14 +1117,12 @@ struct LedgerView: View {
 
             if presentation.hasMoreTransactions {
                 Button {
-                    withAnimation(DesignSystem.standardAnimation) {
-                        visibleTransactionLimit += transactionPageSize
-                    }
+                    Task { await loadNextPage() }
                 } label: {
                     VStack(spacing: 4) {
                         Text("继续加载")
                             .font(.subheadline.weight(.semibold))
-                        Text("已显示 \(presentation.visibleTransactionCount) / \(presentation.filteredTransactions.count) 笔")
+                        Text("已显示 \(presentation.visibleTransactionCount) / \(presentation.totalTransactionCount) 笔")
                             .font(.caption2.monospacedDigit())
                     }
                     .foregroundStyle(DesignSystem.primaryColor)
@@ -1028,7 +1162,7 @@ struct LedgerView: View {
                     }
 
                     Button {
-                        withAnimation(.spring(response: 0.3)) {
+                        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                             undoInfo = nil
                         }
                         undoWorkItem?.cancel()
@@ -1056,7 +1190,7 @@ struct LedgerView: View {
     private func batchActionBar(transactions: [Transaction]) -> some View {
         HStack(spacing: 12) {
             Button(role: .destructive) {
-                batchDeleteSelected(from: transactions)
+                batchDeleteSelected()
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "trash")
@@ -1070,7 +1204,7 @@ struct LedgerView: View {
             Spacer()
 
             Button {
-                withAnimation(.spring(response: 0.3)) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                     isSelecting = false
                     selectedIds.removeAll()
                 }
@@ -1092,12 +1226,13 @@ struct LedgerView: View {
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
-    private func batchDeleteSelected(from transactions: [Transaction]) {
-        let toDelete = transactions.filter { selectedIds.contains($0.id) }
+    private func batchDeleteSelected() {
         do {
+            let toDelete = try LedgerQueryService(modelContext: modelContext)
+                .fetchTransactions(ids: selectedIds)
             try TransactionMutationService(modelContext: modelContext).delete(toDelete)
             HapticManager.success()
-            withAnimation(.spring(response: 0.3)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                 selectedIds.removeAll()
                 isSelecting = false
             }
@@ -1116,12 +1251,12 @@ struct LedgerView: View {
         }
 
         // 显示撤销条
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             undoInfo = snapshot
         }
         undoWorkItem?.cancel()
         let task = DispatchWorkItem { [self] in
-            withAnimation(.spring(response: 0.3)) {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                 self.undoInfo = nil
             }
         }
@@ -1141,7 +1276,7 @@ struct LedgerView: View {
             return
         }
 
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             undoInfo = nil
         }
         HapticManager.success()

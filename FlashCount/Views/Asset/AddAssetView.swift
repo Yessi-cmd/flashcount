@@ -11,8 +11,14 @@ struct AddAssetView: View {
     @State private var name = ""
     @State private var type: AssetType = .bankCard
     @State private var balanceText = ""
+    @State private var balanceError: MoneyValidationError?
     @State private var selectedColor = "#667EEA"
     @State private var saveError: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case balance
+    }
 
     private var isEditing: Bool { editAsset != nil }
 
@@ -65,9 +71,12 @@ struct AddAssetView: View {
                                 Text("¥").font(.title3).foregroundStyle(DesignSystem.textSecondary)
                                 TextField("0.00", text: $balanceText).keyboardType(.decimalPad)
                                     .font(.title2.weight(.semibold)).monospacedDigit().foregroundStyle(DesignSystem.textPrimary)
+                                    .focused($focusedField, equals: .balance)
+                                    .onChange(of: balanceText) { _, _ in balanceError = nil }
                             }
                             .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            ValidationMessage(message: balanceError?.errorDescription)
                         }
 
                         // 颜色
@@ -95,7 +104,7 @@ struct AddAssetView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") { saveAsset() }
-                        .disabled(name.isEmpty || balanceText.isEmpty)
+                        .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || balanceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
@@ -113,9 +122,18 @@ struct AddAssetView: View {
 
     private func saveAsset() {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let balance = Decimal(string: balanceText),
-              MoneyValidation.nonNegative(balance),
-              !cleanName.isEmpty else { return }
+        guard !cleanName.isEmpty else { return }
+        let balance: Decimal
+        switch MoneyValidation.parse(balanceText, requirement: .nonNegative) {
+        case .success(let value):
+            balance = value
+            balanceError = nil
+        case .failure(let error):
+            balanceError = error
+            focusedField = .balance
+            HapticManager.error()
+            return
+        }
         if let asset = editAsset {
             asset.name = cleanName
             asset.type = type

@@ -44,10 +44,14 @@ struct CategoryBudgetsView: View {
                     emptyState
                 } else {
                     ForEach(snapshots) { snapshot in
-                        CategoryBudgetRow(snapshot: snapshot)
-                            .contentShape(Rectangle())
-                            .onTapGesture { editingBudget = snapshot.budget }
-                            .accessibilityAddTraits(.isButton)
+                        Button {
+                            editingBudget = snapshot.budget
+                        } label: {
+                            CategoryBudgetRow(snapshot: snapshot)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("编辑\(snapshot.category.name)预算")
+                        .accessibilityHint("双击调整预算")
                             .swipeActions {
                                 Button(role: .destructive) {
                                     delete(snapshot.budget)
@@ -86,8 +90,10 @@ struct CategoryBudgetsView: View {
                     showAddBudget = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
+                        .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("添加分类预算")
+                .accessibilityIdentifier("categoryBudgets.add")
             }
         }
         .sheet(isPresented: $showAddBudget) {
@@ -222,8 +228,14 @@ private struct CategoryBudgetEditorView: View {
 
     @State private var selectedCategoryID: UUID?
     @State private var amountText = ""
+    @State private var amountError: MoneyValidationError?
     @State private var didLoad = false
     @State private var saveError: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case amount
+    }
 
     private var cycle: PayCycle { PayCycleService.cycle(payday: payday) }
 
@@ -244,9 +256,7 @@ private struct CategoryBudgetEditorView: View {
     }
 
     private var canSave: Bool {
-        guard selectedCategoryID != nil,
-              let amount = Decimal(string: amountText.trimmingCharacters(in: .whitespacesAndNewlines)) else { return false }
-        return amount > 0
+        selectedCategoryID != nil && !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -274,6 +284,9 @@ private struct CategoryBudgetEditorView: View {
                         TextField("0.00", text: $amountText)
                             .keyboardType(.decimalPad)
                             .font(.title2.weight(.semibold).monospacedDigit())
+                            .focused($focusedField, equals: .amount)
+                            .onChange(of: amountText) { _, _ in amountError = nil }
+                        ValidationMessage(message: amountError?.errorDescription)
                     }
                     HStack {
                         ForEach(["500", "1000", "2000", "3000"], id: \.self) { amount in
@@ -321,9 +334,18 @@ private struct CategoryBudgetEditorView: View {
     }
 
     private func save() {
-        guard let categoryID = selectedCategoryID,
-              let amount = Decimal(string: amountText.trimmingCharacters(in: .whitespacesAndNewlines)),
-              amount > 0 else { return }
+        guard let categoryID = selectedCategoryID else { return }
+        let amount: Decimal
+        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        case .success(let value):
+            amount = value
+            amountError = nil
+        case .failure(let error):
+            amountError = error
+            focusedField = .amount
+            HapticManager.error()
+            return
+        }
         let year = Calendar.current.component(.year, from: cycle.start)
         let month = Calendar.current.component(.month, from: cycle.start)
         let duplicates = budgets.filter {

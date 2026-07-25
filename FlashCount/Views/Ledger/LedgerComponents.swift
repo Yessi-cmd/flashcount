@@ -77,6 +77,7 @@ struct TransactionRow: View {
 }
 
 struct FilterChip: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let label: String
     let color: Color
     let onRemove: () -> Void
@@ -85,11 +86,16 @@ struct FilterChip: View {
         HStack(spacing: 4) {
             Text(label).font(.caption.weight(.medium)).foregroundStyle(color)
             Button {
-                withAnimation(.spring(response: 0.3)) { onRemove() }
+                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) { onRemove() }
                 HapticManager.selection()
-            } label: {
-                Image(systemName: "xmark").font(.system(size: 8, weight: .bold)).foregroundStyle(color)
-            }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(color)
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("移除筛选条件：\(label)")
+                .accessibilityIdentifier("ledger.filterChip.\(label)")
         }
         .padding(.horizontal, 8).padding(.vertical, 5)
         .background(color.opacity(0.12)).clipShape(Capsule())

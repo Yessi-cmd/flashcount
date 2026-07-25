@@ -1,7 +1,8 @@
 import Foundation
+import SwiftData
 
 /// 由本地历史支出推断出的周期账单候选项。
-struct RecurringSuggestion: Identifiable {
+struct RecurringSuggestion: Identifiable, Equatable, Sendable {
     let fingerprint: String
     let title: String
     let amount: Decimal
@@ -13,6 +14,33 @@ struct RecurringSuggestion: Identifiable {
     let ledgerID: UUID?
 
     var id: String { fingerprint }
+}
+
+struct RecurringSuggestionTransactionInput: Equatable, Sendable {
+    let amount: Decimal
+    let date: Date
+    let note: String
+    let isExpense: Bool
+    let recurringRuleID: UUID?
+    let categoryID: UUID?
+    let categoryName: String?
+    let categoryIsArchived: Bool
+    let ledgerID: UUID?
+}
+
+struct RecurringSuggestionRuleInput: Equatable, Sendable {
+    let isExpense: Bool
+    let frequency: RecurringFrequency
+    let categoryID: UUID?
+    let ledgerID: UUID?
+    let amount: Decimal
+    let title: String
+    let note: String
+}
+
+struct RecurringSuggestionInput: Equatable, Sendable {
+    let transactions: [RecurringSuggestionTransactionInput]
+    let existingRules: [RecurringSuggestionRuleInput]
 }
 
 protocol RecurringSuggestionDismissalStoring {
@@ -68,30 +96,70 @@ enum RecurringSuggestionService {
         referenceDate: Date = Date(),
         calendar: Calendar = .current
     ) -> [RecurringSuggestion] {
+        let input = RecurringSuggestionInput(
+            transactions: transactions.map {
+                RecurringSuggestionTransactionInput(
+                    amount: $0.amount,
+                    date: $0.date,
+                    note: $0.note,
+                    isExpense: $0.isExpense,
+                    recurringRuleID: $0.recurringRule?.id,
+                    categoryID: $0.category?.id,
+                    categoryName: $0.category?.name,
+                    categoryIsArchived: $0.category?.isArchived ?? false,
+                    ledgerID: $0.ledger?.id
+                )
+            },
+            existingRules: existingRules.map {
+                RecurringSuggestionRuleInput(
+                    isExpense: $0.isExpense,
+                    frequency: $0.frequency,
+                    categoryID: $0.category?.id,
+                    ledgerID: $0.ledger?.id,
+                    amount: $0.amount,
+                    title: $0.title,
+                    note: $0.note
+                )
+            }
+        )
+        return suggestions(
+            input: input,
+            dismissedFingerprints: dismissedFingerprints,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+    }
+
+    static func suggestions(
+        input: RecurringSuggestionInput,
+        dismissedFingerprints: Set<String> = [],
+        referenceDate: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [RecurringSuggestion] {
         let referenceDay = calendar.startOfDay(for: referenceDate)
         let nextReferenceDay = calendar.date(byAdding: .day, value: 1, to: referenceDay) ?? referenceDate
         var groups: [GroupKey: [Observation]] = [:]
 
-        for transaction in transactions where
+        for transaction in input.transactions where
             transaction.isExpense &&
-            transaction.recurringRule == nil &&
+            transaction.recurringRuleID == nil &&
             transaction.amount > 0 &&
             transaction.date < nextReferenceDay &&
-            transaction.category?.isArchived != true
+            !transaction.categoryIsArchived
         {
             let normalizedNote = normalize(transaction.note)
             let identity = normalizedNote.isEmpty
                 ? "amount:\(canonicalAmount(transaction.amount))"
                 : "note:\(normalizedNote)"
             let key = GroupKey(
-                categoryID: transaction.category?.id,
-                ledgerID: transaction.ledger?.id,
+                categoryID: transaction.categoryID,
+                ledgerID: transaction.ledgerID,
                 identity: identity,
                 normalizedNote: normalizedNote
             )
             let cleanNote = transaction.note.trimmingCharacters(in: .whitespacesAndNewlines)
             let displayTitle = cleanNote.isEmpty
-                ? (transaction.category?.name ?? "固定支出")
+                ? (transaction.categoryName ?? "固定支出")
                 : cleanNote
             groups[key, default: []].append(
                 Observation(amount: transaction.amount, date: transaction.date, displayTitle: displayTitle)
@@ -140,7 +208,7 @@ enum RecurringSuggestionService {
                     ledgerID: key.ledgerID
                 )
 
-                if !isCovered(suggestion, normalizedNote: key.normalizedNote, by: existingRules) {
+                if !isCovered(suggestion, normalizedNote: key.normalizedNote, by: input.existingRules) {
                     results.append(suggestion)
                 }
                 break
@@ -302,13 +370,13 @@ enum RecurringSuggestionService {
     private static func isCovered(
         _ suggestion: RecurringSuggestion,
         normalizedNote: String,
-        by rules: [RecurringRule]
+        by rules: [RecurringSuggestionRuleInput]
     ) -> Bool {
         rules.contains { rule in
             guard rule.isExpense,
                   rule.frequency == suggestion.frequency,
-                  rule.category?.id == suggestion.categoryID,
-                  rule.ledger?.id == suggestion.ledgerID,
+                  rule.categoryID == suggestion.categoryID,
+                  rule.ledgerID == suggestion.ledgerID,
                   amountsMatch(rule.amount, suggestion.amount)
             else {
                 return false
@@ -344,5 +412,59 @@ enum RecurringSuggestionService {
 
     private static func canonicalAmount(_ amount: Decimal) -> String {
         NSDecimalNumber(decimal: amount).stringValue
+    }
+}
+
+@ModelActor
+actor RecurringSuggestionDataStore {
+    func makeInput() throws -> RecurringSuggestionInput {
+        let transactions = try modelContext.fetch(
+            FetchDescriptor<Transaction>(
+                predicate: #Predicate<Transaction> { $0.isExpense == true }
+            )
+        )
+        let rules = try modelContext.fetch(FetchDescriptor<RecurringRule>())
+        return RecurringSuggestionInput(
+            transactions: transactions.map {
+                RecurringSuggestionTransactionInput(
+                    amount: $0.amount,
+                    date: $0.date,
+                    note: $0.note,
+                    isExpense: $0.isExpense,
+                    recurringRuleID: $0.recurringRule?.id,
+                    categoryID: $0.category?.id,
+                    categoryName: $0.category?.name,
+                    categoryIsArchived: $0.category?.isArchived ?? false,
+                    ledgerID: $0.ledger?.id
+                )
+            },
+            existingRules: rules.map {
+                RecurringSuggestionRuleInput(
+                    isExpense: $0.isExpense,
+                    frequency: $0.frequency,
+                    categoryID: $0.category?.id,
+                    ledgerID: $0.ledger?.id,
+                    amount: $0.amount,
+                    title: $0.title,
+                    note: $0.note
+                )
+            }
+        )
+    }
+}
+
+actor RecurringSuggestionWorker {
+    func calculate(
+        input: RecurringSuggestionInput,
+        dismissedFingerprints: Set<String>,
+        referenceDate: Date = Date(),
+        calendar: Calendar = .current
+    ) -> [RecurringSuggestion] {
+        RecurringSuggestionService.suggestions(
+            input: input,
+            dismissedFingerprints: dismissedFingerprints,
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
     }
 }

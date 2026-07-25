@@ -15,30 +15,55 @@ struct RecurringRulesView: View {
     @State private var rulePendingDeletion: RecurringRule?
     @State private var saveError: String?
     @State private var dismissedSuggestionFingerprints: Set<String> = []
+    @State private var cachedSuggestions: [RecurringSuggestion] = []
+    @State private var cachedPendingBackfill: [RecurringOccurrencePreview] = []
 
     private let suggestionDismissalStore = UserDefaultsRecurringSuggestionDismissalStore()
 
-    private var suggestions: [RecurringSuggestion] {
-        RecurringSuggestionService.suggestions(
-            transactions: expenseTransactions,
-            existingRules: rules,
-            dismissedFingerprints: dismissedSuggestionFingerprints
-        )
-    }
-
-    private var pendingBackfill: [RecurringOccurrencePreview] {
-        RecurringOccurrenceService(modelContext: modelContext).pendingOccurrences(
-            rules: rules,
-            occurrences: occurrences,
-            maxOccurrences: 120
-        )
-    }
-
     private var pendingCashDelta: Decimal {
-        pendingBackfill.reduce(Decimal.zero) { $0 + $1.signedAmount }
+        cachedPendingBackfill.reduce(Decimal.zero) { $0 + $1.signedAmount }
+    }
+
+    private var suggestionDigest: Int {
+        var hasher = Hasher()
+        for transaction in expenseTransactions {
+            hasher.combine(transaction.id)
+            hasher.combine(transaction.amount)
+            hasher.combine(transaction.date)
+            hasher.combine(transaction.note)
+            hasher.combine(transaction.category?.id)
+            hasher.combine(transaction.category?.name)
+            hasher.combine(transaction.category?.isArchived)
+            hasher.combine(transaction.ledger?.id)
+            hasher.combine(transaction.recurringRule?.id)
+        }
+        for rule in rules {
+            hasher.combine(rule.id)
+            hasher.combine(rule.amount)
+            hasher.combine(rule.isExpense)
+            hasher.combine(rule.frequency)
+            hasher.combine(rule.title)
+            hasher.combine(rule.note)
+            hasher.combine(rule.nextDueDate)
+            hasher.combine(rule.isActive)
+            hasher.combine(rule.category?.id)
+            hasher.combine(rule.category?.name)
+            hasher.combine(rule.ledger?.id)
+        }
+        for occurrence in occurrences {
+            hasher.combine(occurrence.id)
+            hasher.combine(occurrence.status)
+            hasher.combine(occurrence.scheduledDate)
+        }
+        for fingerprint in dismissedSuggestionFingerprints.sorted() {
+            hasher.combine(fingerprint)
+        }
+        return hasher.finalize()
     }
 
     var body: some View {
+        let suggestions = cachedSuggestions
+        let pendingBackfill = cachedPendingBackfill
         NavigationStack {
             ZStack {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
@@ -48,7 +73,7 @@ struct RecurringRulesView: View {
                             backfillCard
                         }
                         if !suggestions.isEmpty {
-                            suggestionSection
+                            suggestionSection(suggestions: suggestions)
                         }
                         if rules.isEmpty {
                             emptyState
@@ -69,8 +94,12 @@ struct RecurringRulesView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showAddRule = true } label: {
-                        Image(systemName: "plus.circle.fill").foregroundStyle(DesignSystem.primaryColor)
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(DesignSystem.primaryColor)
+                            .frame(width: 44, height: 44)
                     }
+                    .accessibilityLabel("添加周期账单")
+                    .accessibilityIdentifier("recurringRules.add")
                 }
             }
             .sheet(isPresented: $showAddRule) { AddRecurringRuleView() }
@@ -115,6 +144,30 @@ struct RecurringRulesView: View {
             .onAppear {
                 dismissedSuggestionFingerprints = suggestionDismissalStore.load()
             }
+            .task(id: suggestionDigest) {
+                await refreshCachedAnalysis()
+            }
+        }
+    }
+
+    @MainActor
+    private func refreshCachedAnalysis() async {
+        do {
+            cachedPendingBackfill = RecurringOccurrenceService(modelContext: modelContext).pendingOccurrences(
+                rules: rules,
+                occurrences: occurrences,
+                maxOccurrences: 120
+            )
+            let input = try await RecurringSuggestionDataStore(modelContainer: modelContext.container).makeInput()
+            try Task.checkCancellation()
+            cachedSuggestions = await RecurringSuggestionWorker().calculate(
+                input: input,
+                dismissedFingerprints: dismissedSuggestionFingerprints
+            )
+        } catch is CancellationError {
+            return
+        } catch {
+            saveError = error.localizedDescription
         }
     }
 
@@ -132,7 +185,7 @@ struct RecurringRulesView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("有 \(pendingBackfill.count) 笔周期账待补")
+                    Text("有 \(cachedPendingBackfill.count) 笔周期账待补")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(DesignSystem.textPrimary)
                     Text("确认后才会写入账本 · 预计现金变化 \(privacyLock.isUnlocked ? pendingCashDelta.formattedCurrency : privacyLock.maskedText)")
@@ -152,7 +205,7 @@ struct RecurringRulesView: View {
         .accessibilityLabel("查看待补周期账")
     }
 
-    private var suggestionSection: some View {
+    private func suggestionSection(suggestions: [RecurringSuggestion]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
                 Image(systemName: "sparkles")
@@ -227,23 +280,37 @@ struct RecurringRulesView: View {
             isUnlocked: privacyLock.isUnlocked
         )
         return HStack(spacing: 12) {
-            ZStack {
-                Circle().fill((hidesPrivateIncome ? DesignSystem.textTertiary : Color(hex: rule.category?.colorHex ?? "#667EEA")).opacity(0.15)).frame(width: 44, height: 44)
-                Image(systemName: hidesPrivateIncome ? "lock.fill" : rule.category?.icon ?? "repeat").font(.title3)
-                    .foregroundStyle(hidesPrivateIncome ? DesignSystem.textTertiary : Color(hex: rule.category?.colorHex ?? "#667EEA"))
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(hidesPrivateIncome ? "隐私收入" : rule.title).font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textPrimary)
-                    if !rule.isActive {
-                        Text("已暂停").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(DesignSystem.softFill).clipShape(Capsule())
+            Button {
+                if hidesIncome {
+                    privacyLock.requestReveal()
+                } else {
+                    editingRule = rule
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle().fill((hidesPrivateIncome ? DesignSystem.textTertiary : Color(hex: rule.category?.colorHex ?? "#667EEA")).opacity(0.15)).frame(width: 44, height: 44)
+                        Image(systemName: hidesPrivateIncome ? "lock.fill" : rule.category?.icon ?? "repeat").font(.title3)
+                            .foregroundStyle(hidesPrivateIncome ? DesignSystem.textTertiary : Color(hex: rule.category?.colorHex ?? "#667EEA"))
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(hidesPrivateIncome ? "隐私收入" : rule.title).font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textPrimary)
+                            if !rule.isActive {
+                                Text("已暂停").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
+                                    .padding(.horizontal, 6).padding(.vertical, 2)
+                                    .background(DesignSystem.softFill).clipShape(Capsule())
+                            }
+                        }
+                        Text("\(rule.frequency.rawValue) · 下次: \(rule.nextDueDate.shortDateString)")
+                            .font(.caption).foregroundStyle(DesignSystem.textTertiary)
                     }
                 }
-                Text("\(rule.frequency.rawValue) · 下次: \(rule.nextDueDate.shortDateString)")
-                    .font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(hidesIncome ? "隐私收入，验证后查看" : "编辑周期账单")
+            .accessibilityHint("双击打开周期账单编辑")
             Spacer()
             VStack(alignment: .trailing, spacing: 4) {
                 Text(rule.amount.formattedCurrency)
@@ -265,6 +332,7 @@ struct RecurringRulesView: View {
                         Image(systemName: rule.isActive ? "pause.circle" : "play.circle")
                             .font(.caption)
                             .foregroundStyle(DesignSystem.textTertiary)
+                            .frame(width: 44, height: 44)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(rule.isActive ? "暂停周期账单" : "恢复周期账单")
@@ -293,21 +361,13 @@ struct RecurringRulesView: View {
                         Image(systemName: "ellipsis.circle")
                             .font(.caption)
                             .foregroundStyle(DesignSystem.textTertiary)
+                            .frame(width: 44, height: 44)
                     }
                 }
             }
         }
         .glassCard()
         .opacity(rule.isActive ? 1 : 0.6)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if hidesIncome {
-                privacyLock.requestReveal()
-            } else {
-                editingRule = rule
-            }
-        }
-        .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button {
                 if hidesIncome {

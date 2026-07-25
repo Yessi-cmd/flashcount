@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// 周期频率
-enum RecurringFrequency: String, Codable, CaseIterable {
+enum RecurringFrequency: String, Codable, CaseIterable, Hashable, Sendable {
     case daily = "每天"
     case weekly = "每周"
     case monthly = "每月"

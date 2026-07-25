@@ -239,6 +239,26 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(save.isEnabled)
     }
 
+    func testQuickEntrySuccessPageKeepsBothActionsAvailable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-hasCompletedOnboarding", "true", "-visualQuickEntryReview"]
+        app.launch()
+
+        let oneKey = app.buttons["quickEntry.key.1"]
+        let save = app.buttons["quickEntry.save"]
+        XCTAssertTrue(oneKey.waitForExistence(timeout: 5))
+        oneKey.tap()
+        XCTAssertTrue(save.waitForExistence(timeout: 3))
+        save.tap()
+
+        let success = app.staticTexts["记账成功！"]
+        XCTAssertTrue(success.waitForExistence(timeout: 5))
+        sleep(3)
+        XCTAssertTrue(success.exists)
+        XCTAssertTrue(app.buttons["再记一笔"].exists)
+        XCTAssertTrue(app.buttons["完成"].exists)
+    }
+
     func testQuickEntryCategoryWheelOpensAndCancelsWithoutChangingTheForm() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]

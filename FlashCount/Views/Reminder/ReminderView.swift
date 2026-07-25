@@ -105,7 +105,10 @@ struct ReminderView: View {
                     } label: {
                         Image(systemName: "plus.circle.fill")
                             .foregroundStyle(DesignSystem.primaryColor)
+                            .frame(width: 44, height: 44)
                     }
+                    .accessibilityLabel("添加提醒")
+                    .accessibilityIdentifier("reminders.add")
                 }
             }
             .sheet(isPresented: $showAddReminder) {

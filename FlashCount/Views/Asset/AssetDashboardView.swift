@@ -7,6 +7,7 @@ struct AssetDashboardView: View {
     let isActive: Bool
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @Query(sort: \Asset.createdAt) private var assets: [Asset]
     @Query(sort: \PhysicalAsset.purchaseDate, order: .reverse) private var physicalAssets: [PhysicalAsset]
@@ -184,10 +185,17 @@ struct AssetDashboardView: View {
                         Button { showTutorial = true } label: {
                             Image(systemName: "questionmark.circle.fill")
                                 .foregroundStyle(DesignSystem.textSecondary)
+                                .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel("资产说明")
+                        .accessibilityIdentifier("assets.tutorial")
                         Button { showAddCashPoolItem = true } label: {
-                            Image(systemName: "plus.circle.fill").foregroundStyle(DesignSystem.primaryColor)
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(DesignSystem.primaryColor)
+                                .frame(width: 44, height: 44)
                         }
+                        .accessibilityLabel("添加资金项")
+                        .accessibilityIdentifier("assets.addCashPoolItem")
                     }
                 }
             }
@@ -205,7 +213,7 @@ struct AssetDashboardView: View {
                 Button("取消", role: .cancel) { confirmDeleteAsset = nil }
                 Button("删除", role: .destructive) {
                     if let asset = confirmDeleteAsset {
-                        withAnimation {
+                        withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                             modelContext.delete(asset)
                             if let error = safeSave(modelContext) {
                                 print("删除账户失败: \(error)")
@@ -225,11 +233,11 @@ struct AssetDashboardView: View {
             Text("净资产").font(.subheadline).foregroundStyle(DesignSystem.textSecondary)
             if hidesAssetMoney {
                 Text(privacyLock.maskedText)
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .font(DesignSystem.Typography.amount)
                     .foregroundStyle(DesignSystem.textTertiary)
             } else {
                 Text(snapshot.netWorth.formattedCurrency)
-                    .font(.system(size: 40, weight: .bold, design: .rounded)).monospacedDigit()
+                    .font(DesignSystem.Typography.amount).monospacedDigit()
                     .foregroundStyle(snapshot.netWorth >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor)
             }
             HStack(spacing: 24) {
@@ -416,24 +424,28 @@ struct AssetDashboardView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title).font(.subheadline.weight(.medium)).foregroundStyle(color)
             ForEach(items, id: \.id) { asset in
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle().fill(Color(hex: asset.colorHex).opacity(0.15)).frame(width: 40, height: 40)
-                        Image(systemName: asset.icon).font(.subheadline).foregroundStyle(Color(hex: asset.colorHex))
+                Button {
+                    revealOrPerform { editingAsset = asset }
+                } label: {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle().fill(Color(hex: asset.colorHex).opacity(0.15)).frame(width: 40, height: 40)
+                            Image(systemName: asset.icon).font(.subheadline).foregroundStyle(Color(hex: asset.colorHex))
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(asset.name).font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textPrimary)
+                            Text(asset.type.rawValue).font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                        }
+                        Spacer()
+                        Text(hidesAssetMoney ? privacyLock.maskedText : asset.balance.formattedCurrency)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(color)
                     }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(asset.name).font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textPrimary)
-                        Text(asset.type.rawValue).font(.caption).foregroundStyle(DesignSystem.textTertiary)
-                    }
-                    Spacer()
-                    Text(hidesAssetMoney ? privacyLock.maskedText : asset.balance.formattedCurrency)
-                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(color)
                 }
-                .padding(.vertical, 4)
-                .contentShape(Rectangle())
-                .onTapGesture { revealOrPerform { editingAsset = asset } }
-                .accessibilityAddTraits(.isButton)
+                .buttonStyle(.plain)
+                .padding(.vertical, 5)
+                .accessibilityLabel(hidesAssetMoney ? "资产，验证后编辑" : "编辑资产\(asset.name)")
+                .accessibilityHint("双击编辑")
                 .contextMenu {
                     Button {
                         revealOrPerform { editingAsset = asset }

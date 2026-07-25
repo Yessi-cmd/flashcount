@@ -2,6 +2,7 @@ import SwiftUI
 
 /// 首次启动引导页
 struct OnboardingView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isPresented: Bool
     var onComplete: () -> Void = {}
 
@@ -75,7 +76,7 @@ struct OnboardingView: View {
             .safeAreaInset(edge: .bottom) {
                 Button {
                     onComplete()
-                    withAnimation(.spring(response: 0.4)) { isPresented = false }
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.4)) { isPresented = false }
                 } label: {
                     Text("开始使用")
                         .font(.headline)

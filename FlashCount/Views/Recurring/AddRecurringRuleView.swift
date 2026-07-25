@@ -5,6 +5,7 @@ import SwiftData
 struct AddRecurringRuleView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Ledger.sortOrder) private var ledgers: [Ledger]
     @Query(filter: #Predicate<Category> { $0.isExpense == true && $0.isArchived == false }, sort: \Category.sortOrder) private var expenseCategories: [Category]
     @Query(filter: #Predicate<Category> { $0.isExpense == false && $0.isArchived == false }, sort: \Category.sortOrder) private var incomeCategories: [Category]
@@ -13,6 +14,7 @@ struct AddRecurringRuleView: View {
     var suggestion: RecurringSuggestion?
     @State private var title = ""
     @State private var amountText = ""
+    @State private var amountError: MoneyValidationError?
     @State private var frequency: RecurringFrequency = .monthly
     @State private var nextDueDate = Date()
     @State private var hasEndDate = false
@@ -24,6 +26,11 @@ struct AddRecurringRuleView: View {
     @State private var wheelSourceFrame: CGRect?
     @State private var saveError: String?
     @State private var didLoadInitialValues = false
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case amount
+    }
 
     private var isEditing: Bool {
         editRule != nil
@@ -45,8 +52,7 @@ struct AddRecurringRuleView: View {
 
     private var canSave: Bool {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let amount = Decimal(string: amountText) else { return false }
-        return !cleanTitle.isEmpty && amount > 0
+        return !cleanTitle.isEmpty && !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -57,7 +63,7 @@ struct AddRecurringRuleView: View {
                     VStack(spacing: 20) {
                         HStack(spacing: 0) {
                             Button {
-                                withAnimation(.spring(response: 0.3)) {
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                     isExpense = true
                                     selectedCategory = defaultCategory()
                                 }
@@ -70,7 +76,7 @@ struct AddRecurringRuleView: View {
                                     .foregroundStyle(isExpense ? DesignSystem.expenseColor : DesignSystem.textSecondary)
                             }
                             Button {
-                                withAnimation(.spring(response: 0.3)) {
+                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                     isExpense = false
                                     selectedCategory = defaultCategory()
                                 }
@@ -108,9 +114,12 @@ struct AddRecurringRuleView: View {
                                 Text("¥").font(.title3).foregroundStyle(DesignSystem.textSecondary)
                                 TextField("0.00", text: $amountText).keyboardType(.decimalPad)
                                     .font(.title2.weight(.semibold)).monospacedDigit().foregroundStyle(DesignSystem.textPrimary)
+                                    .focused($focusedField, equals: .amount)
+                                    .onChange(of: amountText) { _, _ in amountError = nil }
                             }
                             .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            ValidationMessage(message: amountError?.errorDescription)
                         }
 
                         // 频率
@@ -195,14 +204,14 @@ struct AddRecurringRuleView: View {
         let target = category.name == category.rootCategoryName
             ? rootCategory(for: category.rootCategoryName) ?? category
             : category
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             selectedCategory = target
         }
         HapticManager.selection()
     }
 
     private func selectExactCategory(_ category: Category) {
-        withAnimation(.spring(response: 0.3)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             selectedCategory = category
             wheelCategory = nil
             wheelSourceFrame = nil
@@ -216,7 +225,7 @@ struct AddRecurringRuleView: View {
             return
         }
         wheelSourceFrame = sourceFrame
-        withAnimation(.spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.28, dampingFraction: 0.82, blendDuration: 0.08)) {
             wheelCategory = category
         }
     }
@@ -240,7 +249,7 @@ struct AddRecurringRuleView: View {
                 selectExactCategory(child)
             },
             onDismiss: {
-                withAnimation(.spring(response: 0.18, dampingFraction: 0.9)) {
+                withAnimation(reduceMotion ? nil : .spring(response: 0.18, dampingFraction: 0.9)) {
                     wheelCategory = nil
                     wheelSourceFrame = nil
                 }
@@ -291,7 +300,18 @@ struct AddRecurringRuleView: View {
 
     private func saveRule() {
         let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard canSave, let amount = Decimal(string: amountText) else { return }
+        guard !cleanTitle.isEmpty else { return }
+        let amount: Decimal
+        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        case .success(let value):
+            amount = value
+            amountError = nil
+        case .failure(let error):
+            amountError = error
+            focusedField = .amount
+            HapticManager.error()
+            return
+        }
 
         if let rule = editRule {
             rule.title = cleanTitle

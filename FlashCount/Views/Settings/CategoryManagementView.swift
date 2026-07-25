@@ -89,8 +89,10 @@ struct CategoryManagementView: View {
                         presentEditor(category: nil, parent: nil)
                     } label: {
                         Image(systemName: "plus.circle.fill")
+                            .frame(width: 44, height: 44)
                     }
                     .accessibilityLabel("添加一级分类")
+                    .accessibilityIdentifier("categories.add")
                 }
             }
             .sheet(isPresented: $showEditor, onDismiss: clearEditor) {

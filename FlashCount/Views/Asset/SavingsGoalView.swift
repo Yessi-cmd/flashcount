@@ -45,7 +45,10 @@ struct SavingsGoalView: View {
                     Button { showAddGoal = true } label: {
                         Image(systemName: "plus.circle.fill")
                             .foregroundStyle(DesignSystem.primaryColor)
+                            .frame(width: 44, height: 44)
                     }
+                    .accessibilityLabel("添加储蓄目标")
+                    .accessibilityIdentifier("savingsGoals.add")
                 }
             }
             .sheet(isPresented: $showAddGoal) {
@@ -84,53 +87,57 @@ struct SavingsGoalView: View {
     }
 
     private func goalCard(_ goal: SavingsGoal) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(goal.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DesignSystem.textPrimary)
-                    if let targetDate = goal.targetDate {
-                        Text("目标日 \(targetDate.shortDateString)")
-                            .font(.caption)
-                            .foregroundStyle(DesignSystem.textTertiary)
+        Button {
+            revealOrPerform { editingGoal = goal }
+        } label: {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(goal.name)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(DesignSystem.textPrimary)
+                        if let targetDate = goal.targetDate {
+                            Text("目标日 \(targetDate.shortDateString)")
+                                .font(.caption)
+                                .foregroundStyle(DesignSystem.textTertiary)
+                        }
                     }
+                    Spacer()
+                    Text(hidesMoney ? privacyLock.maskedText : "\(Int(goal.progress * 100))%")
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(DesignSystem.primaryColor)
                 }
-                Spacer()
-                Text(hidesMoney ? privacyLock.maskedText : "\(Int(goal.progress * 100))%")
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(DesignSystem.primaryColor)
-            }
 
-            GeometryReader { geo in
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(DesignSystem.dividerColor)
-                    .overlay(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(DesignSystem.primaryColor)
-                            .frame(width: hidesMoney ? 0 : geo.size.width * CGFloat(goal.progress))
+                GeometryReader { geo in
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(DesignSystem.dividerColor)
+                        .overlay(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 5)
+                                .fill(DesignSystem.primaryColor)
+                                .frame(width: hidesMoney ? 0 : geo.size.width * CGFloat(goal.progress))
+                        }
                     }
-            }
-            .frame(height: 10)
+                .frame(height: 10)
 
-            HStack(spacing: 0) {
-                goalMetric(title: "已存", value: goal.currentAmount)
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
-                goalMetric(title: "目标", value: goal.targetAmount)
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
-                goalMetric(title: "还差", value: goal.remainingAmount)
-            }
+                HStack(spacing: 0) {
+                    goalMetric(title: "已存", value: goal.currentAmount)
+                    Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
+                    goalMetric(title: "目标", value: goal.targetAmount)
+                    Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
+                    goalMetric(title: "还差", value: goal.remainingAmount)
+                }
 
-            if let suggestion = savingSuggestion(for: goal), !hidesMoney {
-                Text(suggestion)
-                    .font(.caption)
-                    .foregroundStyle(DesignSystem.textSecondary)
+                if let suggestion = savingSuggestion(for: goal), !hidesMoney {
+                    Text(suggestion)
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.textSecondary)
+                }
             }
+            .glassCard()
         }
-        .glassCard()
-        .contentShape(Rectangle())
-        .onTapGesture { revealOrPerform { editingGoal = goal } }
-        .accessibilityAddTraits(.isButton)
+        .buttonStyle(.plain)
+        .accessibilityLabel(hidesMoney ? "储蓄目标，验证后编辑" : "编辑储蓄目标\(goal.name)")
+        .accessibilityHint("双击编辑")
         .contextMenu {
             Button { revealOrPerform { editingGoal = goal } } label: {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
@@ -206,10 +213,18 @@ private struct AddSavingsGoalView: View {
     @State private var name = ""
     @State private var targetAmountText = ""
     @State private var currentAmountText = ""
+    @State private var targetAmountError: MoneyValidationError?
+    @State private var currentAmountError: MoneyValidationError?
     @State private var hasTargetDate = false
     @State private var targetDate = Calendar.current.date(byAdding: .month, value: 1, to: Date()) ?? Date()
     @State private var note = ""
     @State private var saveError: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case targetAmount
+        case currentAmount
+    }
 
     private var isEditing: Bool { editGoal != nil }
 
@@ -222,8 +237,14 @@ private struct AddSavingsGoalView: View {
                         TextField("名称，例如：旅行基金", text: $name)
                         TextField("目标金额", text: $targetAmountText)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .targetAmount)
+                            .onChange(of: targetAmountText) { _, _ in targetAmountError = nil }
+                        ValidationMessage(message: targetAmountError?.errorDescription)
                         TextField("当前已存", text: $currentAmountText)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .currentAmount)
+                            .onChange(of: currentAmountText) { _, _ in currentAmountError = nil }
+                        ValidationMessage(message: currentAmountError?.errorDescription)
                     }
                     Section("日期") {
                         Toggle("设置目标日期", isOn: $hasTargetDate)
@@ -274,9 +295,36 @@ private struct AddSavingsGoalView: View {
 
     private func save() {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let targetAmount = Decimal(string: targetAmountText), targetAmount > 0, !cleanName.isEmpty else { return }
-        let currentAmount = Decimal(string: currentAmountText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
-        guard MoneyValidation.nonNegative(currentAmount) else { return }
+        guard !cleanName.isEmpty else { return }
+
+        let targetAmount: Decimal
+        switch MoneyValidation.parse(targetAmountText, requirement: .positive) {
+        case .success(let value):
+            targetAmount = value
+            targetAmountError = nil
+        case .failure(let error):
+            targetAmountError = error
+            focusedField = .targetAmount
+            HapticManager.error()
+            return
+        }
+
+        let currentAmount: Decimal
+        if currentAmountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            currentAmount = 0
+            currentAmountError = nil
+        } else {
+            switch MoneyValidation.parse(currentAmountText, requirement: .nonNegative) {
+            case .success(let value):
+                currentAmount = value
+                currentAmountError = nil
+            case .failure(let error):
+                currentAmountError = error
+                focusedField = .currentAmount
+                HapticManager.error()
+                return
+            }
+        }
         let date = hasTargetDate ? targetDate : nil
 
         if let editGoal {

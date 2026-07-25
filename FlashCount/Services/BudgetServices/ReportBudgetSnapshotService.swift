@@ -7,7 +7,75 @@ struct ReportBudgetSnapshot {
     let analysis: BudgetAnalysis?
 }
 
+/// 报表后台任务使用的预算值快照，不跨 actor 携带 Budget 模型对象。
+struct ReportBudgetSnapshotValue: Sendable {
+    let cycle: PayCycle
+    let cutoff: Date
+    let budgetLimit: Decimal?
+    let analysis: BudgetAnalysis?
+}
+
 enum ReportBudgetSnapshotService {
+    static func snapshotValue(
+        budgets: [ReportBudgetInputSnapshot],
+        transactions: [ReportTransactionSnapshot],
+        reportRange: ReportDateRange,
+        target: ReportTarget,
+        payday: Int,
+        calendar: Calendar = .current,
+        weekendMultiplier: Decimal = 1
+    ) -> ReportBudgetSnapshotValue {
+        let anchor = target.isCurrent
+            ? reportRange.end
+            : ReportDateRangeFormatter(calendar: calendar).inclusiveEndDate(for: reportRange)
+        let cycle = PayCycleService.cycle(containing: anchor, payday: payday, calendar: calendar)
+        let cutoff = min(cycle.end, reportRange.end)
+        let budget = budgets
+            .filter {
+                $0.year == cycle.budgetYear
+                    && $0.month == cycle.budgetMonth
+                    && $0.categoryID == nil
+                    && $0.ledgerID == nil
+            }
+            .sorted { $0.createdAt > $1.createdAt }
+            .first
+
+        guard let budget else {
+            return ReportBudgetSnapshotValue(cycle: cycle, cutoff: cutoff, budgetLimit: nil, analysis: nil)
+        }
+
+        let spent = transactions.reduce(into: Decimal.zero) { total, transaction in
+            guard transaction.isExpense,
+                  transaction.date >= cycle.start,
+                  transaction.date < cutoff,
+                  transaction.isIncludedInDailyBudget else { return }
+            total += transaction.amount
+        }
+        let excluded = transactions.reduce(into: Decimal.zero) { total, transaction in
+            guard transaction.isExpense,
+                  transaction.date >= cycle.start,
+                  transaction.date < cutoff,
+                  !transaction.isIncludedInDailyBudget else { return }
+            total += transaction.amount
+        }
+        let analysis = BudgetAnalyzer.analyze(
+            budgetLimit: budget.monthlyLimit,
+            totalSpent: spent,
+            excludedSpent: excluded,
+            referenceDate: anchor,
+            periodStart: cycle.start,
+            periodEnd: cycle.end,
+            weekendMultiplier: weekendMultiplier,
+            calendar: calendar
+        )
+        return ReportBudgetSnapshotValue(
+            cycle: cycle,
+            cutoff: cutoff,
+            budgetLimit: budget.monthlyLimit,
+            analysis: analysis
+        )
+    }
+
     static func snapshot(
         budgets: [Budget],
         transactions: [Transaction],

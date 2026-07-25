@@ -4,6 +4,7 @@ import SwiftData
 /// 实物资产追踪器 - 主页面
 struct PhysicalAssetView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @Query(sort: \PhysicalAsset.purchaseDate, order: .reverse) private var assets: [PhysicalAsset]
     @State private var showAddAsset = false
@@ -59,11 +60,15 @@ struct PhysicalAssetView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     PrivacyVisibilityButton()
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button { showAddAsset = true } label: {
-                        Image(systemName: "plus.circle.fill").foregroundStyle(DesignSystem.primaryColor)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { showAddAsset = true } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(DesignSystem.primaryColor)
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("添加实物资产")
+                        .accessibilityIdentifier("physicalAssets.add")
                     }
-                }
             }
             .sheet(isPresented: $showAddAsset) { AddPhysicalAssetView() }
             .sheet(item: $editingAsset) { asset in
@@ -80,7 +85,7 @@ struct PhysicalAssetView: View {
                 Button("取消", role: .cancel) { confirmDeleteAsset = nil }
                 Button("删除", role: .destructive) {
                     if let asset = confirmDeleteAsset {
-                        withAnimation {
+                        withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                             modelContext.delete(asset)
                             if let error = safeSave(modelContext) {
                                 // 静默处理：资产页面没有单独的 saveError state
@@ -138,9 +143,14 @@ struct PhysicalAssetView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("持有中").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
             ForEach(hidesMoney ? activeAssets : activeAssets.sorted { $0.dailyCost > $1.dailyCost }, id: \.id) { asset in
-                PhysicalAssetCard(asset: asset, hidesMoney: hidesMoney, maskedText: privacyLock.maskedText)
-                    .onTapGesture { revealOrPerform { editingAsset = asset } }
-                    .accessibilityAddTraits(.isButton)
+                Button {
+                    revealOrPerform { editingAsset = asset }
+                } label: {
+                    PhysicalAssetCard(asset: asset, hidesMoney: hidesMoney, maskedText: privacyLock.maskedText)
+                }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(hidesMoney ? "实物资产，验证后编辑" : "编辑实物资产\(asset.name)")
+                    .accessibilityHint("双击编辑")
                     .contextMenu {
                         Button {
                             revealOrPerform { editingAsset = asset }
@@ -177,27 +187,31 @@ struct PhysicalAssetView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("已出售").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textTertiary)
             ForEach(archivedAssets, id: \.id) { asset in
-                HStack(spacing: 12) {
-                    Image(systemName: asset.category.icon)
-                        .font(.subheadline)
-                        .foregroundStyle(DesignSystem.textTertiary)
-                        .frame(width: 30)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(asset.name).font(.subheadline).foregroundStyle(DesignSystem.textSecondary)
-                        Text(soldSummary(for: asset))
-                            .font(.caption).foregroundStyle(DesignSystem.textTertiary)
-                    }
-                    Spacer()
-                    if let profit = asset.actualProfit {
-                        Text(hidesMoney ? privacyLock.maskedText : (profit >= 0 ? "+" : "") + profit.formattedCurrency)
-                            .font(.caption.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (profit >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
+                Button {
+                    revealOrPerform { editingAsset = asset }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: asset.category.icon)
+                            .font(.subheadline)
+                            .foregroundStyle(DesignSystem.textTertiary)
+                            .frame(width: 30)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(asset.name).font(.subheadline).foregroundStyle(DesignSystem.textSecondary)
+                            Text(soldSummary(for: asset))
+                                .font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                        }
+                        Spacer()
+                        if let profit = asset.actualProfit {
+                            Text(hidesMoney ? privacyLock.maskedText : (profit >= 0 ? "+" : "") + profit.formattedCurrency)
+                                .font(.caption.weight(.semibold).monospacedDigit())
+                                .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (profit >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
+                        }
                     }
                 }
-                .padding(.vertical, 4)
-                .contentShape(Rectangle())
-                .onTapGesture { revealOrPerform { editingAsset = asset } }
-                .accessibilityAddTraits(.isButton)
+                .buttonStyle(.plain)
+                .padding(.vertical, 5)
+                .accessibilityLabel("编辑已出售实物资产\(asset.name)")
+                .accessibilityHint("双击编辑")
                 .contextMenu {
                     Button {
                         revealOrPerform { editingAsset = asset }
@@ -258,17 +272,28 @@ struct PhysicalAssetView: View {
 struct AddPhysicalAssetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var editAsset: PhysicalAsset?
 
     @State private var name = ""
     @State private var category: PhysicalAssetCategory = .phone
     @State private var purchasePriceText = ""
+    @State private var purchasePriceError: MoneyValidationError?
     @State private var purchaseDate = Date()
     @State private var salvageValueText = ""
+    @State private var salvageValueError: MoneyValidationError?
     @State private var targetDailyCostText = ""
+    @State private var targetDailyCostError: MoneyValidationError?
     @State private var note = ""
     @State private var saveError: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case purchasePrice
+        case salvageValue
+        case targetDailyCost
+    }
 
     var isEditing: Bool { editAsset != nil }
 
@@ -285,7 +310,7 @@ struct AddPhysicalAssetView: View {
                                 HStack(spacing: 8) {
                                     ForEach(PhysicalAssetCategory.allCases, id: \.self) { cat in
                                         Button {
-                                            withAnimation(.spring(response: 0.3)) {
+                                            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                                 category = cat
                                                 updateDefaults()
                                             }
@@ -317,10 +342,15 @@ struct AddPhysicalAssetView: View {
                                     .keyboardType(.decimalPad)
                                     .font(.title3.weight(.semibold)).monospacedDigit()
                                     .foregroundStyle(DesignSystem.textPrimary)
-                                    .onChange(of: purchasePriceText) { updateDefaults() }
+                                    .focused($focusedField, equals: .purchasePrice)
+                                    .onChange(of: purchasePriceText) { _, _ in
+                                        purchasePriceError = nil
+                                        updateDefaults()
+                                    }
                             }
                             .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            ValidationMessage(message: purchasePriceError?.errorDescription)
                         }
 
                         // 购买日期
@@ -343,9 +373,12 @@ struct AddPhysicalAssetView: View {
                                 TextField("0", text: $salvageValueText)
                                     .keyboardType(.decimalPad)
                                     .font(.subheadline).monospacedDigit().foregroundStyle(DesignSystem.textPrimary)
+                                    .focused($focusedField, equals: .salvageValue)
+                                    .onChange(of: salvageValueText) { _, _ in salvageValueError = nil }
                             }
                             .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            ValidationMessage(message: salvageValueError?.errorDescription)
                         }
 
                         // 目标日成本
@@ -360,10 +393,13 @@ struct AddPhysicalAssetView: View {
                                 TextField("0", text: $targetDailyCostText)
                                     .keyboardType(.decimalPad)
                                     .font(.subheadline).monospacedDigit().foregroundStyle(DesignSystem.textPrimary)
+                                    .focused($focusedField, equals: .targetDailyCost)
+                                    .onChange(of: targetDailyCostText) { _, _ in targetDailyCostError = nil }
                                 Text("/天").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                             }
                             .padding(12).background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            ValidationMessage(message: targetDailyCostError?.errorDescription)
                         }
 
                         // 备注
@@ -401,13 +437,13 @@ struct AddPhysicalAssetView: View {
     }
 
     private func updateDefaults() {
-        guard let price = Decimal(string: purchasePriceText), price > 0 else { return }
+        guard case .success(let price) = MoneyValidation.parse(purchasePriceText, requirement: .positive) else { return }
         let salvage = price * Decimal(category.defaultSalvageRatio)
-        if salvageValueText.isEmpty || Decimal(string: salvageValueText) == nil {
+        if salvageValueText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             salvageValueText = "\(salvage)"
         }
         let dailyCost = (price - salvage) / 365
-        if targetDailyCostText.isEmpty || Decimal(string: targetDailyCostText) == nil {
+        if targetDailyCostText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             targetDailyCostText = "\(NSDecimalNumber(decimal: dailyCost).intValue)"
         }
     }
@@ -424,10 +460,58 @@ struct AddPhysicalAssetView: View {
     }
 
     private func save() {
-        guard let price = Decimal(string: purchasePriceText), price > 0 else { return }
+        let price: Decimal
+        switch MoneyValidation.parse(purchasePriceText, requirement: .positive) {
+        case .success(let value):
+            price = value
+            purchasePriceError = nil
+        case .failure(let error):
+            purchasePriceError = error
+            focusedField = .purchasePrice
+            HapticManager.error()
+            return
+        }
+
         let defaultSalvage = price * Decimal(category.defaultSalvageRatio)
-        let salvage = Decimal(string: salvageValueText) ?? defaultSalvage
-        let targetDaily = Decimal(string: targetDailyCostText) ?? ((price - salvage) / 365)
+        let salvage: Decimal
+        if salvageValueText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            salvage = defaultSalvage
+            salvageValueError = nil
+        } else {
+            switch MoneyValidation.parse(salvageValueText, requirement: .nonNegative) {
+            case .success(let value):
+                salvage = value
+                salvageValueError = nil
+            case .failure(let error):
+                salvageValueError = error
+                focusedField = .salvageValue
+                HapticManager.error()
+                return
+            }
+        }
+
+        let targetDaily: Decimal
+        if targetDailyCostText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            targetDaily = (price - salvage) / 365
+            targetDailyCostError = nil
+        } else {
+            switch MoneyValidation.parse(targetDailyCostText, requirement: .positive) {
+            case .success(let value):
+                targetDaily = value
+                targetDailyCostError = nil
+            case .failure(let error):
+                targetDailyCostError = error
+                focusedField = .targetDailyCost
+                HapticManager.error()
+                return
+            }
+        }
+
+        guard salvage <= price else {
+            saveError = "预估残值不能高于购买价格"
+            HapticManager.error()
+            return
+        }
         guard MoneyValidation.validPhysicalAsset(
             purchasePrice: price,
             salvageValue: salvage,
@@ -466,9 +550,15 @@ struct SellPhysicalAssetView: View {
     @Bindable var asset: PhysicalAsset
 
     @State private var soldPriceText: String
+    @State private var soldPriceError: MoneyValidationError?
     @State private var soldDate: Date
     @State private var note: String
     @State private var saveError: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case soldPrice
+    }
 
     init(asset: PhysicalAsset) {
         self.asset = asset
@@ -478,7 +568,7 @@ struct SellPhysicalAssetView: View {
     }
 
     private var previewProfit: Decimal? {
-        guard let soldPrice = Decimal(string: soldPriceText) else { return nil }
+        guard case .success(let soldPrice) = MoneyValidation.parse(soldPriceText, requirement: .nonNegative) else { return nil }
         return soldPrice - asset.purchasePrice
     }
 
@@ -520,10 +610,13 @@ struct SellPhysicalAssetView: View {
                                     .font(.title3.weight(.semibold))
                                     .monospacedDigit()
                                     .foregroundStyle(DesignSystem.textPrimary)
+                                    .focused($focusedField, equals: .soldPrice)
+                                    .onChange(of: soldPriceText) { _, _ in soldPriceError = nil }
                             }
                             .padding(12)
                             .background(DesignSystem.softFill)
                             .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                            ValidationMessage(message: soldPriceError?.errorDescription)
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
@@ -578,7 +671,7 @@ struct SellPhysicalAssetView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") { saveSale() }
-                        .disabled(Decimal(string: soldPriceText) == nil)
+                        .disabled(soldPriceText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         .foregroundStyle(DesignSystem.primaryColor)
                 }
             }
@@ -587,7 +680,17 @@ struct SellPhysicalAssetView: View {
     }
 
     private func saveSale() {
-        guard let soldPrice = Decimal(string: soldPriceText), soldPrice >= 0 else { return }
+        let soldPrice: Decimal
+        switch MoneyValidation.parse(soldPriceText, requirement: .nonNegative) {
+        case .success(let value):
+            soldPrice = value
+            soldPriceError = nil
+        case .failure(let error):
+            soldPriceError = error
+            focusedField = .soldPrice
+            HapticManager.error()
+            return
+        }
         asset.soldPrice = soldPrice
         asset.soldDate = soldDate
         asset.note = note

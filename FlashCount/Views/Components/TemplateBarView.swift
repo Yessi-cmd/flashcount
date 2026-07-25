@@ -56,6 +56,7 @@ struct TemplateBarView: View {
                         .foregroundStyle(DesignSystem.textTertiary)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
+                        .frame(minHeight: 44)
                         .background(DesignSystem.softFill)
                         .clipShape(Capsule())
                     }

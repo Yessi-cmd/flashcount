@@ -50,7 +50,10 @@ struct InstallmentBillView: View {
                     Button { showAddBill = true } label: {
                         Image(systemName: "plus.circle.fill")
                             .foregroundStyle(DesignSystem.primaryColor)
+                            .frame(width: 44, height: 44)
                     }
+                    .accessibilityLabel("添加分期账单")
+                    .accessibilityIdentifier("installments.add")
                 }
             }
             .sheet(isPresented: $showAddBill) {
@@ -83,7 +86,7 @@ struct InstallmentBillView: View {
             }
 
             Text(hidesMoney ? privacyLock.maskedText : remainingTotal.formattedCurrency)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
+                .font(DesignSystem.Typography.amount)
                 .monospacedDigit()
                 .foregroundStyle(DesignSystem.expenseColor)
 
@@ -128,61 +131,71 @@ struct InstallmentBillView: View {
 
     private func billCard(_ bill: InstallmentBill) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(bill.name)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DesignSystem.textPrimary)
-                    Text(nextDueText(for: bill))
-                        .font(.caption)
-                        .foregroundStyle(nextDueColor(for: bill))
-                }
-                Spacer()
-                Text(hidesMoney ? privacyLock.maskedText : bill.remainingAmount.formattedCurrency)
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(DesignSystem.expenseColor)
-            }
-
-            GeometryReader { geo in
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(DesignSystem.dividerColor)
-                    .overlay(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(DesignSystem.expenseColor.opacity(0.75))
-                            .frame(width: hidesMoney ? 0 : geo.size.width * CGFloat(bill.progress))
+            Button {
+                revealOrPerform { editingBill = bill }
+            } label: {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .top) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(bill.name)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(DesignSystem.textPrimary)
+                            Text(nextDueText(for: bill))
+                                .font(.caption)
+                                .foregroundStyle(nextDueColor(for: bill))
+                        }
+                        Spacer()
+                        Text(hidesMoney ? privacyLock.maskedText : bill.remainingAmount.formattedCurrency)
+                            .font(.headline.monospacedDigit())
+                            .foregroundStyle(DesignSystem.expenseColor)
                     }
-            }
-            .frame(height: 10)
 
-            HStack(spacing: 0) {
-                billMetric(title: "每期", value: hidesMoney ? privacyLock.maskedText : bill.installmentAmount.formattedCurrency)
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
-                billMetric(title: "进度", value: hidesMoney ? privacyLock.maskedText : "\(bill.normalizedPaidInstallments)/\(bill.normalizedInstallmentCount) 期")
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
-                billMetric(title: "还款日", value: "每月 \(bill.repaymentDay) 日")
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(DesignSystem.dividerColor)
+                            .overlay(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 5)
+                                    .fill(DesignSystem.expenseColor.opacity(0.75))
+                                    .frame(width: hidesMoney ? 0 : geo.size.width * CGFloat(bill.progress))
+                            }
+                    }
+                    .frame(height: 10)
+
+                    HStack(spacing: 0) {
+                        billMetric(title: "每期", value: hidesMoney ? privacyLock.maskedText : bill.installmentAmount.formattedCurrency)
+                        Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
+                        billMetric(title: "进度", value: hidesMoney ? privacyLock.maskedText : "\(bill.normalizedPaidInstallments)/\(bill.normalizedInstallmentCount) 期")
+                        Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 28)
+                        billMetric(title: "还款日", value: "每月 \(bill.repaymentDay) 日")
+                    }
+
+                    if !bill.note.isEmpty {
+                        Text(bill.note)
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.textTertiary)
+                            .lineLimit(2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(hidesMoney ? "分期账单，验证后编辑" : "编辑分期账单\(bill.name)")
+            .accessibilityHint("双击编辑")
 
             HStack {
-                if !bill.note.isEmpty {
-                    Text(bill.note)
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textTertiary)
-                        .lineLimit(2)
-                }
                 Spacer()
                 Button {
                     markOneInstallmentPaid(bill)
                 } label: {
                     Label("还一期", systemImage: "checkmark.circle.fill")
                         .font(.caption.weight(.medium))
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .disabled(bill.isCompleted)
+                .accessibilityHint("将已还期数增加一期")
             }
         }
         .glassCard()
-        .contentShape(Rectangle())
-        .onTapGesture { revealOrPerform { editingBill = bill } }
-        .accessibilityAddTraits(.isButton)
         .contextMenu {
             Button { revealOrPerform { editingBill = bill } } label: {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
@@ -276,12 +289,18 @@ private struct AddInstallmentBillView: View {
 
     @State private var name = ""
     @State private var totalAmountText = ""
+    @State private var totalAmountError: MoneyValidationError?
     @State private var installmentCount = 12
     @State private var paidInstallments = 0
     @State private var firstRepaymentDate = Date()
     @State private var repaymentDay = Calendar.current.component(.day, from: Date())
     @State private var note = ""
     @State private var saveError: String?
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case totalAmount
+    }
 
     private var isEditing: Bool { editBill != nil }
 
@@ -294,6 +313,9 @@ private struct AddInstallmentBillView: View {
                         TextField("名称，例如：手机分期", text: $name)
                         TextField("总金额", text: $totalAmountText)
                             .keyboardType(.decimalPad)
+                            .focused($focusedField, equals: .totalAmount)
+                            .onChange(of: totalAmountText) { _, _ in totalAmountError = nil }
+                        ValidationMessage(message: totalAmountError?.errorDescription)
                     }
 
                     Section("分期") {
@@ -317,7 +339,7 @@ private struct AddInstallmentBillView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("保存") { save() }
-                        .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || totalAmountText.isEmpty)
+                        .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || totalAmountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .onAppear(perform: load)
@@ -351,7 +373,18 @@ private struct AddInstallmentBillView: View {
 
     private func save() {
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let totalAmount = Decimal(string: totalAmountText), totalAmount > 0, !cleanName.isEmpty else { return }
+        guard !cleanName.isEmpty else { return }
+        let totalAmount: Decimal
+        switch MoneyValidation.parse(totalAmountText, requirement: .positive) {
+        case .success(let value):
+            totalAmount = value
+            totalAmountError = nil
+        case .failure(let error):
+            totalAmountError = error
+            focusedField = .totalAmount
+            HapticManager.error()
+            return
+        }
         let cleanInstallmentCount = max(installmentCount, 1)
         let cleanPaidInstallments = min(max(paidInstallments, 0), cleanInstallmentCount)
         let cleanRepaymentDay = min(max(repaymentDay, 1), 31)
