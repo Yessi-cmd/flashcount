@@ -3,17 +3,18 @@ import Foundation
 struct PayCycle {
     let start: Date
     let end: Date
+    let calendar: Calendar
 
     var budgetYear: Int {
-        Calendar.current.component(.year, from: start)
+        calendar.component(.year, from: start)
     }
 
     var budgetMonth: Int {
-        Calendar.current.component(.month, from: start)
+        calendar.component(.month, from: start)
     }
 
     var displayTitle: String {
-        "\(start.shortDateString) - \(Calendar.current.date(byAdding: .day, value: -1, to: end)?.shortDateString ?? end.shortDateString)"
+        "\(start.shortDateString) - \(calendar.date(byAdding: .day, value: -1, to: end)?.shortDateString ?? end.shortDateString)"
     }
 }
 
@@ -52,7 +53,7 @@ enum PayCycleService {
             calendar: calendar
         )
 
-        return PayCycle(start: start, end: end)
+        return PayCycle(start: start, end: end, calendar: calendar)
     }
 
     private static func paydayDate(year: Int, month: Int, payday: Int, calendar: Calendar) -> Date {

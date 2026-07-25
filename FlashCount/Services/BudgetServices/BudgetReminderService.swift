@@ -13,8 +13,14 @@ struct BudgetReminder {
 }
 
 enum BudgetReminderService {
-    static func currentBudget(in budgets: [Budget], ledger: Ledger?, referenceDate: Date = Date(), payday: Int = 1) -> Budget? {
-        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday)
+    static func currentBudget(
+        in budgets: [Budget],
+        ledger: Ledger?,
+        referenceDate: Date = Date(),
+        payday: Int = 1,
+        calendar: Calendar = .current
+    ) -> Budget? {
+        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday, calendar: calendar)
         let year = cycle.budgetYear
         let month = cycle.budgetMonth
 
@@ -34,8 +40,14 @@ enum BudgetReminderService {
         return matchingBudgets.sorted { $0.createdAt > $1.createdAt }.first
     }
 
-    static func monthlySpent(in transactions: [Transaction], ledger: Ledger?, referenceDate: Date = Date(), payday: Int = 1) -> Decimal {
-        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday)
+    static func monthlySpent(
+        in transactions: [Transaction],
+        ledger: Ledger?,
+        referenceDate: Date = Date(),
+        payday: Int = 1,
+        calendar: Calendar = .current
+    ) -> Decimal {
+        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday, calendar: calendar)
         return transactions
             .filter {
                 $0.isExpense
@@ -47,8 +59,14 @@ enum BudgetReminderService {
             .reduce(Decimal(0)) { $0 + $1.amount }
     }
 
-    static func monthlyExcludedSpent(in transactions: [Transaction], ledger: Ledger?, referenceDate: Date = Date(), payday: Int = 1) -> Decimal {
-        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday)
+    static func monthlyExcludedSpent(
+        in transactions: [Transaction],
+        ledger: Ledger?,
+        referenceDate: Date = Date(),
+        payday: Int = 1,
+        calendar: Calendar = .current
+    ) -> Decimal {
+        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday, calendar: calendar)
         return transactions
             .filter {
                 $0.isExpense
@@ -66,12 +84,31 @@ enum BudgetReminderService {
         ledger: Ledger?,
         referenceDate: Date = Date(),
         payday: Int = 1,
-        weekendMultiplier: Decimal = 1
+        weekendMultiplier: Decimal = 1,
+        calendar: Calendar = .current
     ) -> BudgetReminder? {
-        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday)
-        guard let budget = currentBudget(in: budgets, ledger: ledger, referenceDate: referenceDate, payday: payday) else { return nil }
-        let spent = monthlySpent(in: transactions, ledger: ledger, referenceDate: referenceDate, payday: payday)
-        let excludedSpent = monthlyExcludedSpent(in: transactions, ledger: ledger, referenceDate: referenceDate, payday: payday)
+        let cycle = PayCycleService.cycle(containing: referenceDate, payday: payday, calendar: calendar)
+        guard let budget = currentBudget(
+            in: budgets,
+            ledger: ledger,
+            referenceDate: referenceDate,
+            payday: payday,
+            calendar: calendar
+        ) else { return nil }
+        let spent = monthlySpent(
+            in: transactions,
+            ledger: ledger,
+            referenceDate: referenceDate,
+            payday: payday,
+            calendar: calendar
+        )
+        let excludedSpent = monthlyExcludedSpent(
+            in: transactions,
+            ledger: ledger,
+            referenceDate: referenceDate,
+            payday: payday,
+            calendar: calendar
+        )
         let analysis = BudgetAnalyzer.analyze(
             budgetLimit: budget.monthlyLimit,
             totalSpent: spent,
@@ -79,7 +116,8 @@ enum BudgetReminderService {
             referenceDate: referenceDate,
             periodStart: cycle.start,
             periodEnd: cycle.end,
-            weekendMultiplier: weekendMultiplier
+            weekendMultiplier: weekendMultiplier,
+            calendar: calendar
         )
         return reminder(for: analysis)
     }

@@ -63,6 +63,44 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(app.buttons["dataHealth.rescan"].waitForExistence(timeout: 5))
     }
 
+    func testActionCenterShowsLocalItemsAndRoutesToReminderPage() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestActionCenter"
+        ]
+        app.launch()
+
+        let actionCenter = app.buttons["ledger.actionCenter"]
+        XCTAssertTrue(actionCenter.waitForExistence(timeout: 5))
+        actionCenter.tap()
+
+        XCTAssertTrue(app.navigationBars["本地行动中心"].waitForExistence(timeout: 5))
+        let sectionIdentifiers = [
+            "actionCenter.section.budgetOverrun",
+            "actionCenter.section.recurringDebit",
+            "actionCenter.section.installmentDue",
+            "actionCenter.section.recurringSuggestion",
+            "actionCenter.section.incompleteReminder"
+        ]
+        for identifier in sectionIdentifiers {
+            XCTAssertTrue(
+                app.descendants(matching: .any)[identifier].waitForExistence(timeout: 5),
+                "行动中心应显示分组：\(identifier)"
+            )
+        }
+
+        let reminderItem = app.buttons["actionCenter.item.incompleteReminder"]
+        XCTAssertTrue(reminderItem.waitForExistence(timeout: 5))
+        reminderItem.tap()
+        XCTAssertTrue(app.navigationBars["提醒事项"].waitForExistence(timeout: 5))
+
+        let closeReminder = app.navigationBars["提醒事项"].buttons["关闭"]
+        XCTAssertTrue(closeReminder.waitForExistence(timeout: 5))
+        closeReminder.tap()
+        XCTAssertTrue(app.navigationBars["本地行动中心"].waitForExistence(timeout: 5))
+    }
+
     func testLedgerBatchActionsStayAboveMainTabBar() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]

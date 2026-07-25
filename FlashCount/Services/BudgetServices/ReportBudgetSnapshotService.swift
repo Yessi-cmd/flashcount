@@ -26,7 +26,8 @@ enum ReportBudgetSnapshotService {
             in: budgets,
             ledger: nil,
             referenceDate: anchor,
-            payday: payday
+            payday: payday,
+            calendar: calendar
         )
 
         guard let budget else {

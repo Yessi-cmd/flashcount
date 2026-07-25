@@ -25,6 +25,7 @@ struct LedgerView: View {
     @State private var showCalendar = false
     @State private var showSettings = false
     @State private var showReminders = false
+    @State private var showActionCenter = false
     @State private var deleteError: String?
     @State private var undoInfo: DeletedTransactionSnapshot?
     @State private var undoWorkItem: DispatchWorkItem?
@@ -466,6 +467,15 @@ struct LedgerView: View {
                             .accessibilityLabel("筛选与排序，当前\(sortDirection.detail(for: sortField))")
 
                             Button {
+                                showActionCenter = true
+                            } label: {
+                                Image(systemName: "bolt.badge.clock")
+                                    .foregroundStyle(DesignSystem.warningColor)
+                            }
+                            .accessibilityLabel("本地行动中心")
+                            .accessibilityIdentifier("ledger.actionCenter")
+
+                            Button {
                                 showReminders = true
                             } label: {
                                 Image(systemName: "bell.badge.fill")
@@ -493,6 +503,11 @@ struct LedgerView: View {
                 ReminderView {
                     showReminders = false
                 }
+            }
+            .sheet(isPresented: $showActionCenter) {
+                ActionCenterView()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showFilterSheet) {
                 FilterSheetView(

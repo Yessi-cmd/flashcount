@@ -185,6 +185,7 @@ private struct AppRootView: View {
         do {
             let recurringResult = try DefaultDataService(modelContext: modelContext).prepareAppData()
             prepareReportLayoutUITestDataIfNeeded()
+            prepareActionCenterUITestDataIfNeeded()
             startupState = .ready
             rebuildNotificationSchedule()
             if recurringResult.hasRemainingDueRules {
@@ -259,6 +260,103 @@ private struct AppRootView: View {
                 )
             )
         }
+        try? modelContext.save()
+#endif
+    }
+
+    /// Adds deterministic local-only data for the action-center UI smoke test.
+    private func prepareActionCenterUITestDataIfNeeded() {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-uiTestActionCenter") else { return }
+
+        let marker = "__ui_test_action_center__"
+        let existingTransactions = try? modelContext.fetch(FetchDescriptor<Transaction>())
+        guard existingTransactions?.contains(where: { $0.note.hasPrefix(marker) }) != true else { return }
+
+        let calendar = Calendar.current
+        let now = Date.now
+        guard let category = (try? modelContext.fetch(
+            FetchDescriptor<Category>(
+                predicate: #Predicate<Category> {
+                    $0.name == "餐饮" && $0.isExpense && !$0.isArchived
+                }
+            )
+        ))?.first else { return }
+
+        let cycle = PayCycleService.cycle(containing: now, payday: 1, calendar: calendar)
+        modelContext.insert(
+            Budget(
+                monthlyLimit: 100,
+                year: cycle.budgetYear,
+                month: cycle.budgetMonth
+            )
+        )
+        modelContext.insert(
+            Transaction(
+                amount: 150,
+                note: "\(marker).budget",
+                date: now.addingTimeInterval(-3_600),
+                category: category
+            )
+        )
+
+        for monthOffset in [-2, -1, 0] {
+            let date = calendar.date(byAdding: .month, value: monthOffset, to: now) ?? now
+            modelContext.insert(
+                Transaction(
+                    amount: 12,
+                    note: "\(marker).suggestion",
+                    date: date,
+                    category: category
+                )
+            )
+        }
+
+        let upcomingRuleDate = calendar.date(byAdding: .day, value: 3, to: now) ?? now
+        modelContext.insert(
+            RecurringRule(
+                title: "测试周期扣款",
+                amount: 28,
+                frequency: .monthly,
+                nextDueDate: upcomingRuleDate,
+                category: category
+            )
+        )
+
+        let overdueRuleDate = calendar.date(byAdding: .day, value: -2, to: now) ?? now
+        modelContext.insert(
+            RecurringRule(
+                title: "测试待补周期账",
+                amount: 16,
+                frequency: .monthly,
+                nextDueDate: overdueRuleDate,
+                category: category
+            )
+        )
+
+        let installmentDate = calendar.date(byAdding: .day, value: 2, to: now) ?? now
+        let repaymentDay = calendar.component(.day, from: installmentDate)
+        modelContext.insert(
+            InstallmentBill(
+                name: "测试设备分期",
+                totalAmount: 120,
+                installmentCount: 3,
+                repaymentDay: repaymentDay,
+                firstRepaymentDate: installmentDate
+            )
+        )
+
+        let reminderDate = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+        modelContext.insert(
+            Reminder(
+                item: ReminderItem(
+                    title: "测试行动提醒",
+                    dueDate: reminderDate
+                )
+            )
+        )
+
         try? modelContext.save()
 #endif
     }
