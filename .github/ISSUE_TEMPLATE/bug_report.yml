@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible problem in FlashCount.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请不要粘贴真实账本、备份、UDID、签名文件或其他个人信息。
+  - type: textarea
+    id: summary
+    attributes:
+      label: 问题描述
+      description: 简洁说明实际发生的行为。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开…
+        2. 点击…
+        3. 观察…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期行为
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App 版本
+      placeholder: 例如 1.4.3 (7)
+    validations:
+      required: true
+  - type: input
+    id: system-version
+    attributes:
+      label: iOS 与设备
+      placeholder: 例如 iOS 18.0, iPhone 16
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图、录屏或日志（可选）
+      description: 上传前请遮盖财务数据和其他敏感信息。

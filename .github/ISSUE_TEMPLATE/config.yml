@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 安全漏洞
+    url: https://github.com/Yessi-cmd/flashcount/security/advisories/new
+    about: 请使用 Private Vulnerability Reporting 私密报告，不要公开提交 Issue。
+  - name: 使用与构建文档
+    url: https://github.com/Yessi-cmd/flashcount#readme
+    about: 请先阅读 README 与贡献指南。

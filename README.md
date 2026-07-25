@@ -1,54 +1,78 @@
 # FlashCount ⚡
 
-**开源本地记账 iOS App** — 数据全部存在你的设备上，拒绝云端泄露。
+[![iOS CI](https://github.com/Yessi-cmd/flashcount/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/Yessi-cmd/flashcount/actions/workflows/ios-ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/Yessi-cmd/flashcount?display_name=tag)](https://github.com/Yessi-cmd/flashcount/releases)
+[![License](https://img.shields.io/github/license/Yessi-cmd/flashcount)](LICENSE)
 
-## ✨ 核心功能
+**开源、本地优先的 iOS 记账 App。** 数据保存在设备上；不依赖账户、云端同步、广告或追踪。
 
-| 功能 | 描述 |
-|---|---|
-| ⚡ 极速记账 | 打开即记，3 秒完成。支持 Siri / Back Tap / Widget 快捷入口 |
-| 📒 单账本 | 专注个人生活账本：收支、预算、资产与提醒都在一个清晰视图中管理 |
-| 🔄 周期账单 | 房租、Netflix、iCloud 自动入账，不再漏记 |
-| 📊 预算预警 | 不只是预算，还根据消费速度预测"你离吃土还有几天" |
-| 💰 资产全景 | 银行卡 + 理财 - 信用卡 - 贷款 = 你的真实净资产 |
+> 仍在持续开发中。欢迎提交问题、建议和改进。
 
-## 🛠️ 技术栈
+## 功能
 
-- **SwiftUI** — 现代声明式 UI
-- **SwiftData** — 本地 SQLite 存储
-- **Swift Charts** — 数据可视化
-- **App Intents** — Siri & Shortcuts 集成
+| 功能 | 说明 |
+| --- | --- |
+| ⚡ 快速记账 | 支出、收入、分类、备注和模板，支持 Siri、Back Tap 与 Widget 快捷入口。 |
+| 📒 单账本 | 将收支、预算、资产、分期和提醒集中到一个个人生活账本。 |
+| 🔄 周期账单 | 自动处理房租、订阅等周期规则，并提示补记与即将发生的项目。 |
+| 📊 预算与报表 | 追踪日常及分类预算，按日、周、月、年查看收支和趋势。 |
+| 💰 资产全景 | 汇总现金、储蓄目标、实物资产、分期与负债，查看净资产。 |
+| 🛡️ 本地隐私 | 所有账本数据留在设备本地；不含广告、分析 SDK 或网络请求。 |
 
-## 📋 系统要求
+## 系统要求
 
-- iOS 17.0+
-- Xcode 15.0+
-- Swift 5.9+
+- iOS 17.0 或更高版本
+- Xcode 15.0 或更高版本（从源码构建）
+- Swift 5.9
 
-## 🚀 快速开始
+## 安装与运行
+
+### 从 Release 安装
+
+最新版本在 [GitHub Releases](https://github.com/Yessi-cmd/flashcount/releases) 发布。若 Release 附有 `FlashCount-AltStore.ipa`，请使用 AltStore 安装；该包是未签名主 App，不包含 Widget，由 AltStore 在安装时重新签名。
+
+### 从源码构建
 
 ```bash
-# 1. 克隆
-git clone https://github.com/yourname/flashcount.git
-
-# 2. 生成 Xcode 项目 (需要 xcodegen)
-brew install xcodegen
+git clone https://github.com/Yessi-cmd/flashcount.git
 cd flashcount
+
+# 安装并使用 XcodeGen 生成工程
+brew install xcodegen
 xcodegen generate
 
-# 3. 打开 Xcode
+# 用 Xcode 打开，选择模拟器或你的签名团队后运行
 open FlashCount.xcodeproj
-
-# 4. 选择模拟器，运行 ▶️
 ```
 
-## 🔒 隐私
+## 开发
 
-- ✅ 所有数据存储在设备本地
-- ✅ 零网络请求
-- ✅ 无广告、无追踪
-- ✅ 完全开源
+```bash
+# 生成工程
+xcodegen generate
 
-## 📄 License
+# 在已安装的 iOS Simulator 上运行测试（示例）
+xcodebuild test \
+  -project FlashCount.xcodeproj \
+  -scheme FlashCount \
+  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  CODE_SIGNING_ALLOWED=NO
+```
 
-MIT
+GitHub Actions 会在 `main` 的推送与 Pull Request 上重新生成工程并运行测试。提交前请阅读[贡献指南](CONTRIBUTING.md)和[安全政策](SECURITY.md)。
+
+## 隐私
+
+- 账本数据、备份和偏好设置均在本地保存。
+- 应用不要求注册账户，也不发送使用分析数据。
+- 备份、CSV 导入导出和提醒由设备本地处理。
+
+完整的发布包规则见[打包规范](docs/packaging.md)。
+
+## 参与贡献
+
+请先阅读[贡献指南](CONTRIBUTING.md)和[行为准则](CODE_OF_CONDUCT.md)，再通过 Issue 或 Pull Request 参与。安全漏洞请不要公开提交 Issue，详见[安全政策](SECURITY.md)。
+
+## License
+
+本项目采用 [MIT License](LICENSE)。
