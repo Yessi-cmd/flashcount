@@ -132,6 +132,7 @@ struct AssetDashboardView: View {
                     VStack(spacing: DesignSystem.sectionSpacing) {
                         netWorthCard(snapshot)
                         cashPoolSummary(snapshot)
+                        cashFlowForecastCard
                         if !snapshot.activeSavingsGoals.isEmpty { savingsGoalSummary(snapshot) }
 
                         if !snapshot.assetItems.isEmpty || !snapshot.liabilityItems.isEmpty { assetBreakdown(snapshot) }
@@ -326,6 +327,38 @@ struct AssetDashboardView: View {
             }
         }
         .glassCard()
+    }
+
+    private var cashFlowForecastCard: some View {
+        NavigationLink {
+            CashFlowForecastView()
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(DesignSystem.primaryColor.opacity(0.12))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .foregroundStyle(DesignSystem.primaryColor)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("现金流预测")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(DesignSystem.textPrimary)
+                    Text("查看未来余额、固定支出和现金低点")
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.textSecondary)
+                }
+
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(DesignSystem.textTertiary)
+            }
+            .glassCard()
+        }
+        .buttonStyle(.plain)
     }
 
     private func savingsGoalSummary(_ snapshot: DashboardSnapshot) -> some View {

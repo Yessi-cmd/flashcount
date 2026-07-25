@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
     @AppStorage("payday") private var payday = 1
     @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
+    @AppStorage(RecurringCatchUpPreferences.storageKey) private var recurringCatchUpModeRawValue = RecurringCatchUpPreferences.defaultMode.rawValue
     @AppStorage("notificationShowReminderDetails") private var notificationShowReminderDetails = false
     @State private var showTutorial = false
     @State private var showBackTapSetup = false
@@ -221,6 +222,22 @@ struct SettingsView: View {
                         }
                     } header: {
                         Text("快捷入口").foregroundStyle(DesignSystem.textSecondary)
+                    }
+                    .listRowBackground(DesignSystem.cardBackground)
+
+                    Section {
+                        Picker("逾期周期账", selection: $recurringCatchUpModeRawValue) {
+                            ForEach(RecurringCatchUpMode.allCases) { mode in
+                                Text(mode.title).tag(mode.rawValue)
+                            }
+                        }
+                        .foregroundStyle(DesignSystem.textPrimary)
+                    } header: {
+                        Text("周期补账").foregroundStyle(DesignSystem.textSecondary)
+                    } footer: {
+                        Text(RecurringCatchUpPreferences.mode(for: recurringCatchUpModeRawValue).explanation)
+                            .font(.caption2)
+                            .foregroundStyle(DesignSystem.textTertiary)
                     }
                     .listRowBackground(DesignSystem.cardBackground)
 

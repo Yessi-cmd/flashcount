@@ -184,7 +184,7 @@ final class FinanceDomainTests: XCTestCase {
 
         let upgradedConfiguration = ModelConfiguration(
             "FlashCount",
-            schema: Schema(legacyModelTypes + [Reminder.self]),
+            schema: Schema(legacyModelTypes + [Reminder.self, RecurringOccurrence.self]),
             url: storeURL,
             cloudKitDatabase: .none
         )
@@ -202,6 +202,7 @@ final class FinanceDomainTests: XCTestCase {
             InstallmentBill.self,
             TransactionTemplate.self,
             Reminder.self,
+            RecurringOccurrence.self,
             configurations: upgradedConfiguration
         )
         let upgradedContext = ModelContext(upgradedContainer)
@@ -214,6 +215,49 @@ final class FinanceDomainTests: XCTestCase {
         let reminder = ReminderItem(title: "升级后提醒", dueDate: Date().addingTimeInterval(60))
         _ = try ReminderDataService(modelContext: upgradedContext).add(reminder)
         XCTAssertEqual(try upgradedContext.fetchCount(FetchDescriptor<Reminder>()), 1)
+    }
+
+    func testVersionedSchemaMigrationAddsRecurringOccurrencesWithoutDroppingTransactions() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appendingPathComponent("FlashCount.store")
+
+        let original = Transaction(amount: 88, note: "V1 交易")
+        let originalID = original.id
+        do {
+            let configuration = ModelConfiguration(
+                "FlashCount",
+                schema: Schema(versionedSchema: FlashCountSchemaV1.self),
+                url: storeURL,
+                cloudKitDatabase: .none
+            )
+            let container = try ModelContainer(
+                for: Schema(versionedSchema: FlashCountSchemaV1.self),
+                configurations: configuration
+            )
+            let context = ModelContext(container)
+            context.insert(original)
+            try context.save()
+        }
+
+        let upgradedConfiguration = ModelConfiguration(
+            "FlashCount",
+            schema: Schema(versionedSchema: FlashCountSchemaV2.self),
+            url: storeURL,
+            cloudKitDatabase: .none
+        )
+        let upgradedContainer = try ModelContainer(
+            for: Schema(versionedSchema: FlashCountSchemaV2.self),
+            migrationPlan: FlashCountMigrationPlan.self,
+            configurations: upgradedConfiguration
+        )
+        let upgradedContext = ModelContext(upgradedContainer)
+
+        let restored = try XCTUnwrap(upgradedContext.fetch(FetchDescriptor<Transaction>()).first)
+        XCTAssertEqual(restored.id, originalID)
+        XCTAssertEqual(restored.amount, 88)
+        XCTAssertEqual(try upgradedContext.fetchCount(FetchDescriptor<RecurringOccurrence>()), 0)
     }
 
     func testDuplicateBackupUUIDIsRejectedBeforeReplaceMutatesData() throws {
@@ -295,6 +339,21 @@ final class FinanceDomainTests: XCTestCase {
         rule.createdAt = timestamp.addingTimeInterval(20)
         let transaction = Transaction(amount: 8, note: "关联", date: timestamp, cashPoolDelta: -8, ledger: ledger, recurringRule: rule)
         transaction.createdAt = timestamp.addingTimeInterval(30)
+        let occurrence = RecurringOccurrence(
+            occurrenceKey: RecurringOccurrence.key(ruleID: rule.id, scheduledDate: timestamp),
+            ruleID: rule.id,
+            transactionID: transaction.id,
+            scheduledDate: timestamp,
+            actualDate: timestamp,
+            amount: 8,
+            isExpense: true,
+            title: rule.title,
+            note: transaction.note,
+            ledgerID: ledger.id,
+            status: .generated,
+            createdAt: timestamp.addingTimeInterval(35),
+            resolvedAt: timestamp.addingTimeInterval(40)
+        )
         let budget = Budget(monthlyLimit: 300, year: 2026, month: 7, ledger: ledger)
         budget.createdAt = timestamp.addingTimeInterval(40)
         let expectedLedgerCreatedAt = ledger.createdAt
@@ -307,6 +366,7 @@ final class FinanceDomainTests: XCTestCase {
         context.insert(asset)
         context.insert(rule)
         context.insert(transaction)
+        context.insert(occurrence)
         context.insert(budget)
         context.insert(CashPoolState(transactionDelta: -8))
         try context.save()
@@ -318,6 +378,7 @@ final class FinanceDomainTests: XCTestCase {
         let restoredAsset = try XCTUnwrap(context.fetch(FetchDescriptor<Asset>()).first { $0.name == asset.name })
         let restoredRule = try XCTUnwrap(context.fetch(FetchDescriptor<RecurringRule>()).first { $0.title == rule.title })
         let restoredTransaction = try XCTUnwrap(context.fetch(FetchDescriptor<Transaction>()).first { $0.note == transaction.note })
+        let restoredOccurrence = try XCTUnwrap(context.fetch(FetchDescriptor<RecurringOccurrence>()).first)
         let restoredBudget = try XCTUnwrap(context.fetch(FetchDescriptor<Budget>()).first { $0.monthlyLimit == 300 })
         XCTAssertEqual(restoredLedger.createdAt, expectedLedgerCreatedAt)
         XCTAssertEqual(restoredAsset.createdAt, expectedAssetCreatedAt)
@@ -325,6 +386,9 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertEqual(restoredRule.createdAt, expectedRuleCreatedAt)
         XCTAssertEqual(restoredTransaction.createdAt, expectedTransactionCreatedAt)
         XCTAssertEqual(restoredTransaction.recurringRule?.id, restoredRule.id)
+        XCTAssertEqual(restoredOccurrence.occurrenceKey, occurrence.occurrenceKey)
+        XCTAssertEqual(restoredOccurrence.transactionID, restoredTransaction.id)
+        XCTAssertEqual(restoredOccurrence.status, .generated)
         XCTAssertEqual(restoredBudget.createdAt, expectedBudgetCreatedAt)
     }
     private var calendar: Calendar!
@@ -947,6 +1011,7 @@ final class FinanceDomainTests: XCTestCase {
             InstallmentBill.self,
             TransactionTemplate.self,
             Reminder.self,
+            RecurringOccurrence.self,
             configurations: configuration
         )
         return ModelContext(container)

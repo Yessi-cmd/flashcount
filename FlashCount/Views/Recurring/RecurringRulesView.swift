@@ -6,8 +6,10 @@ struct RecurringRulesView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @Query(sort: \RecurringRule.createdAt, order: .reverse) private var rules: [RecurringRule]
+    @Query private var occurrences: [RecurringOccurrence]
     @Query(filter: #Predicate<Transaction> { $0.isExpense == true }, sort: \Transaction.date) private var expenseTransactions: [Transaction]
     @State private var showAddRule = false
+    @State private var showBackfill = false
     @State private var editingRule: RecurringRule?
     @State private var suggestionToCreate: RecurringSuggestion?
     @State private var rulePendingDeletion: RecurringRule?
@@ -24,12 +26,27 @@ struct RecurringRulesView: View {
         )
     }
 
+    private var pendingBackfill: [RecurringOccurrencePreview] {
+        RecurringOccurrenceService(modelContext: modelContext).pendingOccurrences(
+            rules: rules,
+            occurrences: occurrences,
+            maxOccurrences: 120
+        )
+    }
+
+    private var pendingCashDelta: Decimal {
+        pendingBackfill.reduce(Decimal.zero) { $0 + $1.signedAmount }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: 12) {
+                        if !pendingBackfill.isEmpty {
+                            backfillCard
+                        }
                         if !suggestions.isEmpty {
                             suggestionSection
                         }
@@ -57,6 +74,9 @@ struct RecurringRulesView: View {
                 }
             }
             .sheet(isPresented: $showAddRule) { AddRecurringRuleView() }
+            .sheet(isPresented: $showBackfill) {
+                RecurringBackfillView(previews: pendingBackfill)
+            }
             .sheet(item: $suggestionToCreate) { suggestion in
                 AddRecurringRuleView(suggestion: suggestion)
             }
@@ -96,6 +116,40 @@ struct RecurringRulesView: View {
                 dismissedSuggestionFingerprints = suggestionDismissalStore.load()
             }
         }
+    }
+
+    private var backfillCard: some View {
+        Button {
+            showBackfill = true
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(DesignSystem.warningColor.opacity(0.14))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "clock.badge.exclamationmark.fill")
+                        .foregroundStyle(DesignSystem.warningColor)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("有 \(pendingBackfill.count) 笔周期账待补")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(DesignSystem.textPrimary)
+                    Text("确认后才会写入账本 · 预计现金变化 \(privacyLock.isUnlocked ? pendingCashDelta.formattedCurrency : privacyLock.maskedText)")
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(DesignSystem.textTertiary)
+            }
+            .glassCard()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("查看待补周期账")
     }
 
     private var suggestionSection: some View {

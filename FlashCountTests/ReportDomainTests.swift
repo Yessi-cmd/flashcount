@@ -445,6 +445,7 @@ final class ReportDomainTests: XCTestCase {
             InstallmentBill.self,
             TransactionTemplate.self,
             Reminder.self,
+            RecurringOccurrence.self,
             configurations: configuration
         )
         return ModelContext(container)

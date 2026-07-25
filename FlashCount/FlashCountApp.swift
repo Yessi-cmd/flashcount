@@ -11,7 +11,7 @@ struct FlashCountApp: App {
         ReminderNotificationService.configure()
         do {
             modelContainer = try ModelContainer(
-                for: Schema(versionedSchema: FlashCountSchemaV1.self),
+                for: Schema(versionedSchema: FlashCountSchemaV2.self),
                 migrationPlan: FlashCountMigrationPlan.self
             )
             modelContainerError = nil

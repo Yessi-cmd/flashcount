@@ -27,6 +27,17 @@ final class InstallmentBill {
         totalAmount / Decimal(normalizedInstallmentCount)
     }
 
+    /// Ensures the last payment absorbs any repeating-decimal remainder so
+    /// projected payments always add up exactly to the bill total.
+    func paymentAmount(forInstallment index: Int) -> Decimal {
+        let normalizedIndex = min(max(index, 0), normalizedInstallmentCount - 1)
+        guard normalizedIndex == normalizedInstallmentCount - 1 else {
+            return installmentAmount
+        }
+        let previousTotal = installmentAmount * Decimal(max(normalizedInstallmentCount - 1, 0))
+        return max(totalAmount - previousTotal, 0)
+    }
+
     var paidAmount: Decimal {
         min(installmentAmount * Decimal(normalizedPaidInstallments), totalAmount)
     }

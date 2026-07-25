@@ -44,7 +44,7 @@ private extension Decimal {
 @MainActor
 final class DataBackupService {
 
-    nonisolated static let currentBackupVersion = "1.8.0"
+    nonisolated static let currentBackupVersion = "1.9.0"
     nonisolated static let minimumSupportedBackupVersion = "1.0.0"
 
     private let modelContext: ModelContext
@@ -111,6 +111,7 @@ final class DataBackupService {
         let assets: [AssetDTO]
         let physicalAssets: [PhysicalAssetDTO]
         let recurringRules: [RecurringRuleDTO]
+        let recurringOccurrences: [RecurringOccurrenceDTO]
         let budgets: [BudgetDTO]
         let cashPoolItems: [CashPoolItemDTO]
         let cashPoolStates: [CashPoolStateDTO]
@@ -129,6 +130,7 @@ final class DataBackupService {
             assets: [AssetDTO],
             physicalAssets: [PhysicalAssetDTO],
             recurringRules: [RecurringRuleDTO],
+            recurringOccurrences: [RecurringOccurrenceDTO] = [],
             budgets: [BudgetDTO],
             cashPoolItems: [CashPoolItemDTO],
             cashPoolStates: [CashPoolStateDTO],
@@ -146,6 +148,7 @@ final class DataBackupService {
             self.assets = assets
             self.physicalAssets = physicalAssets
             self.recurringRules = recurringRules
+            self.recurringOccurrences = recurringOccurrences
             self.budgets = budgets
             self.cashPoolItems = cashPoolItems
             self.cashPoolStates = cashPoolStates
@@ -157,7 +160,7 @@ final class DataBackupService {
         }
 
         enum CodingKeys: String, CodingKey {
-            case version, createdAt, categories, ledgers, transactions, assets, physicalAssets, recurringRules, budgets
+            case version, createdAt, categories, ledgers, transactions, assets, physicalAssets, recurringRules, recurringOccurrences, budgets
             case cashPoolItems, cashPoolStates, installmentBills, savingsGoals, templates, reminders, settings
         }
 
@@ -171,6 +174,7 @@ final class DataBackupService {
             assets = try container.decodeIfPresent([AssetDTO].self, forKey: .assets) ?? []
             physicalAssets = try container.decodeIfPresent([PhysicalAssetDTO].self, forKey: .physicalAssets) ?? []
             recurringRules = try container.decodeIfPresent([RecurringRuleDTO].self, forKey: .recurringRules) ?? []
+            recurringOccurrences = try container.decodeIfPresent([RecurringOccurrenceDTO].self, forKey: .recurringOccurrences) ?? []
             budgets = try container.decodeIfPresent([BudgetDTO].self, forKey: .budgets) ?? []
             cashPoolItems = try container.decodeIfPresent([CashPoolItemDTO].self, forKey: .cashPoolItems) ?? []
             cashPoolStates = try container.decodeIfPresent([CashPoolStateDTO].self, forKey: .cashPoolStates) ?? []
@@ -267,6 +271,24 @@ final class DataBackupService {
         let ledgerId: String?
     }
 
+    struct RecurringOccurrenceDTO: Codable {
+        let id: String
+        let occurrenceKey: String
+        let ruleId: String
+        let transactionId: String?
+        let scheduledDate: Date
+        let actualDate: Date?
+        let amount: CodableMoney
+        let isExpense: Bool
+        let title: String
+        let note: String
+        let categoryId: String?
+        let ledgerId: String?
+        let status: String
+        let createdAt: Date
+        let resolvedAt: Date?
+    }
+
     struct BudgetDTO: Codable {
         let id: String
         let monthlyLimit: CodableMoney
@@ -339,6 +361,7 @@ final class DataBackupService {
         let hasCompletedOnboarding: Bool?
         let notificationShowReminderDetails: Bool?
         let reportReminderPreferences: ReportReminderPreferences?
+        let recurringCatchUpMode: String?
 
         init(
             payday: Int,
@@ -346,7 +369,8 @@ final class DataBackupService {
             hideAssetBalance: Bool?,
             hasCompletedOnboarding: Bool?,
             notificationShowReminderDetails: Bool? = nil,
-            reportReminderPreferences: ReportReminderPreferences? = nil
+            reportReminderPreferences: ReportReminderPreferences? = nil,
+            recurringCatchUpMode: String? = nil
         ) {
             self.payday = payday
             self.appearance = appearance
@@ -354,6 +378,7 @@ final class DataBackupService {
             self.hasCompletedOnboarding = hasCompletedOnboarding
             self.notificationShowReminderDetails = notificationShowReminderDetails
             self.reportReminderPreferences = reportReminderPreferences
+            self.recurringCatchUpMode = recurringCatchUpMode
         }
     }
 
@@ -379,6 +404,7 @@ final class DataBackupService {
         let assets = try modelContext.fetch(FetchDescriptor<Asset>())
         let physicalAssets = try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
         let recurringRules = try modelContext.fetch(FetchDescriptor<RecurringRule>())
+        let recurringOccurrences = try modelContext.fetch(FetchDescriptor<RecurringOccurrence>())
         let budgets = try modelContext.fetch(FetchDescriptor<Budget>())
         let cashPoolItems = try modelContext.fetch(FetchDescriptor<CashPoolItem>())
         let cashPoolStates = try modelContext.fetch(FetchDescriptor<CashPoolState>())
@@ -444,6 +470,25 @@ final class DataBackupService {
                                 categoryId: r.category?.id.uuidString,
                                 ledgerId: r.ledger?.id.uuidString)
             },
+            recurringOccurrences: recurringOccurrences.map { occurrence in
+                RecurringOccurrenceDTO(
+                    id: occurrence.id.uuidString,
+                    occurrenceKey: occurrence.occurrenceKey,
+                    ruleId: occurrence.ruleID.uuidString,
+                    transactionId: occurrence.transactionID?.uuidString,
+                    scheduledDate: occurrence.scheduledDate,
+                    actualDate: occurrence.actualDate,
+                    amount: CodableMoney(occurrence.amount),
+                    isExpense: occurrence.isExpense,
+                    title: occurrence.title,
+                    note: occurrence.note,
+                    categoryId: occurrence.categoryID?.uuidString,
+                    ledgerId: occurrence.ledgerID?.uuidString,
+                    status: occurrence.status.rawValue,
+                    createdAt: occurrence.createdAt,
+                    resolvedAt: occurrence.resolvedAt
+                )
+            },
             budgets: budgets.map { b in
                 BudgetDTO(id: b.id.uuidString,
                          monthlyLimit: CodableMoney(b.monthlyLimit),
@@ -494,7 +539,8 @@ final class DataBackupService {
                 hideAssetBalance: UserDefaults.standard.object(forKey: "hideAssetBalance") as? Bool,
                 hasCompletedOnboarding: UserDefaults.standard.object(forKey: "hasCompletedOnboarding") as? Bool,
                 notificationShowReminderDetails: UserDefaults.standard.object(forKey: "notificationShowReminderDetails") as? Bool,
-                reportReminderPreferences: UserDefaultsReportReminderPreferencesStore().load()
+                reportReminderPreferences: UserDefaultsReportReminderPreferencesStore().load(),
+                recurringCatchUpMode: UserDefaults.standard.string(forKey: RecurringCatchUpPreferences.storageKey)
             )
         )
 
@@ -523,6 +569,7 @@ final class DataBackupService {
         var assetsImported = 0
         var physicalAssetsImported = 0
         var recurringRulesImported = 0
+        var recurringOccurrencesImported = 0
         var budgetsImported = 0
         var cashPoolItemsImported = 0
         var installmentBillsImported = 0
@@ -539,6 +586,7 @@ final class DataBackupService {
             if assetsImported > 0 { parts.append("账户 \(assetsImported)") }
             if physicalAssetsImported > 0 { parts.append("实物资产 \(physicalAssetsImported)") }
             if recurringRulesImported > 0 { parts.append("周期规则 \(recurringRulesImported)") }
+            if recurringOccurrencesImported > 0 { parts.append("周期发生项 \(recurringOccurrencesImported)") }
             if budgetsImported > 0 { parts.append("预算 \(budgetsImported)") }
             if cashPoolItemsImported > 0 { parts.append("资金池 \(cashPoolItemsImported)") }
             if installmentBillsImported > 0 { parts.append("分期账单 \(installmentBillsImported)") }
@@ -563,7 +611,7 @@ final class DataBackupService {
         let backup = try decoder.decode(BackupData.self, from: data)
         try Self.validateVersion(backup.version)
         let count = backup.categories.count + backup.ledgers.count + backup.transactions.count + backup.assets.count
-            + backup.physicalAssets.count + backup.recurringRules.count + backup.budgets.count + backup.cashPoolItems.count
+            + backup.physicalAssets.count + backup.recurringRules.count + backup.recurringOccurrences.count + backup.budgets.count + backup.cashPoolItems.count
             + backup.cashPoolStates.count + backup.installmentBills.count + backup.savingsGoals.count + backup.templates.count
         return BackupPreview(version: backup.version, createdAt: backup.createdAt, itemCount: count, reminderCount: backup.reminders.count)
     }
@@ -683,6 +731,7 @@ final class DataBackupService {
         // 2. 导入交易记录
         let existingTransactions = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Transaction>())
         let existingTransIDs = Set(existingTransactions.map(\.id))
+        var transactionMap = Dictionary(uniqueKeysWithValues: existingTransactions.map { ($0.id, $0) })
         var importedTransactionDelta: Decimal = 0
         var pendingRecurringRelationships: [(transaction: Transaction, ruleID: UUID)] = []
 
@@ -721,6 +770,7 @@ final class DataBackupService {
             let cashPoolDelta = dto.cashPoolDelta?.decimalValue ?? CashPoolService.transactionDelta(for: t)
             t.cashPoolDelta = cashPoolDelta
             modelContext.insert(t)
+            transactionMap[dtoID] = t
             if let ruleID = dto.recurringRuleId.flatMap(UUID.init(uuidString:)) {
                 pendingRecurringRelationships.append((t, ruleID))
             }
@@ -812,7 +862,49 @@ final class DataBackupService {
             relationship.transaction.recurringRule = ruleMap[relationship.ruleID]
         }
 
-        // 6. 导入预算
+        // 6. 导入周期发生项。旧备份没有这一组数据时保持为空；
+        // 已有交易与规则通过 UUID 恢复关系，合并导入仍按发生项 ID 去重。
+        let existingOccurrences = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<RecurringOccurrence>())
+        let existingOccurrenceIDs = Set(existingOccurrences.map(\.id))
+        var existingOccurrenceKeys = Set(existingOccurrences.map(\.occurrenceKey))
+        for dto in backup.recurringOccurrences {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingOccurrenceIDs.contains(dtoID) || existingOccurrenceKeys.contains(dto.occurrenceKey) {
+                result.skipped += 1
+                continue
+            }
+            guard let ruleID = UUID(uuidString: dto.ruleId),
+                  let rule = ruleMap[ruleID],
+                  let status = RecurringOccurrenceStatus(rawValue: dto.status) else {
+                result.skipped += 1
+                continue
+            }
+            let occurrence = RecurringOccurrence(
+                occurrenceKey: dto.occurrenceKey,
+                ruleID: rule.id,
+                transactionID: dto.transactionId.flatMap(UUID.init(uuidString:)),
+                scheduledDate: dto.scheduledDate,
+                actualDate: dto.actualDate,
+                amount: dto.amount.decimalValue,
+                isExpense: dto.isExpense,
+                title: dto.title,
+                note: dto.note,
+                categoryID: dto.categoryId.flatMap(UUID.init(uuidString:)),
+                ledgerID: dto.ledgerId.flatMap(UUID.init(uuidString:)),
+                status: status,
+                createdAt: dto.createdAt,
+                resolvedAt: dto.resolvedAt
+            )
+            occurrence.id = dtoID
+            if let transactionID = occurrence.transactionID, transactionMap[transactionID] == nil {
+                occurrence.transactionID = nil
+            }
+            modelContext.insert(occurrence)
+            existingOccurrenceKeys.insert(occurrence.occurrenceKey)
+            result.recurringOccurrencesImported += 1
+        }
+
+        // 7. 导入预算
         let existingBudgets = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Budget>())
         let existingBudgetIDs = Set(existingBudgets.map(\.id))
 
@@ -1059,6 +1151,10 @@ final class DataBackupService {
                 try UserDefaultsReportReminderPreferencesStore().save(reportPreferences)
                 shouldRebuildNotifications = true
             }
+            if let recurringCatchUpMode = settings.recurringCatchUpMode,
+               RecurringCatchUpMode(rawValue: recurringCatchUpMode) != nil {
+                UserDefaults.standard.set(recurringCatchUpMode, forKey: RecurringCatchUpPreferences.storageKey)
+            }
         }
         return shouldRebuildNotifications
     }
@@ -1070,6 +1166,7 @@ final class DataBackupService {
         try validateUniqueIDs(backup.assets.map(\.id), label: "账户")
         try validateUniqueIDs(backup.physicalAssets.map(\.id), label: "实物资产")
         try validateUniqueIDs(backup.recurringRules.map(\.id), label: "周期规则")
+        try validateUniqueIDs(backup.recurringOccurrences.map(\.id), label: "周期发生项")
         try validateUniqueIDs(backup.budgets.map(\.id), label: "预算")
         try validateUniqueIDs(backup.cashPoolItems.map(\.id), label: "资金项")
         try validateUniqueIDs(backup.cashPoolStates.map(\.id), label: "资金状态")
@@ -1116,6 +1213,10 @@ final class DataBackupService {
                 .map { UUID(uuidString: $0)! }
             let recurringRuleReferences = backup.transactions.compactMap(\.recurringRuleId)
                 .map { UUID(uuidString: $0)! }
+            let occurrenceRuleReferences = backup.recurringOccurrences.compactMap(\.ruleId)
+                .map { UUID(uuidString: $0)! }
+            let occurrenceTransactionReferences = backup.recurringOccurrences.compactMap(\.transactionId)
+                .map { UUID(uuidString: $0)! }
             guard categoryReferences.allSatisfy(categoryIDs.contains) else {
                 throw ImportError.invalidContents("分类关系引用不存在")
             }
@@ -1124,6 +1225,13 @@ final class DataBackupService {
             }
             guard recurringRuleReferences.allSatisfy(recurringRuleIDs.contains) else {
                 throw ImportError.invalidContents("周期规则关系引用不存在")
+            }
+            guard occurrenceRuleReferences.allSatisfy(recurringRuleIDs.contains) else {
+                throw ImportError.invalidContents("周期发生项规则引用不存在")
+            }
+            let transactionIDs = Set(backup.transactions.map { UUID(uuidString: $0.id)! })
+            guard occurrenceTransactionReferences.allSatisfy(transactionIDs.contains) else {
+                throw ImportError.invalidContents("周期发生项交易引用不存在")
             }
         }
     }
@@ -1153,7 +1261,7 @@ final class DataBackupService {
         try deleteAll(RecurringRule.self); try deleteAll(Budget.self); try deleteAll(Asset.self)
         try deleteAll(PhysicalAsset.self); try deleteAll(CashPoolItem.self); try deleteAll(CashPoolState.self)
         try deleteAll(SavingsGoal.self); try deleteAll(InstallmentBill.self); try deleteAll(TransactionTemplate.self)
-        try deleteAll(Reminder.self)
+        try deleteAll(Reminder.self); try deleteAll(RecurringOccurrence.self)
     }
 
     private func deleteAll<T: PersistentModel>(_ type: T.Type) throws {

@@ -16,6 +16,7 @@ final class DefaultDataService {
     func prepareAppData(initialRecurringLimit: Int = 30) throws -> RecurringService.ProcessingResult {
         do {
             try stageDefaultData()
+            try RecurringOccurrenceService(modelContext: modelContext).reconcileLegacyOccurrences()
             try modelContext.save()
         } catch {
             modelContext.rollback()
@@ -27,7 +28,10 @@ final class DefaultDataService {
         _ = try ReminderDataService(modelContext: modelContext).migrateLegacyFileIfNeeded()
 
         let recurringService = RecurringService(modelContext: modelContext)
-        return try recurringService.processDueRules(maxOccurrences: initialRecurringLimit)
+        return try recurringService.processDueRules(
+            maxOccurrences: initialRecurringLimit,
+            mode: RecurringCatchUpPreferences.mode
+        )
     }
 
     /// 在当前 ModelContext 中准备默认数据，但不主动保存。

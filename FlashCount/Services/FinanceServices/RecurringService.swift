@@ -20,10 +20,22 @@ final class RecurringService {
     /// 在同一次保存中提交；读取或保存失败会传递给调用方，绝不静默跳过。
     func processDueRules(
         maxOccurrences: Int = 30,
-        now: Date = Date()
+        now: Date = .now,
+        mode: RecurringCatchUpMode = .automatic
     ) throws -> ProcessingResult {
         precondition(maxOccurrences > 0, "周期规则批次上限必须大于零")
         var generatedCount = 0
+
+        // Existing transactions are registered before either automatic or
+        // review-mode processing so a schema upgrade cannot create duplicates.
+        try RecurringOccurrenceService(modelContext: modelContext).reconcileLegacyOccurrences()
+
+        // Review mode leaves due rules untouched. The recurring-rules screen
+        // presents the pure preview and resolves it in one atomic batch.
+        guard mode == .automatic else {
+            try modelContext.save()
+            return ProcessingResult(generatedCount: 0, hasRemainingDueRules: false)
+        }
 
         // 获取所有活跃的周期规则
         let descriptor = FetchDescriptor<RecurringRule>(
@@ -33,6 +45,8 @@ final class RecurringService {
         )
 
         let rules = try modelContext.fetch(descriptor)
+        let existingOccurrences = try modelContext.fetch(FetchDescriptor<RecurringOccurrence>())
+        var occurrencesByKey = Dictionary(uniqueKeysWithValues: existingOccurrences.map { ($0.occurrenceKey, $0) })
 
         let cashPoolService = CashPoolService(modelContext: modelContext)
 
@@ -49,10 +63,40 @@ final class RecurringService {
                     rule.isActive = false
                     break
                 }
+                let occurrenceKey = RecurringOccurrence.key(
+                    ruleID: rule.id,
+                    scheduledDate: dueDate
+                )
                 // A rule/date pair is the occurrence identity. This guards
                 // against legacy interrupted runs that might already have
                 // persisted the generated transaction.
-                if rule.generatedTransactions.contains(where: { $0.date == dueDate }) {
+                if let occurrence = occurrencesByKey[occurrenceKey], occurrence.status.isResolved {
+                    guard let nextDate = rule.frequency.nextDate(from: dueDate, anchorDay: rule.anchorDay) else {
+                        rule.isActive = false
+                        break
+                    }
+                    rule.nextDueDate = nextDate
+                    continue
+                }
+
+                if let existingTransaction = rule.generatedTransactions.first(where: { $0.date == dueDate }) {
+                    let occurrence = RecurringOccurrence(
+                        occurrenceKey: occurrenceKey,
+                        ruleID: rule.id,
+                        transactionID: existingTransaction.id,
+                        scheduledDate: dueDate,
+                        actualDate: existingTransaction.date,
+                        amount: existingTransaction.amount,
+                        isExpense: existingTransaction.isExpense,
+                        title: rule.title,
+                        note: existingTransaction.note,
+                        categoryID: existingTransaction.category?.id,
+                        ledgerID: existingTransaction.ledger?.id,
+                        status: .generated,
+                        resolvedAt: existingTransaction.createdAt
+                    )
+                    modelContext.insert(occurrence)
+                    occurrencesByKey[occurrenceKey] = occurrence
                     guard let nextDate = rule.frequency.nextDate(from: dueDate, anchorDay: rule.anchorDay) else {
                         rule.isActive = false
                         break
@@ -84,6 +128,23 @@ final class RecurringService {
                 // so a later launch cannot silently create a duplicate.
                 do {
                     modelContext.insert(transaction)
+                    let occurrence = RecurringOccurrence(
+                        occurrenceKey: occurrenceKey,
+                        ruleID: rule.id,
+                        transactionID: transaction.id,
+                        scheduledDate: dueDate,
+                        actualDate: dueDate,
+                        amount: transaction.amount,
+                        isExpense: transaction.isExpense,
+                        title: rule.title,
+                        note: transaction.note,
+                        categoryID: transaction.category?.id,
+                        ledgerID: transaction.ledger?.id,
+                        status: .generated,
+                        resolvedAt: now
+                    )
+                    modelContext.insert(occurrence)
+                    occurrencesByKey[occurrenceKey] = occurrence
                     try cashPoolService.apply(delta: cashDelta)
                     rule.nextDueDate = nextDate
                     try modelContext.save()
@@ -116,6 +177,6 @@ final class RecurringService {
     /// want one bounded startup-sized batch.
     @discardableResult
     func processAllDueRules() throws -> Int {
-        try processDueRules().generatedCount
+        try processDueRules(mode: .automatic).generatedCount
     }
 }
