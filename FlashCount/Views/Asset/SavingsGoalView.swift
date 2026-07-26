@@ -8,6 +8,7 @@ struct SavingsGoalView: View {
 
     @State private var showAddGoal = false
     @State private var editingGoal: SavingsGoal?
+    @State private var adjustingGoal: SavingsGoal?
     @State private var saveError: String?
 
     private var activeGoals: [SavingsGoal] {
@@ -56,6 +57,9 @@ struct SavingsGoalView: View {
             }
             .sheet(item: $editingGoal) { goal in
                 AddSavingsGoalView(editGoal: goal)
+            }
+            .sheet(item: $adjustingGoal) { goal in
+                SavingsGoalAdjustmentSheet(goal: goal)
             }
             .saveErrorAlert($saveError)
         }
@@ -132,6 +136,19 @@ struct SavingsGoalView: View {
                         .font(.caption)
                         .foregroundStyle(DesignSystem.textSecondary)
                 }
+
+                HStack {
+                    Spacer()
+                    Button {
+                        revealOrPerform { adjustingGoal = goal }
+                    } label: {
+                        Label("存入 / 取出", systemImage: "arrow.left.arrow.right.circle.fill")
+                            .font(.caption.weight(.medium))
+                            .frame(minHeight: 44)
+                    }
+                    .accessibilityIdentifier("savingsGoal.adjust")
+                    .accessibilityHint("记录一次存入或取出")
+                }
             }
             .glassCard()
         }
@@ -139,6 +156,9 @@ struct SavingsGoalView: View {
         .accessibilityLabel(hidesMoney ? "储蓄目标，验证后编辑" : "编辑储蓄目标\(goal.name)")
         .accessibilityHint("双击编辑")
         .contextMenu {
+            Button { revealOrPerform { adjustingGoal = goal } } label: {
+                Label("存入 / 取出", systemImage: "arrow.left.arrow.right.circle")
+            }
             Button { revealOrPerform { editingGoal = goal } } label: {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
             }
