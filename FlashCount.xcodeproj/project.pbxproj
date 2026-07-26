@@ -24,6 +24,7 @@
 		13AC61775C4DCB3F2B84C126 /* CashPoolService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030061CEC562B81C1B7B0C3D /* CashPoolService.swift */; };
 		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
 		14A503E907A93958C352D9F4 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */; };
+		1686278248E2E0EB0BD43158 /* ReportSummaryCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */; };
 		1A452CBB6A09B051CE15209A /* DefaultDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F8BA17A1077C74363D442E /* DefaultDataService.swift */; };
 		1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */; };
 		1CA242D14AFB3671390BBF05 /* DataHealthFindingRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3D5D9116336DEFBF736CF6 /* DataHealthFindingRow.swift */; };
@@ -81,6 +82,7 @@
 		7F21B166EA9E33F571BDAD4D /* StartupFailureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D8CD218FE5B62A309ABCC2C /* StartupFailureView.swift */; };
 		8ABD1900D21A8334186174CB /* ReminderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC429AB33ED6D42759B6E578 /* ReminderStore.swift */; };
 		8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */; };
+		8D7FFB96F080DB2883EA49CE /* ReportObservedContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8787892FBE7527E71758B45 /* ReportObservedContent.swift */; };
 		8E2B8F3AA30DF91D2F8E4A81 /* ReportBudgetSnapshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3474D18D3D98F0E29892BC0 /* ReportBudgetSnapshotService.swift */; };
 		910B7574E688BB5DE807C3C7 /* BackTapSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028A18C5446374159C5C739F /* BackTapSetupView.swift */; };
 		9518C01319B7D3B8E9D5F2C0 /* TransactionMutationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */; };
@@ -137,6 +139,7 @@
 		EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */; };
 		EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454084E97E2460EC422CA4D1 /* MainTabView.swift */; };
 		EFA3FA702D94A14C5FA060D2 /* BackupExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A843AEFBCC16B33EAF56D8C /* BackupExporter.swift */; };
+		F3D56E55CBFD10AD0416EFD3 /* ReportChartCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4700410EC20728E44DA5831 /* ReportChartCards.swift */; };
 		FD22C948714225832CA36F1E /* ReportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E84B09AC458C202DD5AB64A /* ReportService.swift */; };
 		FE3F5BF744046B84CA2050D6 /* CashPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D00BC2D91830E9EF101E56 /* CashPool.swift */; };
 /* End PBXBuildFile section */
@@ -274,9 +277,11 @@
 		A503499BBB8FAD9C2B718B91 /* LedgerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerPresentation.swift; sourceTree = "<group>"; };
 		A50EA6A8307B2FDA8033E4DB /* EditTransactionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTransactionView.swift; sourceTree = "<group>"; };
 		A6C0DD52FD2FB7E04CB69EA0 /* ActionCenterSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterSectionView.swift; sourceTree = "<group>"; };
+		A8787892FBE7527E71758B45 /* ReportObservedContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportObservedContent.swift; sourceTree = "<group>"; };
 		AC96BAF328BC8C136668E8ED /* BackupValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupValidator.swift; sourceTree = "<group>"; };
 		AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ledger.swift; sourceTree = "<group>"; };
 		AE9F137467C4C9058D41AD0C /* LedgerSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSections.swift; sourceTree = "<group>"; };
+		AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportSummaryCards.swift; sourceTree = "<group>"; };
 		B05285ADD9B6AC2660BBBF3E /* BudgetAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetAnalyzer.swift; sourceTree = "<group>"; };
 		B517332913BF860F9A5593AC /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
 		B5FEB9024E51A499AAC08A77 /* LocalActionCenterServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalActionCenterServiceTests.swift; sourceTree = "<group>"; };
@@ -291,6 +296,7 @@
 		C1FF48441638307D9EDBA856 /* ReportPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPresentation.swift; sourceTree = "<group>"; };
 		C2079B0C610F7D16FB9237E9 /* FlashCountWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountWidget.swift; sourceTree = "<group>"; };
 		C21D4CF12A83838BD6E0C22C /* FilterSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSheetView.swift; sourceTree = "<group>"; };
+		C4700410EC20728E44DA5831 /* ReportChartCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportChartCards.swift; sourceTree = "<group>"; };
 		C5E8F3236E0B0D21EDFE1D2E /* Asset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Asset.swift; sourceTree = "<group>"; };
 		C5ED7B860543EE1DAC1F409D /* RecurringSuggestionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionService.swift; sourceTree = "<group>"; };
 		C8FC52EA4884A4B39278E912 /* PayCycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayCycleService.swift; sourceTree = "<group>"; };
@@ -519,6 +525,15 @@
 			path = ActionCenter;
 			sourceTree = "<group>";
 		};
+		645B1B4DE420DECC9A7B518C /* Cards */ = {
+			isa = PBXGroup;
+			children = (
+				C4700410EC20728E44DA5831 /* ReportChartCards.swift */,
+				AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */,
+			);
+			path = Cards;
+			sourceTree = "<group>";
+		};
 		72F17CD168D8A096E055CA52 /* Reminder */ = {
 			isa = PBXGroup;
 			children = (
@@ -674,9 +689,11 @@
 		F74E75DE5F12B4EC77AE8246 /* Report */ = {
 			isa = PBXGroup;
 			children = (
+				A8787892FBE7527E71758B45 /* ReportObservedContent.swift */,
 				C1FF48441638307D9EDBA856 /* ReportPresentation.swift */,
 				0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */,
 				5B8F866E732FA0C08D5772C1 /* ReportView.swift */,
+				645B1B4DE420DECC9A7B518C /* Cards */,
 			);
 			path = Report;
 			sourceTree = "<group>";
@@ -932,6 +949,8 @@
 				79A09BC752DDE1EB972911EB /* ReminderView.swift in Sources */,
 				43FA19D47F572B37BAF472C9 /* ReportAnalytics.swift in Sources */,
 				8E2B8F3AA30DF91D2F8E4A81 /* ReportBudgetSnapshotService.swift in Sources */,
+				F3D56E55CBFD10AD0416EFD3 /* ReportChartCards.swift in Sources */,
+				8D7FFB96F080DB2883EA49CE /* ReportObservedContent.swift in Sources */,
 				A0AC83B2A0FF088F7C84F224 /* ReportPeriodCalculator.swift in Sources */,
 				D284938ECE4AE2580EF1C53F /* ReportPresentation.swift in Sources */,
 				76C7819968ECFCD63E637773 /* ReportReminderNotificationService.swift in Sources */,
@@ -939,6 +958,7 @@
 				A16A0F66608A906CB25BB8D6 /* ReportReminderSettingsView.swift in Sources */,
 				2D6A2C81E34D8CE4F16B8474 /* ReportRoute.swift in Sources */,
 				FD22C948714225832CA36F1E /* ReportService.swift in Sources */,
+				1686278248E2E0EB0BD43158 /* ReportSummaryCards.swift in Sources */,
 				987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */,
 				C3C6B2BC947F3488E07D1D30 /* SavingsGoal.swift in Sources */,
 				CD161CD39C37F8747F8F19D5 /* SavingsGoalView.swift in Sources */,
