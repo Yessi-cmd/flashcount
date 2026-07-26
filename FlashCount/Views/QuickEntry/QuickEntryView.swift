@@ -7,6 +7,7 @@ struct QuickEntryView: View {
     @Environment(\.modelContext) var modelContext
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) var reduceMotion
+    @EnvironmentObject var feedback: QuickEntryFeedbackCenter
     @AppStorage("payday") var payday = 1
     @AppStorage(WeekendBudgetPreferences.storageKey) var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
 
@@ -30,11 +31,8 @@ struct QuickEntryView: View {
     @State var note = ""
     @State var selectedDate = Date()
     @State var showDatePicker = false
-    @State var showSuccess = false
     @State var showNote = false
     @State var saveError: String?
-    @State var budgetReminderText: String?
-    @State var budgetReminderLevel: BudgetAlertLevel?
     @State var wheelCategory: Category?
     @State var wheelSourceFrame: CGRect?
     @State var showAllCategories = false
@@ -42,7 +40,12 @@ struct QuickEntryView: View {
     @State var editingTemplate: TransactionTemplate?
     @State var isSaving = false
     @State var dailyBudgetOverride: Bool?
-    @AccessibilityFocusState var successOverlayFocused: Bool
+    /// 收支切换会换掉整套分类，所以两侧各记住用户自己选过的那一个：
+    /// 误触键盘上的「收入」再切回来，不该把刚选好的分类冲掉。
+    @State var rememberedExpenseCategory: Category?
+    @State var rememberedIncomeCategory: Category?
+    /// 「+」键累加的部分。拆账时先把每一笔加进来，最后一起保存。
+    @State var pendingSum: Decimal = 0
     @Namespace var typeSelectionNamespace
 
     init() {
@@ -61,7 +64,13 @@ struct QuickEntryView: View {
     }
 
     var canSubmitAmount: Bool {
-        !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || pendingSum > 0
+    }
+
+    /// 日期不是今天时，保存按钮和提示条都要说清这是补录——
+    /// 日期控件本身太安静，看漏了就会把今天的账记到别的日子。
+    var isBackdated: Bool {
+        !Calendar.current.isDateInToday(selectedDate)
     }
 
     var rootCategories: [Category] {
@@ -168,11 +177,6 @@ struct QuickEntryView: View {
                     categoryWheel(for: wheelCategory)
                 }
             }
-            .overlay {
-                if showSuccess {
-                    successOverlay
-                }
-            }
             .onAppear {
                 // 默认选中默认账本
                 if selectedLedger == nil {
@@ -192,11 +196,6 @@ struct QuickEntryView: View {
                     }
                 }
 #endif
-            }
-            .onChange(of: showSuccess) { _, isShowing in
-                if isShowing {
-                    successOverlayFocused = true
-                }
             }
             .saveErrorAlert($saveError)
             .sheet(isPresented: $showTemplateManager) {

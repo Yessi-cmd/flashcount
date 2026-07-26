@@ -29,9 +29,13 @@ extension QuickEntryView {
                 }
             }
         case "收入":
-            selectTransactionType(false, providesHaptic: false)
+            // 这两个键紧贴数字 6 和 3，误触概率不低；至少要有触感回执，
+            // 让用户知道刚刚切换的是收支类型而不是输错了数字。
+            selectTransactionType(false)
         case "支出":
-            selectTransactionType(true, providesHaptic: false)
+            selectTransactionType(true)
+        case "+":
+            accumulateAmount()
         default:
             // 限制整数部分最多 12 位
             let intPart = amountText.split(separator: ".").first.map(String.init) ?? amountText
@@ -47,11 +51,54 @@ extension QuickEntryView {
         }
     }
 
+    /// 「+」把当前输入折进累加值，显示区随即清零等下一笔。
+    /// 拆账、凑总额是记账最常见的算术，此前键盘右下角是个空键位。
+    func accumulateAmount() {
+        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        case .success(let value):
+            pendingSum += value
+            amountText = ""
+            amountError = nil
+            HapticManager.impact(.light)
+        case .failure(let error):
+            // 已有累加值时空按一下「+」是无意义但无害的，不该报错。
+            guard !(pendingSum > 0 && amountText.isEmpty) else { return }
+            amountError = error
+            HapticManager.error()
+        }
+    }
+
+    func clearPendingSum() {
+        pendingSum = 0
+        amountError = nil
+        HapticManager.selection()
+    }
+
+    /// 保存用的金额 = 已累加部分 + 当前输入。两者都空才算没填。
+    func resolvedAmount() -> Result<Decimal, MoneyValidationError> {
+        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return pendingSum > 0 ? .success(pendingSum) : .failure(.empty)
+        }
+        switch MoneyValidation.parse(trimmed, requirement: .positive) {
+        case .success(let value):
+            return .success(pendingSum + value)
+        case .failure(let error):
+            return .failure(error)
+        }
+    }
+
     func selectTransactionType(_ expense: Bool, providesHaptic: Bool = true) {
+        guard isExpense != expense else {
+            if providesHaptic { HapticManager.selection() }
+            return
+        }
+        rememberSelectedCategory()
         withAnimation(reduceMotion ? nil : DesignSystem.glassSelectionAnimation) {
             isExpense = expense
         }
-        selectedCategory = defaultCategory(
+        let remembered = expense ? rememberedExpenseCategory : rememberedIncomeCategory
+        selectedCategory = remembered ?? defaultCategory(
             from: expense ? expenseCategories : incomeCategories,
             isExpense: expense
         )
@@ -59,6 +106,16 @@ extension QuickEntryView {
         showAllCategories = false
         if providesHaptic {
             HapticManager.selection()
+        }
+    }
+
+    /// 把当前这一侧的选择记下来，切回来时原样恢复。
+    func rememberSelectedCategory() {
+        guard let selectedCategory else { return }
+        if isExpense {
+            rememberedExpenseCategory = selectedCategory
+        } else {
+            rememberedIncomeCategory = selectedCategory
         }
     }
 
@@ -73,6 +130,7 @@ extension QuickEntryView {
             dailyBudgetOverride = nil
             showAllCategories = false
         }
+        rememberSelectedCategory()
         HapticManager.selection()
     }
 
@@ -84,6 +142,7 @@ extension QuickEntryView {
             wheelSourceFrame = nil
             showAllCategories = false
         }
+        rememberSelectedCategory()
     }
 
     func showWheel(for category: Category, sourceFrame: CGRect?) {
@@ -170,19 +229,21 @@ extension QuickEntryView {
     func applyTemplate(_ template: TransactionTemplate, category: Category?) {
         withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             amountText = String(describing: template.amount)
+            pendingSum = 0
             isExpense = template.isExpense
             note = template.note
             selectedCategory = category
             dailyBudgetOverride = nil
             showAllCategories = false
         }
+        rememberSelectedCategory()
         HapticManager.impact(.light)
     }
 
     func saveTransaction() {
         guard !isSaving else { return }
         let amount: Decimal
-        switch MoneyValidation.parse(amountText, requirement: .positive) {
+        switch resolvedAmount() {
         case .success(let value):
             amount = value
             amountError = nil
@@ -213,30 +274,25 @@ extension QuickEntryView {
         }
 
         HapticManager.success()
-        updateBudgetReminder(afterSaving: transaction)
 
-        withAnimation(reduceMotion ? nil : .spring(response: 0.4)) {
-            showSuccess = true
-        }
+        let reminder = budgetReminder(afterSaving: transaction)
+        feedback.present(
+            QuickEntryFeedbackCenter.SavedEntry(
+                transactionID: transaction.persistentModelID,
+                amount: amount,
+                isExpense: isExpense,
+                categoryName: selectedCategory?.entryDisplayName ?? "未分类",
+                backdatedText: isBackdated ? "补录 \(selectedDate.shortDateString)" : nil,
+                budgetReminder: reminder?.text,
+                budgetAlertLevel: reminder?.level
+            )
+        )
+        dismiss()
     }
 
-    func resetForm() {
-        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
-            amountText = ""
-            amountError = nil
-            note = ""
-            showNote = false
-            showSuccess = false
-            budgetReminderText = nil
-            budgetReminderLevel = nil
-            dailyBudgetOverride = nil
-        }
-    }
-
-    func updateBudgetReminder(afterSaving transaction: Transaction) {
-        budgetReminderText = nil
-        budgetReminderLevel = nil
-        guard transaction.isExpense else { return }
+    /// 保存后的预算提醒。过去它只画在全屏成功页上，现在跟着提示条一起走。
+    func budgetReminder(afterSaving transaction: Transaction) -> (text: String, level: BudgetAlertLevel)? {
+        guard transaction.isExpense else { return nil }
 
         let cycle = PayCycleService.cycle(containing: transaction.date, payday: payday)
         let cycleStart = cycle.start
@@ -252,7 +308,7 @@ extension QuickEntryView {
         do {
             transactions = try modelContext.fetch(descriptor)
         } catch {
-            return
+            return nil
         }
 
         if let categorySnapshot = CategoryBudgetService.snapshot(
@@ -264,9 +320,7 @@ extension QuickEntryView {
             payday: payday,
             weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
         ), categorySnapshot.alertLevel != .healthy {
-            budgetReminderText = categorySnapshot.shortMessage
-            budgetReminderLevel = categorySnapshot.alertLevel
-            return
+            return (categorySnapshot.shortMessage, categorySnapshot.alertLevel)
         }
 
         guard let reminder = BudgetReminderService.reminder(
@@ -276,9 +330,8 @@ extension QuickEntryView {
             referenceDate: transaction.date,
             payday: payday,
             weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
-        ), reminder.shouldSurfaceAfterSave else { return }
+        ), reminder.shouldSurfaceAfterSave else { return nil }
 
-        budgetReminderText = reminder.shortMessage
-        budgetReminderLevel = reminder.alertLevel
+        return (reminder.shortMessage, reminder.alertLevel)
     }
 }

@@ -12,6 +12,7 @@
 		034521543E79940405F4C51F /* CSVTransactionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */; };
 		053C79ED47833B74864A2F20 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF30FA16DCE6E0385B858671 /* OnboardingView.swift */; };
 		05DEE01CF34746DA082E76F3 /* DataHealthRepairPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2BD91F5AD8968CAB66EA504 /* DataHealthRepairPreviewView.swift */; };
+		05F3C447974784318F300CFB /* QuickEntryFeedbackCenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 517B357C36E2FE30183FB6C7 /* QuickEntryFeedbackCenter.swift */; };
 		06061FFC84653B8B1B5F55A7 /* FinanceDomainTests+Migration.swift in Sources */ = {isa = PBXBuildFile; fileRef = C069E9DF2F7E795F59B486A9 /* FinanceDomainTests+Migration.swift */; };
 		0617EEB4B93D014CDE1EA99B /* ReportModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AA4AA2FED697F988BDA4C7A /* ReportModels.swift */; };
 		06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA07EB27C4CAF30E53F187FB /* LedgerView.swift */; };
@@ -54,6 +55,7 @@
 		36D8A0E12D8A879A682B28BE /* PhysicalAssetCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45E85D7B32A0C90810D5065E /* PhysicalAssetCard.swift */; };
 		37313D9C291DC910A0373683 /* BudgetReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8000784A9F364513ECB6E916 /* BudgetReminderService.swift */; };
 		38196E36BC568F0A62B77EA5 /* BudgetAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05285ADD9B6AC2660BBBF3E /* BudgetAnalyzer.swift */; };
+		38BFD805881E7202C01F139A /* AdaptiveMetricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25852BC68862C148779B826D /* AdaptiveMetricRow.swift */; };
 		3CAB60E3F2E0BDAD7E2A6715 /* InstallmentRepaymentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32098830C4942F2DE5E169E0 /* InstallmentRepaymentSheet.swift */; };
 		3D7A96F2DA38BB10A3ADF316 /* CategoryChangeBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E2683C8AFA57C9063ECE82 /* CategoryChangeBadge.swift */; };
 		408D4A9C5FE25933D921CC65 /* QuickEntryControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */; };
@@ -94,6 +96,7 @@
 		7A83F34058A971E78961B56A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 462A15F41FD0AD3DFEAAE8A0 /* SettingsView.swift */; };
 		7B2E32BCD75D603E808F3DF5 /* AddRecurringRuleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */; };
 		7F21B166EA9E33F571BDAD4D /* StartupFailureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D8CD218FE5B62A309ABCC2C /* StartupFailureView.swift */; };
+		80B010146593D2FF53AB008B /* QuickEntrySavedToast.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DCAAC33034736F09EE6A52C /* QuickEntrySavedToast.swift */; };
 		8ABD1900D21A8334186174CB /* ReminderStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC429AB33ED6D42759B6E578 /* ReminderStore.swift */; };
 		8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */; };
 		8D7FFB96F080DB2883EA49CE /* ReportObservedContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8787892FBE7527E71758B45 /* ReportObservedContent.swift */; };
@@ -205,6 +208,7 @@
 		2138D1C9174D58A85735FE89 /* FinanceDomainTests+Recurring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FinanceDomainTests+Recurring.swift"; sourceTree = "<group>"; };
 		214FECFB8A46540B23411B24 /* FlashCountSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountSchema.swift; sourceTree = "<group>"; };
 		21F4FF17AAAB8B289855E97A /* ActionCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterView.swift; sourceTree = "<group>"; };
+		25852BC68862C148779B826D /* AdaptiveMetricRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveMetricRow.swift; sourceTree = "<group>"; };
 		25E3F6BCDD308CC403615B0C /* ReportReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderNotificationService.swift; sourceTree = "<group>"; };
 		26A56643F838FD8572D2C332 /* SavingsGoal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsGoal.swift; sourceTree = "<group>"; };
 		28E6DA89B6319DACF056D151 /* CashPoolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashPoolView.swift; sourceTree = "<group>"; };
@@ -244,6 +248,7 @@
 		4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendBudgetPreferences.swift; sourceTree = "<group>"; };
 		5135CC79D6F54B517077FC78 /* FlashCountApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountApp.swift; sourceTree = "<group>"; };
 		5149DDB0778D319390564E4F /* RecurringOccurrenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringOccurrenceService.swift; sourceTree = "<group>"; };
+		517B357C36E2FE30183FB6C7 /* QuickEntryFeedbackCenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryFeedbackCenter.swift; sourceTree = "<group>"; };
 		52FC2A042FE21B6B6BD477C1 /* DataHealthRepairPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthRepairPlan.swift; sourceTree = "<group>"; };
 		53467D59BF9EB836F1FC5A62 /* AssetPortfolioSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetPortfolioSnapshotTests.swift; sourceTree = "<group>"; };
 		576E3BCB6980873E51D3A0B8 /* ReminderItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderItem.swift; sourceTree = "<group>"; };
@@ -273,6 +278,7 @@
 		7836FC4CCC50F8A05E62E77C /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
 		786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRulesView.swift; sourceTree = "<group>"; };
 		79CF0478800247D86D527877 /* AssetBreakdownSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetBreakdownSheet.swift; sourceTree = "<group>"; };
+		7DCAAC33034736F09EE6A52C /* QuickEntrySavedToast.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntrySavedToast.swift; sourceTree = "<group>"; };
 		8000784A9F364513ECB6E916 /* BudgetReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetReminderService.swift; sourceTree = "<group>"; };
 		81F7DCDADD9D50A3788689B4 /* LocalActionCenterService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalActionCenterService.swift; sourceTree = "<group>"; };
 		833EE24295DF6CB4E0ADCD9E /* DataBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataBackupService.swift; sourceTree = "<group>"; };
@@ -473,9 +479,11 @@
 		369B518C3F71589B04FE2810 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				25852BC68862C148779B826D /* AdaptiveMetricRow.swift */,
 				1E27D09CD08C8BE96114E84E /* CategoryPickerComponents.swift */,
 				B8C3F704C0822AEC0F80907D /* CategoryWheelLayout.swift */,
 				F6F1A9BBC47DE836248A9BE8 /* LiquidGlassContainer.swift */,
+				7DCAAC33034736F09EE6A52C /* QuickEntrySavedToast.swift */,
 				DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */,
 				3C4577B9A4B3DCE41C5A23B6 /* TemplateManagementView.swift */,
 				CAB7A360D69781ACB0C93555 /* ValidationMessage.swift */,
@@ -520,6 +528,7 @@
 			children = (
 				36EFD1230AE17F67A1659B34 /* NotificationScheduleCoordinator.swift */,
 				BE917E63B5B43B926D1745C8 /* PrivacyLockService.swift */,
+				517B357C36E2FE30183FB6C7 /* QuickEntryFeedbackCenter.swift */,
 				01515A08E90F3CA3A92FB9E9 /* ReminderNotificationService.swift */,
 				25E3F6BCDD308CC403615B0C /* ReportReminderNotificationService.swift */,
 			);
@@ -878,6 +887,7 @@
 				477FE6D911C1CB5CF2BD14AE /* ActionCenterSectionView.swift in Sources */,
 				CA590ACC5FD95332D299F726 /* ActionCenterSummaryView.swift in Sources */,
 				47F7CAA99413B5D4CAF92EA7 /* ActionCenterView.swift in Sources */,
+				38BFD805881E7202C01F139A /* AdaptiveMetricRow.swift in Sources */,
 				7B2E32BCD75D603E808F3DF5 /* AddRecurringRuleView.swift in Sources */,
 				0D6CC3568E879C501B77EE1C /* AddReminderView.swift in Sources */,
 				9A1B7990A72D765C519C66E1 /* AppDeepLink.swift in Sources */,
@@ -956,7 +966,9 @@
 				974A04365C4FFFFB6E96DA01 /* PrivacyLockService.swift in Sources */,
 				E0EDF6CED6EA923227750436 /* QuickAddIntent.swift in Sources */,
 				408D4A9C5FE25933D921CC65 /* QuickEntryControls.swift in Sources */,
+				05F3C447974784318F300CFB /* QuickEntryFeedbackCenter.swift in Sources */,
 				8F9FB7C797F056DE5FD1794F /* QuickEntryLogic.swift in Sources */,
+				80B010146593D2FF53AB008B /* QuickEntrySavedToast.swift in Sources */,
 				D718F1186AB97470A28802CE /* QuickEntrySections.swift in Sources */,
 				8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */,
 				A18379BF155BB463147BDC67 /* RecurringBackfillView.swift in Sources */,

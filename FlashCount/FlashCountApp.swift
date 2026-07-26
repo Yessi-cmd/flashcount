@@ -41,6 +41,7 @@ private struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
     @StateObject private var privacyLock = PrivacyLockService()
+    @StateObject private var quickEntryFeedback = QuickEntryFeedbackCenter()
     @State private var startupState: StartupState = .preparing
     @State private var backgroundTaskError: String?
     @State private var startupAttempt = 0
@@ -82,6 +83,9 @@ private struct AppRootView: View {
         .tint(DesignSystem.primaryColor)
         .fontDesign(.rounded)
         .preferredColorScheme(AppearancePreference(rawValue: appearance)?.colorScheme)
+        // 记账反馈在这一层注入：DEBUG 的记账页走查路径不经过 MainTabView，
+        // 只挂在 MainTabView 上会让那条路径拿不到环境对象。
+        .environmentObject(quickEntryFeedback)
         .overlay {
             if scenePhase != .active {
                 ZStack {
@@ -96,18 +100,6 @@ private struct AppRootView: View {
                 }
                 .accessibilityHidden(true)
             }
-        }
-        .confirmationDialog(
-            "显示隐私金额？",
-            isPresented: $privacyLock.isRevealConfirmationPresented,
-            titleVisibility: .visible
-        ) {
-            Button("验证并显示") {
-                Task { _ = await privacyLock.confirmReveal() }
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("验证后，本次使用期间会显示所有收入和资产金额。进入后台或点击眼睛按钮后会再次隐藏。")
         }
         .alert("无法显示隐私金额", isPresented: Binding(
             get: { privacyLock.lastError != nil },

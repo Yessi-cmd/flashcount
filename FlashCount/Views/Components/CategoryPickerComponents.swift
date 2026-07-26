@@ -29,12 +29,20 @@ struct CategorySelectionTile: View {
     }
 
     var body: some View {
+        // 点按直接选中（落到该一级分类下上次用过的小类）。餐饮／出行／购物这些
+        // 最高频的分类恰好都有小类，过去点它们只会打开圆盘，最常走的路被硬性
+        // 拉成两次点击。
+        //
+        // 一个格子只有一种点按行为，圆盘另开入口：分类区下方那颗「换小类」按钮，
+        // 以及 VoiceOver 的「选择小类」自定义动作。
+        //
+        // 试过两种更"聪明"的做法，都实测不可用，别再走回头路：
+        // 1. 右上角角标按钮——格子原本的可点区只有 37.8pt 宽（按钮紧贴 36pt
+        //    图标圆），32pt 角标正好压在格子中心，于是「点中间」反而进了圆盘。
+        // 2. `simultaneousGesture(LongPressGesture)` 长按开圆盘——它会把普通
+        //    点按一起吃掉，格子直接点不动了。
         Button {
-            if hasChildren {
-                onOpenChildren(globalFrame)
-            } else {
-                onSelect(globalFrame)
-            }
+            onSelect(globalFrame)
         } label: {
             VStack(spacing: 6) {
                 ZStack {
@@ -59,6 +67,7 @@ struct CategorySelectionTile: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
 
+                    // 只是「还有小类」的提示，不是按钮。
                     if hasChildren {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 7, weight: .semibold))
@@ -67,6 +76,10 @@ struct CategorySelectionTile: View {
                 }
                 .foregroundStyle(isSelected ? DesignSystem.textPrimary : DesignSystem.textSecondary)
             }
+            // 撑满网格单元：按钮原先只占 37.8pt，格子却有 74pt，
+            // 剩下那一半看着能点其实点不动。
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
         .frame(minHeight: minHeight)
         .background {
@@ -88,8 +101,13 @@ struct CategorySelectionTile: View {
                 ? "已选中：\(selectedCategory?.entryDisplayName ?? rootName)"
                 : "未选中"
         )
-        .accessibilityHint(hasChildren ? "点按打开分类圆盘" : "")
+        .accessibilityHint(hasChildren ? "点按直接选中，长按选择小类" : "")
         .accessibilityAddTraits(.isButton)
+        .accessibilityIdentifier("category.tile.\(rootName)")
+        .accessibilityAction(named: "选择小类") {
+            guard hasChildren else { return }
+            onOpenChildren(globalFrame)
+        }
     }
 }
 
