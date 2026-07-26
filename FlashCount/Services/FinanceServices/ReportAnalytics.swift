@@ -90,7 +90,9 @@ struct ReportBudgetInputSnapshot: Equatable, Sendable {
 struct ReportDataSnapshot: Sendable {
     let currentTransactions: [ReportTransactionSnapshot]
     let comparisonTransactions: [ReportTransactionSnapshot]
-    let streakTransactions: [ReportTransactionSnapshot]
+    /// 有记账记录的自然日（当天起始时刻）。至少覆盖整个报告期，并沿连续链
+    /// 向更早延伸到断点为止——足够算连续天数，又不必物化全部历史交易。
+    let loggedDays: Set<Date>
     let budgetTransactions: [ReportTransactionSnapshot]
     let budgets: [ReportBudgetInputSnapshot]
 }
@@ -98,6 +100,11 @@ struct ReportDataSnapshot: Sendable {
 /// 在独立 ModelContext 中读取报表输入，避免界面 context 被长时间聚合占用。
 @ModelActor
 actor LocalAnalyticsDataStore {
+    /// 打卡日回溯的分块大小与最大块数（90 天 × 40 ≈ 10 年）。
+    /// 连续链一断就提前收尾，块数上限只是异常数据下的兜底。
+    private static let loggedDayChunkSize = 90
+    private static let maxLoggedDayChunks = 40
+
     func makeSnapshot(
         period: ReportPeriod,
         target: ReportTarget,
@@ -108,7 +115,11 @@ actor LocalAnalyticsDataStore {
         let selection = periodCalculator.selection(for: period, target: target)
         let current = try fetchTransactions(in: selection.reportRange)
         let comparison = try fetchTransactions(in: selection.comparisonRange)
-        let streak = try fetchTransactions(endingBefore: selection.reportRange.end)
+        let loggedDays = try fetchLoggedDays(
+            coveringFrom: selection.reportRange.start,
+            endingBefore: selection.reportRange.end,
+            calendar: calendar
+        )
 
         let budgetAnchor = target.isCurrent
             ? selection.reportRange.end
@@ -122,7 +133,7 @@ actor LocalAnalyticsDataStore {
         return ReportDataSnapshot(
             currentTransactions: current.map(ReportTransactionSnapshot.init(transaction:)),
             comparisonTransactions: comparison.map(ReportTransactionSnapshot.init(transaction:)),
-            streakTransactions: streak.map(ReportTransactionSnapshot.init(transaction:)),
+            loggedDays: loggedDays,
             budgetTransactions: budgetTransactions.map(ReportTransactionSnapshot.init(transaction:)),
             budgets: budgets.map(ReportBudgetInputSnapshot.init(budget:))
         )
@@ -139,14 +150,44 @@ actor LocalAnalyticsDataStore {
         return try modelContext.fetch(descriptor)
     }
 
-    private func fetchTransactions(endingBefore end: Date) throws -> [Transaction] {
-        let descriptor = FetchDescriptor<Transaction>(
-            predicate: #Predicate<Transaction> { transaction in
-                transaction.date < end
-            },
-            sortBy: [SortDescriptor(\.date, order: .reverse)]
-        )
-        return try modelContext.fetch(descriptor)
+    /// 从报告期结束向前分块回溯打卡日，连续链一断就停。
+    /// 早前的实现没有时间下界，为了算连续天数会把用户全部历史交易读进内存，
+    /// 而且那份数据是其它三次取数的超集，等于同一批记录重复物化多次。
+    private func fetchLoggedDays(
+        coveringFrom rangeStart: Date,
+        endingBefore end: Date,
+        calendar: Calendar
+    ) throws -> Set<Date> {
+        var days: Set<Date> = []
+        var cursor = end
+
+        for _ in 0..<Self.maxLoggedDayChunks {
+            // 块边界必须对齐到自然日零点：否则跨块的那一天会被切成两半，
+            // 接缝处看起来「没有记录」，凭空制造出一个断点。
+            guard let rawStart = calendar.date(
+                byAdding: .day,
+                value: -Self.loggedDayChunkSize,
+                to: cursor
+            ) else { break }
+            let chunkStart = calendar.startOfDay(for: rawStart)
+            guard chunkStart < cursor else { break }
+
+            let chunk = try fetchTransactions(in: ReportDateRange(start: chunkStart, end: cursor))
+            days.formUnion(chunk.map { calendar.startOfDay(for: $0.date) })
+            cursor = chunkStart
+
+            // 热力图需要完整的报告期，连续天数需要扫到断点为止——两个条件都满足才收工。
+            let coversReportRange = cursor <= rangeStart
+            let streakMayExtendEarlier = ReportStreakCalculator.extendsBefore(
+                cursor,
+                endingBefore: end,
+                loggedDays: days,
+                calendar: calendar
+            )
+            if coversReportRange, !streakMayExtendEarlier { break }
+        }
+
+        return days
     }
 }
 
@@ -191,9 +232,10 @@ struct ReportCalculator {
             selection: selection,
             calculator: calculator
         )
-        let streakDays = calculateStreak(
-            throughExclusive: selection.reportRange.end,
-            transactions: snapshot.streakTransactions
+        let streakDays = ReportStreakCalculator.streak(
+            endingBefore: selection.reportRange.end,
+            loggedDays: snapshot.loggedDays,
+            calendar: calendar
         )
         let smartAnalysis = buildSmartAnalysis(
             categoryBreakdown: categoryBreakdown,
@@ -274,48 +316,43 @@ struct ReportCalculator {
         selection: ReportPeriodSelection,
         calculator: ReportPeriodCalculator
     ) -> [ReportTimeBucket] {
-        calculator.bucketRanges(for: selection).map { range in
-            let amount = transactions
-                .filter { range.contains($0.date) }
-                .reduce(Decimal.zero) { $0 + $1.amount }
-            return ReportTimeBucket(
+        let ranges = calculator.bucketRanges(for: selection)
+        guard !ranges.isEmpty else { return [] }
+
+        // 桶按时间升序且互不重叠，二分定位即可。
+        // 逐桶 filter 全量交易会退化成 O(桶数 × 交易数)——年报是 12 遍，日报是 24 遍。
+        var totals = [Decimal](repeating: 0, count: ranges.count)
+        for transaction in transactions {
+            guard let index = bucketIndex(for: transaction.date, in: ranges) else { continue }
+            totals[index] += transaction.amount
+        }
+
+        let granularity = selection.period.bucketGranularity
+        let formatter = ReportDateRangeFormatter(calendar: calendar)
+        return ranges.enumerated().map { index, range in
+            ReportTimeBucket(
                 range: range,
-                granularity: selection.period.bucketGranularity,
-                label: ReportDateRangeFormatter(calendar: calendar).bucketLabel(
-                    for: range,
-                    granularity: selection.period.bucketGranularity
-                ),
-                expense: amount
+                granularity: granularity,
+                label: formatter.bucketLabel(for: range, granularity: granularity),
+                expense: totals[index]
             )
         }
     }
 
-    private func calculateStreak(
-        throughExclusive end: Date,
-        transactions: [ReportTransactionSnapshot]
-    ) -> Int {
-        let referenceDay: Date
-        if calendar.isDate(end, equalTo: calendar.startOfDay(for: end), toGranularity: .second) {
-            let previousDay = calendar.date(byAdding: .day, value: -1, to: end) ?? end
-            referenceDay = calendar.startOfDay(for: previousDay)
-        } else {
-            referenceDay = calendar.startOfDay(for: end)
+    private func bucketIndex(for date: Date, in ranges: [ReportDateRange]) -> Int? {
+        var low = 0
+        var high = ranges.count - 1
+        while low <= high {
+            let mid = low + (high - low) / 2
+            if date < ranges[mid].start {
+                high = mid - 1
+            } else if date >= ranges[mid].end {
+                low = mid + 1
+            } else {
+                return mid
+            }
         }
-
-        let days = Set(transactions.map { calendar.startOfDay(for: $0.date) })
-        var day = referenceDay
-        if !days.contains(day) {
-            day = calendar.date(byAdding: .day, value: -1, to: day) ?? day
-            guard days.contains(day) else { return 0 }
-        }
-
-        var streak = 0
-        while days.contains(day) {
-            streak += 1
-            guard let previous = calendar.date(byAdding: .day, value: -1, to: day) else { break }
-            day = previous
-        }
-        return streak
+        return nil
     }
 
     private func buildSmartAnalysis(

@@ -152,7 +152,7 @@ final class ReportDomainTests: XCTestCase {
         let snapshot = ReportDataSnapshot(
             currentTransactions: [expense, privateIncome],
             comparisonTransactions: [],
-            streakTransactions: [expense],
+            loggedDays: [calendar.startOfDay(for: expense.date)],
             budgetTransactions: [expense],
             budgets: []
         )
@@ -407,6 +407,50 @@ final class ReportDomainTests: XCTestCase {
         )
 
         XCTAssertEqual(report.streakDays, 2)
+    }
+
+    /// 打卡日改为分块回溯后，跨越多个 90 天块的长连续链仍必须完整计入。
+    func testStreakSpansMultipleBackwardChunksAndStopsAtFirstGap() async throws {
+        let context = try makeContext()
+        let reference = try date(2026, 7, 15, 12)
+        let referenceDay = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 15)))
+
+        // 连续 200 天（跨 3 个分块），再隔一天放一笔更早的记录制造断点。
+        for offset in 0..<200 {
+            let day = try XCTUnwrap(calendar.date(byAdding: .day, value: -offset, to: referenceDay))
+            insertExpense(10, at: day.addingTimeInterval(3_600), into: context)
+        }
+        let gapDay = try XCTUnwrap(calendar.date(byAdding: .day, value: -201, to: referenceDay))
+        insertExpense(10, at: gapDay.addingTimeInterval(3_600), into: context)
+        try context.save()
+
+        let report = try await generateReport(
+            period: .monthly,
+            target: .current(referenceDate: reference),
+            context: context
+        )
+
+        XCTAssertEqual(report.streakDays, 200, "断点之前的记录不得计入连续天数")
+    }
+
+    /// 时间桶改为二分归组后，边界（桶起点、桶末尾、区间外）归属必须与逐桶过滤一致。
+    func testTimeBucketsAssignBoundaryTransactionsToTheOwningBucket() async throws {
+        let context = try makeContext()
+        let trigger = try date(2026, 7, 15, 9)
+        insertExpense(10, at: try date(2026, 7, 6), into: context)             // 首桶起点
+        insertExpense(20, at: try date(2026, 7, 8, 23, 59), into: context)     // 桶末尾
+        insertExpense(30, at: try date(2026, 7, 12, 0), into: context)         // 末桶起点
+        insertExpense(999, at: try date(2026, 7, 5, 23, 59), into: context)    // 区间之前
+        try context.save()
+
+        let report = try await generateReport(
+            period: .weekly,
+            target: .scheduled(period: .weekly, triggerDate: trigger),
+            context: context
+        )
+
+        XCTAssertEqual(report.timeBuckets.map(\.expense), [10, 0, 20, 0, 0, 0, 30])
+        XCTAssertEqual(report.totalExpense, 60)
     }
 
     func testReportBudgetSnapshotUsesReportEndPayCycleAndExcludesLaterSpending() throws {

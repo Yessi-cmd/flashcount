@@ -20,6 +20,7 @@
 		0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */; };
 		0D6CC3568E879C501B77EE1C /* AddReminderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A25736CBBC2CCA2F7E6527E /* AddReminderView.swift */; };
 		0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */; };
+		1012BB03607699D92610830C /* ReportStreakCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A23FD76130EA35FAE6B2BE5 /* ReportStreakCalculator.swift */; };
 		103A01669289A20425DBF5D4 /* ReminderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576E3BCB6980873E51D3A0B8 /* ReminderItem.swift */; };
 		1107FB196BC96BF4C83CFB2C /* RecurringCatchUpPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30159AD8FBCFF39D60087239 /* RecurringCatchUpPreferences.swift */; };
 		13AC61775C4DCB3F2B84C126 /* CashPoolService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030061CEC562B81C1B7B0C3D /* CashPoolService.swift */; };
@@ -217,6 +218,7 @@
 		495651D53C44DD6B14725323 /* PhysicalAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAsset.swift; sourceTree = "<group>"; };
 		49B6F38607655BC6FD7A32D2 /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		4A051412B9C908E512258A73 /* BudgetComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetComponents.swift; sourceTree = "<group>"; };
+		4A23FD76130EA35FAE6B2BE5 /* ReportStreakCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportStreakCalculator.swift; sourceTree = "<group>"; };
 		4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthServiceTests.swift; sourceTree = "<group>"; };
 		4A843AEFBCC16B33EAF56D8C /* BackupExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupExporter.swift; sourceTree = "<group>"; };
 		4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendBudgetPreferences.swift; sourceTree = "<group>"; };
@@ -568,6 +570,7 @@
 				3CC9CB89C291CEFB4E009431 /* ReportAnalytics.swift */,
 				3AA4AA2FED697F988BDA4C7A /* ReportModels.swift */,
 				46165C4E87806B426267358D /* ReportPeriodCalculator.swift */,
+				4A23FD76130EA35FAE6B2BE5 /* ReportStreakCalculator.swift */,
 				F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */,
 			);
 			path = FinanceServices;
@@ -917,6 +920,7 @@
 				48ABF62D1E1FB42B901F8235 /* ReportReminderPreferencesStore.swift in Sources */,
 				A16A0F66608A906CB25BB8D6 /* ReportReminderSettingsView.swift in Sources */,
 				2D6A2C81E34D8CE4F16B8474 /* ReportRoute.swift in Sources */,
+				1012BB03607699D92610830C /* ReportStreakCalculator.swift in Sources */,
 				1686278248E2E0EB0BD43158 /* ReportSummaryCards.swift in Sources */,
 				987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */,
 				C3C6B2BC947F3488E07D1D30 /* SavingsGoal.swift in Sources */,
