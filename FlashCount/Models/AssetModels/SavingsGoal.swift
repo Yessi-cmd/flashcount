@@ -1,6 +1,10 @@
 import Foundation
 import SwiftData
 
+/// 一个储蓄目标。
+///
+/// 存入刻意不产生交易：钱从「可花」变成「存起来」，并没有离开。
+/// 记一笔支出会让预算和报表把存钱算成花钱。也因此储蓄目标不计入净资产。
 @Model
 final class SavingsGoal {
     var id: UUID

@@ -1,10 +1,14 @@
 import Foundation
 
+/// 金额校验的取值要求。记一笔要求 `.positive`（0 元不是一笔账），
+/// 而余额、残值这类可以为 0 的字段用 `.nonNegative`。
 enum MoneyValidationRequirement {
     case positive
     case nonNegative
 }
 
+/// 金额校验失败的原因。`errorDescription` 直接作为用户可见文案，
+/// 所以措辞是「请输入…」而不是技术描述。
 enum MoneyValidationError: Equatable, LocalizedError {
     case empty
     case invalidFormat
@@ -25,6 +29,10 @@ enum MoneyValidationError: Equatable, LocalizedError {
     }
 }
 
+/// 字符串到 `Decimal` 的金额解析。
+///
+/// 全仓金额一律走这里，不要各自 `Decimal(string:)`：本地化小数点、空串、
+/// 正负要求这几件事必须只有一处判断，否则同一个输入在不同页面会有不同结果。
 enum MoneyValidation {
     static func parse(
         _ rawValue: String,

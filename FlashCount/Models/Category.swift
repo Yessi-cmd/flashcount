@@ -1,12 +1,16 @@
 import Foundation
 import SwiftData
 
+/// 内置分类种子里的一个子分类定义（仅数据，不是持久化模型）。
 struct CategoryItemDefinition: Hashable {
     let name: String
     let icon: String
     let colorHex: String
 }
 
+/// 内置分类种子里的一个一级分类及其子分类定义。
+///
+/// 一级分类是报表聚合与预算归集的单位，子分类只在记账时用于细化。
 struct CategoryGroupDefinition: Hashable {
     let name: String
     let icon: String

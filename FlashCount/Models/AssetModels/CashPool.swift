@@ -1,6 +1,11 @@
 import Foundation
 import SwiftData
 
+/// 资金项的种类。`isNegative` 决定它在净资产里是加项还是减项——
+/// 「待还款/分期」是唯一的负向种类。
+///
+/// `rawValue` 会进备份 JSON，改动即破坏旧备份的可读性；面向用户的文案走
+/// `displayName`，两者刻意分开正是为了让文案可以改。
 enum CashPoolItemKind: String, Codable, CaseIterable, Identifiable {
     case cash = "现金/银行卡"
     case flexibleInvestment = "可动用理财"
@@ -37,6 +42,10 @@ enum CashPoolItemKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// 手工登记的一笔资金（现金、可赎回理财、待还款）。
+///
+/// 资金池是净资产的唯一真源，这些条目加总即「资金净额」。
+/// 实物资产与储蓄目标刻意不在其中：前者不易变现，后者的钱本就还在资金里。
 @Model
 final class CashPoolItem {
     var id: UUID
@@ -72,6 +81,11 @@ final class CashPoolItem {
     }
 }
 
+/// 资金池里由记账累计出来的增减（`transactionDelta`）。
+///
+/// 全库只应有一条：多条会让余额来源变得不确定，`DataHealthService` 因此
+/// 把重复状态列为可修复问题，只保留最近更新的那条。这个数字是用户唯一
+/// 无从自行核对的分量，所以资产页要能下钻到它背后的交易。
 @Model
 final class CashPoolState {
     var id: UUID

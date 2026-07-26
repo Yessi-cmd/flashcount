@@ -1,5 +1,10 @@
 import AppIntents
 
+/// Siri / 快捷指令 / Back Tap 请求打开记账页的信箱。
+///
+/// Intent 与 UI 不在同一次进程活动里，所以请求先落在 `UserDefaults`，
+/// 由 `MainTabView` 取用。`consume()` 取走即清零——重复消费会让记账页
+/// 在用户关掉后又自己弹回来。
 enum QuickEntryRoute {
     static let requestKey = "shouldShowQuickEntry"
 

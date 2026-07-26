@@ -4,6 +4,8 @@
 
 ## 2026-07-27
 
+- **Core 与 Models 共 17 个类型补上文档注释** — 挑的是能写出不变量的那些：`MoneyValidation`（全仓金额必须只有一处解析）、`CashPoolState`（全库只应一条，否则余额来源不确定）、`SavingsGoal`（存入刻意不产生交易）、`InstallmentBill`（还款必须同时写支出）、`CashPoolItemKind`（`rawValue` 进备份不可改，文案走 `displayName`）、`FlashCountMigrationPlan`（V2→V3 必须在 `willMigrate` 阶段做）、`QuickEntryRoute`（`consume()` 取走即清零，否则记账页会自己弹回来）等。仓库顶层类型 269 个，原缺注释 147 个，剩 130 个记在 TODO 里按价值排序。
+- **判定 `BackupExporter.exportJSON()` 不该拆** — 它是一整个 `BackupData(...)` 字面量加内联 `.map`，没有分支、没有状态、没有交织的职责。拆成十二个 DTO 小函数只会增加间接层和抄写风险，而这是备份格式的关键路径。「超过 50 行」是启发式，这一处不指向真问题；同理已标注 `Category.expenseCategoryGroups()`（静态数据表）。
 - **`BackupImporter.importJSON()` 455 行 → 362 行（第一批）** — 先抽出五个互不引用、也不参与 category/ledger/rule 映射传递的小节：实物资产、分期账单、储蓄目标、记账模板、提醒。刻意只动这些「整段可搬」的部分，顺序与状态依赖完全不变；剩下的头部小节之间靠 map 互相传值，留作第二批。195 全绿。
 - **备份导入补 9 个测试（195 全绿），`BackupImporter` 覆盖率 69.6% → 78.3%** — 此前完全没被覆盖的几条路：`previewJSON`（且断言它必须只读——用户看完摘要还能取消）、文件入口与 Data 入口结果一致、同一份备份导入两次整份跳过、实物资产往返、未知资产类别／未知周期频率只跳过那一条而不拖垮整份备份。过程中一条测试的前提被证伪：我原以为同名账本会按名称复用，实际 `importJSON` 末尾与默认数据播种共用事务调用 `stageDefaultData()`，做的是单账本整理（交易归主账本、其余删除）。测试改为钉住这个更重要的不变量：导入后账本恰好一个、交易挂在它上面。
 - **`DataHealthService.scan()` 从 203 行拆到 40 行以内** — 引入 `Snapshot`（十三个模型数组）与 `DuplicateTotals`/`LedgerRepair`/`DeltaRepair` 三个中间结果类型，把「取数 / 重复 UUID / 孤儿预算 / 无账本归属 / 资金池增减 / 组装 findings / 组装 plan」各归各位。行为完全不变，`DataHealthServiceTests`（该文件覆盖率 88.9%，是这批长函数里兜底最好的，因此先动它）6 个测试全绿。顺带修掉 `QuickEntryFeedbackCenter` 默认实参引用 `@MainActor` 静态属性的编译警告——lint 信号必须保持 0。

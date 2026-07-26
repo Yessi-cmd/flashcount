@@ -76,6 +76,11 @@ enum FlashCountSchemaV3: VersionedSchema {
     }
 }
 
+/// SwiftData 迁移计划：V1 → V2 轻量迁移，V2 → V3 自定义迁移。
+///
+/// V2 → V3 把已废弃的 `Asset` 账户折算成资金项，且必须在 `willMigrate`
+/// 阶段做——那时仍是 V2 结构，`Asset` 还读得出来。`Asset` 类之所以留在
+/// 仓库里，只是为了让 V1/V2 与这个转换阶段能编译，新代码不要使用它。
 enum FlashCountMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [FlashCountSchemaV1.self, FlashCountSchemaV2.self, FlashCountSchemaV3.self]

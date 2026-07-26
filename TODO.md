@@ -23,7 +23,9 @@
 
 - [ ] **`BackupImporter.importJSON()` 455 行 —— 先补覆盖率，再拆** — 实测该文件只有 69.6% 覆盖（`DataServices` 里最低的之一），是这批长函数里兜底最弱的。顺序刻意定为先补导入路径的测试、再按模型分组拆分；反过来做等于在没有安全网的地方动数据导入。影响范围：备份导入。
 - [x] **`DataHealthService.scan()` 203 行**（已完成，见 DONE.md） — 各项健康检查可拆为独立私有方法，顺带让单项检查可被单测。影响范围：数据健康中心。
-- [ ] **`BackupExporter.exportJSON()` 145 行** — 同上，按模型分组。影响范围：备份导出。
+- [x] **`BackupExporter.exportJSON()` 145 行 —— 判定为不该拆**（见 DONE.md）
+- [ ] **`BackupImporter.importJSON()` 第二批：头部小节** — 剩余 362 行里，分类／账本／交易／周期规则／周期发生项／预算／资金池之间靠 `categoryMap`/`ledgerMap`/`ruleMap`/`transactionMap`/`importedTransactionDelta` 互相传值，需要先引入一个承载中间状态的类型才能拆。覆盖率 78.3%，动之前建议再补几条（replace 模式、旧版 assets 折算、cashPoolStates 三个分支）。影响范围：备份导入。
+- [ ] **补齐公开接口文档注释（剩 130 个）** — 269 个顶层类型中原缺 147 个，已完成 Core(8) 与 Models(9)。剩余按价值排序：`Services/FinanceServices` 38、`Services/SystemServices` 20、`Services/DataServices` 19、`Services/BudgetServices` 8，视图层约 44 个（SwiftUI 视图多为自解释，价值最低）。要求写出不变量与「为什么存在」，复述类型名的注释不算。影响范围：文档注释。
 - [ ] **`LedgerPresentation.makePresentation()` 118 行** — 分组/汇总/筛选三段职责混在一起。影响范围：账本列表呈现。
 - [x] **README 与代码状态的两处出入**（已完成，见 DONE.md） — 报表一栏未提发薪周期报（实际有五种周期）；测试示例设备为 iPhone 16，AGENTS.md 与本地惯例是 iPhone 17 Pro。影响范围：文档。
 
