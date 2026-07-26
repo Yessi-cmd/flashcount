@@ -273,22 +273,10 @@ struct LedgerView: View {
                         .accessibilityIdentifier("ledger.calendarToggle")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        HStack(spacing: 12) {
-                            // 批量选择
-                            Button {
-                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
-                                    isSelecting = true
-                                }
-                            } label: {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.subheadline)
-                                    .foregroundStyle(DesignSystem.textSecondary)
-                                    .frame(width: 44, height: 44)
-                            }
-                            .accessibilityLabel("批量选择")
-                            .accessibilityIdentifier("ledger.batchSelect")
-
-                            // 筛选按钮
+                        // 5 个并排按钮在 iOS 26 工具栏放不下，会被系统折叠成
+                        // 不可控的 More 菜单；保留筛选与行动中心直达，
+                        // 其余次级动作收进自己的「更多」菜单。
+                        HStack(spacing: 8) {
                             Button {
                                 showFilterSheet = true
                             } label: {
@@ -320,24 +308,36 @@ struct LedgerView: View {
                             .accessibilityLabel("本地行动中心")
                             .accessibilityIdentifier("ledger.actionCenter")
 
-                            Button {
-                                showReminders = true
+                            Menu {
+                                Button {
+                                    withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
+                                        isSelecting = true
+                                    }
+                                } label: {
+                                    Label("批量选择", systemImage: "checkmark.circle")
+                                }
+                                .accessibilityIdentifier("ledger.batchSelect")
+
+                                Button {
+                                    showReminders = true
+                                } label: {
+                                    Label("提醒事项", systemImage: "bell.badge.fill")
+                                }
+                                .accessibilityIdentifier("ledger.reminders")
+
+                                Button {
+                                    showSettings = true
+                                } label: {
+                                    Label("设置", systemImage: "gearshape")
+                                }
+                                .accessibilityIdentifier("ledger.settings")
                             } label: {
-                                Image(systemName: "bell.badge.fill")
+                                Image(systemName: "ellipsis.circle")
                                     .foregroundStyle(DesignSystem.textSecondary)
                                     .frame(width: 44, height: 44)
                             }
-                            .accessibilityLabel("提醒事项")
-                            .accessibilityIdentifier("ledger.reminders")
-                            Button {
-                                showSettings = true
-                            } label: {
-                                Image(systemName: "gearshape")
-                                    .foregroundStyle(DesignSystem.textSecondary)
-                                    .frame(width: 44, height: 44)
-                            }
-                            .accessibilityLabel("设置")
-                            .accessibilityIdentifier("ledger.settings")
+                            .accessibilityLabel("更多操作")
+                            .accessibilityIdentifier("ledger.more")
                         }
                     }
                 }

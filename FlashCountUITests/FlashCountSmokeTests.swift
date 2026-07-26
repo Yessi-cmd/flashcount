@@ -28,9 +28,7 @@ final class FlashCountSmokeTests: XCTestCase {
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
-        let settings = app.buttons["ledger.settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 5))
-        settings.tap()
+        openLedgerMoreItem(app, identifier: "ledger.settings")
 
         let backTapSetup = app.buttons["settings.backTapSetup"]
         XCTAssertTrue(backTapSetup.waitForExistence(timeout: 5))
@@ -47,9 +45,7 @@ final class FlashCountSmokeTests: XCTestCase {
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
-        let settings = app.buttons["ledger.settings"]
-        XCTAssertTrue(settings.waitForExistence(timeout: 5))
-        settings.tap()
+        openLedgerMoreItem(app, identifier: "ledger.settings")
 
         let dataHealth = app.buttons["settings.dataHealth"]
         for _ in 0..<5 where !dataHealth.exists {
@@ -106,11 +102,9 @@ final class FlashCountSmokeTests: XCTestCase {
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
-        let batchSelect = app.buttons["ledger.batchSelect"]
         let ledgerTab = app.buttons["mainTab.ledger"]
-        XCTAssertTrue(batchSelect.waitForExistence(timeout: 5))
         XCTAssertTrue(ledgerTab.waitForExistence(timeout: 5))
-        batchSelect.tap()
+        openLedgerMoreItem(app, identifier: "ledger.batchSelect")
 
         let batchDone = app.buttons["ledger.batchDone"]
         XCTAssertTrue(batchDone.waitForExistence(timeout: 5))
@@ -394,5 +388,16 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["记一笔"].waitForExistence(timeout: 3))
         XCTAssertFalse(app.otherElements["categoryWheelOverlay"].exists)
         XCTAssertEqual(dining.value as? String, "已选中：餐饮 · 正餐")
+    }
+
+    /// 账本工具栏的次级动作收在「更多」菜单里；先展开菜单再点目标项。
+    private func openLedgerMoreItem(_ app: XCUIApplication, identifier: String) {
+        let more = app.buttons["ledger.more"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        more.tap()
+
+        let item = app.buttons[identifier]
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        item.tap()
     }
 }
