@@ -39,6 +39,7 @@
 		286BB7B72143C23C8F2195E2 /* DataHealthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F2DFBA767ED9FC8AFB2BFB3 /* DataHealthService.swift */; };
 		297C84DD5A6E76893D6656F8 /* FlashCountSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010DCAEA1FA46115992DA27F /* FlashCountSmokeTests.swift */; };
 		29A922DE0C8EC201C201181D /* InstallmentBillView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62F04AD8E1487702754644DD /* InstallmentBillView.swift */; };
+		2AC573C6F297535F5DAACE22 /* ReportDrillDownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F98BE18E753D1A05C5ABEEB /* ReportDrillDownView.swift */; };
 		2B5D41A4F0E108AF9B69568C /* FlashCountApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5135CC79D6F54B517077FC78 /* FlashCountApp.swift */; };
 		2D6A2C81E34D8CE4F16B8474 /* ReportRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = B66674F214D250C00FDB12AA /* ReportRoute.swift */; };
 		32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */; };
@@ -49,6 +50,7 @@
 		36D8A0E12D8A879A682B28BE /* PhysicalAssetCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45E85D7B32A0C90810D5065E /* PhysicalAssetCard.swift */; };
 		37313D9C291DC910A0373683 /* BudgetReminderService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8000784A9F364513ECB6E916 /* BudgetReminderService.swift */; };
 		38196E36BC568F0A62B77EA5 /* BudgetAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B05285ADD9B6AC2660BBBF3E /* BudgetAnalyzer.swift */; };
+		3D7A96F2DA38BB10A3ADF316 /* CategoryChangeBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E2683C8AFA57C9063ECE82 /* CategoryChangeBadge.swift */; };
 		408D4A9C5FE25933D921CC65 /* QuickEntryControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */; };
 		43FA19D47F572B37BAF472C9 /* ReportAnalytics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3CC9CB89C291CEFB4E009431 /* ReportAnalytics.swift */; };
 		446188EEBD1730677AB7E8EA /* DataHealthCenterView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEE26957D3CB28546317F74A /* DataHealthCenterView.swift */; };
@@ -232,6 +234,7 @@
 		5B8F866E732FA0C08D5772C1 /* ReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportView.swift; sourceTree = "<group>"; };
 		5C96AA21D9387521CB6A9D64 /* FlashCountUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FlashCountUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DDE23A26293092F1392788D /* AppRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoutingTests.swift; sourceTree = "<group>"; };
+		5F98BE18E753D1A05C5ABEEB /* ReportDrillDownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDrillDownView.swift; sourceTree = "<group>"; };
 		60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionServiceTests.swift; sourceTree = "<group>"; };
 		61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerQueryServiceTests.swift; sourceTree = "<group>"; };
 		62F04AD8E1487702754644DD /* InstallmentBillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBillView.swift; sourceTree = "<group>"; };
@@ -311,6 +314,7 @@
 		F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionService.swift; sourceTree = "<group>"; };
 		F6F1A9BBC47DE836248A9BE8 /* LiquidGlassContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassContainer.swift; sourceTree = "<group>"; };
 		F8466A7DFE220F43816D4D85 /* Reminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reminder.swift; sourceTree = "<group>"; };
+		F9E2683C8AFA57C9063ECE82 /* CategoryChangeBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryChangeBadge.swift; sourceTree = "<group>"; };
 		FAA5288E4B0ADB2DA4F1023A /* DataHealthIssueKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthIssueKind.swift; sourceTree = "<group>"; };
 		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
 		FBFD2135FE36029863FB0A1A /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
@@ -522,6 +526,7 @@
 		645B1B4DE420DECC9A7B518C /* Cards */ = {
 			isa = PBXGroup;
 			children = (
+				F9E2683C8AFA57C9063ECE82 /* CategoryChangeBadge.swift */,
 				C4700410EC20728E44DA5831 /* ReportChartCards.swift */,
 				AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */,
 			);
@@ -676,6 +681,7 @@
 		F74E75DE5F12B4EC77AE8246 /* Report */ = {
 			isa = PBXGroup;
 			children = (
+				5F98BE18E753D1A05C5ABEEB /* ReportDrillDownView.swift */,
 				A8787892FBE7527E71758B45 /* ReportObservedContent.swift */,
 				C1FF48441638307D9EDBA856 /* ReportPresentation.swift */,
 				0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */,
@@ -849,6 +855,7 @@
 				DE83E5479BD532D70F116869 /* Category.swift in Sources */,
 				499C894AE855060406B52B76 /* CategoryBudgetService.swift in Sources */,
 				50DA9190E88420449175A95D /* CategoryBudgetsView.swift in Sources */,
+				3D7A96F2DA38BB10A3ADF316 /* CategoryChangeBadge.swift in Sources */,
 				EBBF916F14AF425E80258E06 /* CategoryManagementService.swift in Sources */,
 				DB2D5B73969518D0F9E6832B /* CategoryManagementView.swift in Sources */,
 				A437C73FD9A2A6A8BA0B9816 /* CategoryPickerComponents.swift in Sources */,
@@ -915,6 +922,7 @@
 				43FA19D47F572B37BAF472C9 /* ReportAnalytics.swift in Sources */,
 				8E2B8F3AA30DF91D2F8E4A81 /* ReportBudgetSnapshotService.swift in Sources */,
 				F3D56E55CBFD10AD0416EFD3 /* ReportChartCards.swift in Sources */,
+				2AC573C6F297535F5DAACE22 /* ReportDrillDownView.swift in Sources */,
 				0617EEB4B93D014CDE1EA99B /* ReportModels.swift in Sources */,
 				8D7FFB96F080DB2883EA49CE /* ReportObservedContent.swift in Sources */,
 				9D4B54216A18717C90A757B7 /* ReportPageCache.swift in Sources */,

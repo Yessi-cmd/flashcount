@@ -57,6 +57,7 @@ struct ReportObservedContent: View {
     @State private var retryToken = 0
     @State var selectedBucketID: Date?
     @State var showChartDetails = false
+    @State var drillDown: ReportDrillDownRequest?
     @State private var generationToken: UUID?
 
     init(
@@ -166,11 +167,19 @@ struct ReportObservedContent: View {
                 reportContent(data)
             }
         }
+        .sheet(item: $drillDown) { request in
+            ReportDrillDownView(request: request)
+        }
         .task(id: generationKey) {
             // 不活跃时跳过；isActive 参与 key，回到前台会重新触发并按最新数据生成。
             guard isActive else { return }
             await generateReport(digest: generationKey.digest)
         }
+    }
+
+    /// 下钻页副标题：沿用报表自己的区间文案，避免两处口径出现分歧。
+    func drillDownSubtitle(for data: ReportData) -> String {
+        ReportDateRangeFormatter().reportRange(data.reportRange, period: data.period).title
     }
 
     @ViewBuilder

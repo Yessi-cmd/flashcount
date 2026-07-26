@@ -9,6 +9,27 @@ struct CategorySpending: Identifiable {
     let amount: Decimal
     let percentage: Double
     let changeFromLastPeriod: Double?
+    /// 饼图里把长尾合并成的「其他」。它没有对应的真实分类，
+    /// 因此既不能下钻，也不该显示环比（`changeFromLastPeriod` 恒为 nil）。
+    let isAggregate: Bool
+
+    init(
+        categoryName: String,
+        categoryIcon: String,
+        categoryColor: String,
+        amount: Decimal,
+        percentage: Double,
+        changeFromLastPeriod: Double?,
+        isAggregate: Bool = false
+    ) {
+        self.categoryName = categoryName
+        self.categoryIcon = categoryIcon
+        self.categoryColor = categoryColor
+        self.amount = amount
+        self.percentage = percentage
+        self.changeFromLastPeriod = changeFromLastPeriod
+        self.isAggregate = isAggregate
+    }
 }
 
 enum ReportInsightTone: Equatable {

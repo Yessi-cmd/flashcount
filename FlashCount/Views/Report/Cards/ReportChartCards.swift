@@ -12,7 +12,27 @@ extension ReportObservedContent {
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
                 Spacer()
-                if let selectedBucket {
+                if let selectedBucket, selectedBucket.expense > 0 {
+                    Button {
+                        drillDown = ReportDrillDownRequest(
+                            title: selectedBucket.label,
+                            subtitle: "\(data.period.rawValue) · 该区间支出明细",
+                            range: selectedBucket.range,
+                            categoryRootName: nil
+                        )
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("\(selectedBucket.label) · \(selectedBucket.expense.formattedCurrency)")
+                                .font(.caption.monospacedDigit())
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
+                        }
+                        .foregroundStyle(DesignSystem.primaryColor)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("查看\(selectedBucket.label)的支出明细")
+                    .accessibilityIdentifier("report.bucketDrillDown")
+                } else if let selectedBucket {
                     Text("\(selectedBucket.label) · \(selectedBucket.expense.formattedCurrency)")
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(DesignSystem.textPrimary)
@@ -118,7 +138,7 @@ extension ReportObservedContent {
 
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 2), spacing: 6) {
                     ForEach(breakdown) { item in
-                        HStack(spacing: 6) {
+                        let legend = HStack(spacing: 6) {
                             Circle().fill(Color(hex: item.categoryColor)).frame(width: 8, height: 8)
                             Text(item.categoryName).font(.caption2).foregroundStyle(DesignSystem.textSecondary)
                             Spacer()
@@ -126,7 +146,19 @@ extension ReportObservedContent {
                                 .font(.caption2.monospacedDigit())
                                 .foregroundStyle(DesignSystem.textTertiary)
                         }
-                        .accessibilityElement(children: .combine)
+                        .contentShape(Rectangle())
+
+                        // 「其他」是长尾合并出来的，没有对应的真实分类可查。
+                        if item.isAggregate {
+                            legend.accessibilityElement(children: .combine)
+                        } else {
+                            Button {
+                                drillDown = drillDownRequest(for: item, in: data)
+                            } label: { legend }
+                            .buttonStyle(.plain)
+                            .accessibilityElement(children: .combine)
+                            .accessibilityHint("双击查看该分类的支出明细")
+                        }
                     }
                 }
             }
@@ -147,29 +179,43 @@ extension ReportObservedContent {
                     .frame(maxWidth: .infinity, minHeight: 72)
             } else {
                 ForEach(Array(data.categoryBreakdown.prefix(5).enumerated()), id: \.element.id) { index, item in
-                    HStack(spacing: 12) {
-                        Text("\(index + 1)")
-                            .font(.caption.weight(.bold).monospacedDigit())
-                            .frame(width: 20, height: 20)
-                            .background(index < 3 ? Color.orange.opacity(0.2) : DesignSystem.softFill)
-                            .foregroundStyle(index < 3 ? .orange : DesignSystem.textSecondary)
-                            .clipShape(Circle())
-                        Image(systemName: item.categoryIcon)
-                            .font(.caption)
-                            .foregroundStyle(Color(hex: item.categoryColor))
-                            .frame(width: 24)
-                        Text(item.categoryName).font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 2) {
-                            Text(item.amount.formattedCurrency)
-                                .font(.subheadline.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(DesignSystem.textPrimary)
-                            Text(ReportPercentageFormatter.categoryShare(item.percentage))
-                                .font(.caption2.monospacedDigit())
+                    Button {
+                        drillDown = drillDownRequest(for: item, in: data)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Text("\(index + 1)")
+                                .font(.caption.weight(.bold).monospacedDigit())
+                                .frame(width: 20, height: 20)
+                                .background(index < 3 ? Color.orange.opacity(0.2) : DesignSystem.softFill)
+                                .foregroundStyle(index < 3 ? .orange : DesignSystem.textSecondary)
+                                .clipShape(Circle())
+                            Image(systemName: item.categoryIcon)
+                                .font(.caption)
+                                .foregroundStyle(Color(hex: item.categoryColor))
+                                .frame(width: 24)
+                            Text(item.categoryName).font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 3) {
+                                Text(item.amount.formattedCurrency)
+                                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(DesignSystem.textPrimary)
+                                HStack(spacing: 4) {
+                                    CategoryChangeBadge(category: item)
+                                    Text(ReportPercentageFormatter.categoryShare(item.percentage))
+                                        .font(.caption2.monospacedDigit())
+                                        .foregroundStyle(DesignSystem.textTertiary)
+                                }
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.semibold))
                                 .foregroundStyle(DesignSystem.textTertiary)
                         }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
+                    .accessibilityHint("双击查看该分类的支出明细")
+                    .accessibilityIdentifier("report.topCategory.\(index)")
 
                     GeometryReader { proxy in
                         RoundedRectangle(cornerRadius: 2)
@@ -185,6 +231,15 @@ extension ReportObservedContent {
 
     // MARK: - 小工具
 
+    private func drillDownRequest(for item: CategorySpending, in data: ReportData) -> ReportDrillDownRequest {
+        ReportDrillDownRequest(
+            title: item.categoryName,
+            subtitle: drillDownSubtitle(for: data),
+            range: data.reportRange,
+            categoryRootName: item.categoryName
+        )
+    }
+
     private func displayedBreakdown(_ items: [CategorySpending]) -> [CategorySpending] {
         guard items.count > 6 else { return items }
         let visible = Array(items.prefix(5))
@@ -195,7 +250,8 @@ extension ReportObservedContent {
             categoryColor: "#89928E",
             amount: remainder.reduce(Decimal.zero) { $0 + $1.amount },
             percentage: remainder.reduce(0) { $0 + $1.percentage },
-            changeFromLastPeriod: nil
+            changeFromLastPeriod: nil,
+            isAggregate: true
         )]
     }
 

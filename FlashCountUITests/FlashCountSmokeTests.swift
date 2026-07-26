@@ -390,6 +390,46 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertEqual(dining.value as? String, "已选中：餐饮 · 正餐")
     }
 
+    func testReportTopCategoryDrillDownListsMatchingTransactions() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestReportLayout",
+            "-visualReviewTab", "3"
+        ]
+        app.launch()
+
+        let topCategory = app.buttons["report.topCategory.0"]
+        XCTAssertTrue(topCategory.waitForExistence(timeout: 10), "报表应展示消费 Top 5 分类行")
+        // 屏幕外元素的 exists 同样为真，必须按可点击性判断是否还需要滚动。
+        for _ in 0..<8 where !topCategory.isHittable {
+            app.swipeUp()
+        }
+        XCTAssertTrue(topCategory.isHittable)
+
+        let cards = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        cards.name = "report-top-categories"
+        cards.lifetime = .keepAlways
+        add(cards)
+
+        topCategory.tap()
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["report.drillDown.summary"].waitForExistence(timeout: 5),
+            "点击分类应打开该分类的支出明细"
+        )
+
+        let detail = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        detail.name = "report-drill-down"
+        detail.lifetime = .keepAlways
+        add(detail)
+
+        let close = app.buttons["report.drillDown.close"]
+        XCTAssertTrue(close.waitForExistence(timeout: 5))
+        close.tap()
+        XCTAssertTrue(app.navigationBars["报表"].waitForExistence(timeout: 5))
+    }
+
     /// 账本工具栏的次级动作收在「更多」菜单里；先展开菜单再点目标项。
     private func openLedgerMoreItem(_ app: XCUIApplication, identifier: String) {
         let more = app.buttons["ledger.more"]
