@@ -14,13 +14,13 @@ struct PhysicalAssetCard: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(asset.name).font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textPrimary)
-                    Text("\(asset.category.rawValue) · 持有 \(asset.daysHeld) 天").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                    Text("\(asset.category.rawValue) · 持有 \(asset.daysHeld()) 天").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("估值 \(hidesMoney ? maskedText : asset.currentValue.formattedCurrency)")
+                    Text("估值 \(hidesMoney ? maskedText : asset.currentValue().formattedCurrency)")
                         .font(.caption.monospacedDigit()).foregroundStyle(DesignSystem.textSecondary)
-                    Text("日均 \(hidesMoney ? maskedText : asset.dailyCost.formattedCurrency)")
+                    Text("日均 \(hidesMoney ? maskedText : asset.dailyCost().formattedCurrency)")
                         .font(.subheadline.weight(.bold).monospacedDigit()).foregroundStyle(DesignSystem.primaryColor)
                 }
             }
@@ -38,12 +38,12 @@ struct PhysicalAssetCard: View {
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 3).fill(DesignSystem.softFill).frame(height: 6)
                         RoundedRectangle(cornerRadius: 3).fill(progressColor)
-                            .frame(width: hidesMoney ? 0 : geo.size.width * asset.progressToTarget, height: 6)
+                            .frame(width: hidesMoney ? 0 : geo.size.width * asset.progressToTarget(), height: 6)
                     }
                 }
                 .frame(height: 6)
                 HStack {
-                    Text(hidesMoney ? maskedText : "\(Int(asset.progressToTarget * 100))%")
+                    Text(hidesMoney ? maskedText : "\(Int(asset.progressToTarget() * 100))%")
                         .font(.caption2.weight(.medium).monospacedDigit())
                         .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : progressColor)
                     Spacer()
@@ -58,14 +58,14 @@ struct PhysicalAssetCard: View {
     @ViewBuilder private var progressDetail: some View {
         if hidesMoney {
             Text("验证后显示目标进度").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
-        } else if let remaining = asset.daysToTarget, remaining > 0 {
+        } else if let remaining = asset.daysToTarget(), remaining > 0 {
             Text("还需 \(remaining) 天达标").font(.caption2).foregroundStyle(DesignSystem.textTertiary)
-        } else if asset.dailyCost <= asset.targetDailyCost {
+        } else if asset.dailyCost() <= asset.targetDailyCost {
             Text("已达到目标日成本").font(.caption2).foregroundStyle(DesignSystem.incomeColor)
         }
     }
 
     private var progressColor: Color {
-        asset.progressToTarget >= 1 ? DesignSystem.incomeColor : asset.progressToTarget >= 0.6 ? .orange : DesignSystem.primaryColor
+        asset.progressToTarget() >= 1 ? DesignSystem.incomeColor : asset.progressToTarget() >= 0.6 ? .orange : DesignSystem.primaryColor
     }
 }

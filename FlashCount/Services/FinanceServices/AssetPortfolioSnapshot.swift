@@ -41,9 +41,9 @@ struct AssetPortfolioSnapshot {
         installmentBills: [InstallmentBill] = []
     ) {
         let activePhysicalAssets = physicalAssets.filter { !$0.isArchived }
-        physicalTotalValue = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.currentValue }
+        physicalTotalValue = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.currentValue() }
         physicalPurchaseTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.purchasePrice }
-        physicalDailyCostTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.dailyCost }
+        physicalDailyCostTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.dailyCost() }
 
         let activeCashPoolItems = cashPoolItems.filter { !$0.isArchived }
         var manualTotal: Decimal = 0

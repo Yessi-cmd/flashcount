@@ -35,7 +35,8 @@ enum PhysicalAssetCategory: String, Codable, CaseIterable {
         }
     }
 
-    /// 行业默认年折旧率（第一年）
+    /// 默认折旧率。按直线法理解：`1 / rate` 年折完可折旧金额
+    /// （0.25 即四年折完），而非余额递减法的首年比例。
     var defaultAnnualDepreciationRate: Double {
         switch self {
         case .phone: return 0.25
@@ -118,9 +119,12 @@ final class PhysicalAsset {
 
     // MARK: - 计算属性
 
+    /// 这些指标都随「今天是哪天」变化。参照时刻改成显式参数，
+    /// 折旧曲线才能被确定性地测试；界面照常用默认值即可。
+
     /// 持有天数
-    var daysHeld: Int {
-        let endDate = soldDate ?? Date()
+    func daysHeld(asOf referenceDate: Date = Date()) -> Int {
+        let endDate = soldDate ?? referenceDate
         return max(1, Calendar.current.dateComponents([.day], from: purchaseDate, to: endDate).day ?? 1)
     }
 
@@ -130,42 +134,48 @@ final class PhysicalAsset {
     }
 
     /// 当前日均成本 = 可折旧金额 ÷ 持有天数
-    var dailyCost: Decimal {
-        depreciableCost / Decimal(daysHeld)
+    func dailyCost(asOf referenceDate: Date = Date()) -> Decimal {
+        depreciableCost / Decimal(daysHeld(asOf: referenceDate))
     }
 
     /// 达到目标日成本还需持有天数
-    var daysToTarget: Int? {
+    func daysToTarget(asOf referenceDate: Date = Date()) -> Int? {
         guard targetDailyCost > 0 else { return nil }
         let targetDays = NSDecimalNumber(decimal: depreciableCost / targetDailyCost).intValue
-        let remaining = targetDays - daysHeld
+        let remaining = targetDays - daysHeld(asOf: referenceDate)
         return remaining > 0 ? remaining : 0
     }
 
     /// 回本进度 (0 ~ 1)，达到目标日成本的进度
-    var progressToTarget: Double {
+    func progressToTarget(asOf referenceDate: Date = Date()) -> Double {
         guard targetDailyCost > 0 else { return 0 }
         let targetDays = NSDecimalNumber(decimal: depreciableCost / targetDailyCost).doubleValue
         guard targetDays > 0 else { return depreciableCost == 0 ? 1 : 0 }
-        return min(1.0, Double(daysHeld) / targetDays)
+        return min(1.0, Double(daysHeld(asOf: referenceDate)) / targetDays)
     }
 
-    /// 当前估值 = 购买价 - (日折旧 × 持有天数)，最低为残值
-    var currentValue: Decimal {
-        let dailyDepreciation = depreciableCost / Decimal(365.0 / Double(category.defaultAnnualDepreciationRate))
-        let depreciated = purchasePrice - dailyDepreciation * Decimal(daysHeld)
+    /// 当前估值 = 购买价 − 已折旧金额，最低为残值。
+    /// 先乘后除、只做一次除法：先算日折旧再乘天数会引入循环小数误差
+    /// （8000 ÷ 1460 × 365 得到的是 2000.000…01 而不是 2000）。
+    func currentValue(asOf referenceDate: Date = Date()) -> Decimal {
+        let depreciationDays = Decimal(365.0 / category.defaultAnnualDepreciationRate)
+        guard depreciationDays > 0 else { return max(salvageValue, purchasePrice) }
+        let depreciated = purchasePrice
+            - depreciableCost * Decimal(daysHeld(asOf: referenceDate)) / depreciationDays
         return max(salvageValue, depreciated)
     }
 
-    /// 实际收益（已出售时）
-    var actualProfit: Decimal? {
+    /// 持有净成本 = 购买价 − 转手价（已出售时）。
+    /// 正数表示这段持有期净花了多少钱，升值资产会得到负数即净赚。
+    /// 旧名 `actualProfit` 把「用两年花掉 3000」显示成「收益 −3000」，方向是反的。
+    var netHoldingCost: Decimal? {
         guard let soldPrice else { return nil }
-        return soldPrice - purchasePrice
+        return purchasePrice - soldPrice
     }
 
     /// 实际日均成本（已出售时）
     var actualDailyCost: Decimal? {
-        guard soldPrice != nil else { return nil }
-        return (purchasePrice - (soldPrice ?? 0)) / Decimal(daysHeld)
+        guard let soldPrice else { return nil }
+        return (purchasePrice - soldPrice) / Decimal(daysHeld())
     }
 }

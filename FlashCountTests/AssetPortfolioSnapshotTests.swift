@@ -90,7 +90,7 @@ final class AssetPortfolioSnapshotTests: XCTestCase {
 
         let snapshot = AssetPortfolioSnapshot(physicalAssets: [first, second])
 
-        XCTAssertEqual(snapshot.physicalDailyCostTotal, first.dailyCost + second.dailyCost)
+        XCTAssertEqual(snapshot.physicalDailyCostTotal, first.dailyCost() + second.dailyCost())
         XCTAssertEqual(snapshot.physicalPurchaseTotal, 1_500)
     }
 

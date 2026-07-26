@@ -3,8 +3,6 @@ import SwiftData
 
 /// 资产全景图
 struct AssetDashboardView: View {
-    let isActive: Bool
-
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var privacyLock: PrivacyLockService

@@ -18,7 +18,7 @@ struct PhysicalAssetView: View {
 
     /// 总持有价值（折旧后）
     private var totalValue: Decimal {
-        activeAssets.reduce(Decimal(0)) { $0 + $1.currentValue }
+        activeAssets.reduce(Decimal(0)) { $0 + $1.currentValue() }
     }
 
     /// 原价总值
@@ -29,7 +29,7 @@ struct PhysicalAssetView: View {
     /// 平均日成本
     private var averageDailyCost: Decimal {
         guard !activeAssets.isEmpty else { return 0 }
-        return activeAssets.reduce(Decimal(0)) { $0 + $1.dailyCost } / Decimal(activeAssets.count)
+        return activeAssets.reduce(Decimal(0)) { $0 + $1.dailyCost() } / Decimal(activeAssets.count)
     }
 
     private var hidesMoney: Bool {
@@ -142,7 +142,7 @@ struct PhysicalAssetView: View {
     private var activeAssetList: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("持有中").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
-            ForEach(hidesMoney ? activeAssets : activeAssets.sorted { $0.dailyCost > $1.dailyCost }, id: \.id) { asset in
+            ForEach(hidesMoney ? activeAssets : activeAssets.sorted { $0.dailyCost() > $1.dailyCost() }, id: \.id) { asset in
                 Button {
                     revealOrPerform { editingAsset = asset }
                 } label: {
@@ -201,10 +201,13 @@ struct PhysicalAssetView: View {
                                 .font(.caption).foregroundStyle(DesignSystem.textTertiary)
                         }
                         Spacer()
-                        if let profit = asset.actualProfit {
-                            Text(hidesMoney ? privacyLock.maskedText : (profit >= 0 ? "+" : "") + profit.formattedCurrency)
+                        if let netCost = asset.netHoldingCost {
+                            // 用了两年花掉 3000，是「净成本 3000」而不是「收益 −3000」。
+                            Text(hidesMoney
+                                 ? privacyLock.maskedText
+                                 : (netCost > 0 ? "净成本 " : "净赚 ") + abs(netCost).formattedCurrency)
                                 .font(.caption.weight(.semibold).monospacedDigit())
-                                .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (profit >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
+                                .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (netCost > 0 ? DesignSystem.expenseColor : DesignSystem.incomeColor))
                         }
                     }
                 }
@@ -249,7 +252,7 @@ struct PhysicalAssetView: View {
 
     private func soldSummary(for asset: PhysicalAsset) -> String {
         let soldText = asset.soldPrice.map { "卖出 \(hidesMoney ? privacyLock.maskedText : $0.formattedCurrency)" } ?? "未记录售价"
-        let dailyText = asset.actualDailyCost.map { "实际日均 \(hidesMoney ? privacyLock.maskedText : $0.formattedCurrency)" } ?? "持有 \(asset.daysHeld) 天"
+        let dailyText = asset.actualDailyCost.map { "实际日均 \(hidesMoney ? privacyLock.maskedText : $0.formattedCurrency)" } ?? "持有 \(asset.daysHeld()) 天"
         return "\(soldText) · \(dailyText)"
     }
 
@@ -562,7 +565,7 @@ struct SellPhysicalAssetView: View {
 
     init(asset: PhysicalAsset) {
         self.asset = asset
-        _soldPriceText = State(initialValue: asset.soldPrice.map { "\($0)" } ?? "\(asset.currentValue)")
+        _soldPriceText = State(initialValue: asset.soldPrice.map { "\($0)" } ?? "\(asset.currentValue())")
         _soldDate = State(initialValue: asset.soldDate ?? Date())
         _note = State(initialValue: asset.note)
     }
@@ -589,7 +592,7 @@ struct SellPhysicalAssetView: View {
                         Text(asset.name)
                             .font(.headline)
                             .foregroundStyle(DesignSystem.textPrimary)
-                        Text("原价 \(asset.purchasePrice.formattedCurrency) · 已持有 \(asset.daysHeld) 天")
+                        Text("原价 \(asset.purchasePrice.formattedCurrency) · 已持有 \(asset.daysHeld()) 天")
                             .font(.caption)
                             .foregroundStyle(DesignSystem.textSecondary)
                     }

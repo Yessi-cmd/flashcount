@@ -65,7 +65,7 @@ struct MainTabView: View {
                 )
                     .toolbar(.hidden, for: .tabBar)
                     .tag(3)
-                AssetDashboardView(isActive: selectedTab == 4)
+                AssetDashboardView()
                     .toolbar(.hidden, for: .tabBar)
                     .tag(4)
             }
