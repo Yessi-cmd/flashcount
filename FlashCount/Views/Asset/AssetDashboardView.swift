@@ -16,83 +16,12 @@ struct AssetDashboardView: View {
     @State private var showAddCashPoolItem = false
     @State private var showTutorial = false
 
-    /// 单次遍历构建页面需要的资产快照，避免每个卡片再次 filter/reduce 同一批 SwiftData 结果。
-    private struct DashboardSnapshot {
-        let activePhysicalAssets: [PhysicalAsset]
-        let activeCashPoolItems: [CashPoolItem]
-        let activeSavingsGoals: [SavingsGoal]
-        let activeInstallmentBills: [InstallmentBill]
-        let physicalTotalValue: Decimal
-        let physicalPurchaseTotal: Decimal
-        let physicalDailyCostTotal: Decimal
-        let cashPoolManualTotal: Decimal
-        let installmentRemainingTotal: Decimal
-        let cashPoolAvailable: Decimal
-        let totalAssets: Decimal
-        let totalLiabilities: Decimal
-        let netWorth: Decimal
-        let savingsTargetTotal: Decimal
-        let savingsCurrentTotal: Decimal
-
-        init(
-            physicalAssets: [PhysicalAsset],
-            cashPoolItems: [CashPoolItem],
-            cashPoolTransactionDelta: Decimal,
-            savingsGoals: [SavingsGoal],
-            installmentBills: [InstallmentBill]
-        ) {
-            let activePhysicalAssets = physicalAssets.filter { !$0.isArchived }
-            let physicalTotalValue = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.currentValue }
-            let physicalPurchaseTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.purchasePrice }
-            let physicalDailyCostTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.dailyCost }
-
-            let activeCashPoolItems = cashPoolItems.filter { !$0.isArchived }
-            var cashPoolManualTotal: Decimal = 0
-            var cashPoolPositiveTotal: Decimal = 0
-            var cashPoolManualLiabilityTotal: Decimal = 0
-            for item in activeCashPoolItems {
-                cashPoolManualTotal += item.signedAmount
-                if item.kind.isNegative {
-                    cashPoolManualLiabilityTotal += item.amount
-                } else {
-                    cashPoolPositiveTotal += item.amount
-                }
-            }
-
-            let activeInstallmentBills = installmentBills.filter { !$0.isArchived }
-            let installmentRemainingTotal = activeInstallmentBills.reduce(Decimal(0)) { $0 + $1.remainingAmount }
-            let liquidNet = cashPoolPositiveTotal + cashPoolTransactionDelta
-            let liquidAssetTotal = max(liquidNet, 0)
-            let liquidLiabilityTotal = cashPoolManualLiabilityTotal + installmentRemainingTotal + max(-liquidNet, 0)
-
-            let activeSavingsGoals = savingsGoals.filter { !$0.isArchived }
-            let savingsTargetTotal = activeSavingsGoals.reduce(Decimal(0)) { $0 + $1.targetAmount }
-            let savingsCurrentTotal = activeSavingsGoals.reduce(Decimal(0)) { $0 + $1.currentAmount }
-
-            self.activePhysicalAssets = activePhysicalAssets
-            self.activeCashPoolItems = activeCashPoolItems
-            self.activeSavingsGoals = activeSavingsGoals
-            self.activeInstallmentBills = activeInstallmentBills
-            self.physicalTotalValue = physicalTotalValue
-            self.physicalPurchaseTotal = physicalPurchaseTotal
-            self.physicalDailyCostTotal = physicalDailyCostTotal
-            self.cashPoolManualTotal = cashPoolManualTotal
-            self.installmentRemainingTotal = installmentRemainingTotal
-            self.cashPoolAvailable = cashPoolManualTotal + cashPoolTransactionDelta - installmentRemainingTotal
-            self.totalAssets = liquidAssetTotal
-            self.totalLiabilities = liquidLiabilityTotal
-            self.netWorth = self.totalAssets - self.totalLiabilities
-            self.savingsTargetTotal = savingsTargetTotal
-            self.savingsCurrentTotal = savingsCurrentTotal
-        }
-    }
-
     private var hidesAssetMoney: Bool {
         PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
     }
 
     var body: some View {
-        let snapshot = DashboardSnapshot(
+        let snapshot = AssetPortfolioSnapshot(
             physicalAssets: physicalAssets,
             cashPoolItems: cashPoolItems,
             cashPoolTransactionDelta: cashPoolStates.first?.transactionDelta ?? 0,
@@ -137,7 +66,7 @@ struct AssetDashboardView: View {
                             }
                         }
 
-                        if snapshot.activeCashPoolItems.isEmpty && snapshot.activePhysicalAssets.isEmpty && snapshot.activeSavingsGoals.isEmpty && snapshot.activeInstallmentBills.isEmpty {
+                        if snapshot.isEmpty {
                             emptyState
                         }
                     }
@@ -176,7 +105,7 @@ struct AssetDashboardView: View {
         }
     }
 
-    private func netWorthCard(_ snapshot: DashboardSnapshot) -> some View {
+    private func netWorthCard(_ snapshot: AssetPortfolioSnapshot) -> some View {
         VStack(spacing: 16) {
             Text("净资产").font(.subheadline).foregroundStyle(DesignSystem.textSecondary)
             if hidesAssetMoney {
@@ -215,7 +144,7 @@ struct AssetDashboardView: View {
         .heroCard(accent: hidesAssetMoney ? DesignSystem.primaryColor : (snapshot.netWorth >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
     }
 
-    private func physicalAssetSummary(_ snapshot: DashboardSnapshot) -> some View {
+    private func physicalAssetSummary(_ snapshot: AssetPortfolioSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("实物资产", systemImage: "iphone.and.arrow.forward")
@@ -239,7 +168,7 @@ struct AssetDashboardView: View {
         .glassCard()
     }
 
-    private func cashPoolSummary(_ snapshot: DashboardSnapshot) -> some View {
+    private func cashPoolSummary(_ snapshot: AssetPortfolioSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("资金池", systemImage: "wallet.pass.fill")
@@ -291,7 +220,7 @@ struct AssetDashboardView: View {
         .buttonStyle(.plain)
     }
 
-    private func savingsGoalSummary(_ snapshot: DashboardSnapshot) -> some View {
+    private func savingsGoalSummary(_ snapshot: AssetPortfolioSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Label("储蓄目标", systemImage: "target")
