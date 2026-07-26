@@ -40,6 +40,9 @@ struct ReportObservedContent: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query private var observedTransactions: [Transaction]
     @Query(sort: \Budget.createdAt) private var budgets: [Budget]
+    /// 分类表很小，单独观察它。分类改名/换图标/换颜色同样会改变报表，
+    /// 但那是分类自己的属性——没必要在每一笔交易上重复哈希一遍。
+    @Query private var categories: [Category]
 
     /// 报表 Tab 是否在前台。TabView 会保活页面，若不看这个标记，
     /// 用户在账本页每记一笔都会在后台把整份报表重算一遍。
@@ -72,13 +75,15 @@ struct ReportObservedContent: View {
         self.weekendBudgetMultiplierPercent = weekendBudgetMultiplierPercent
         let start = scope.start
         let end = scope.end
-        _observedTransactions = Query(
-            filter: #Predicate<Transaction> { transaction in
+        var descriptor = FetchDescriptor<Transaction>(
+            predicate: #Predicate<Transaction> { transaction in
                 transaction.date >= start && transaction.date < end
             },
-            sort: \Transaction.date,
-            order: .reverse
+            sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
         )
+        // 变更侦测要读每笔交易的分类，不预取就是一条一条 fault，年报下尤其明显。
+        descriptor.relationshipKeyPathsForPrefetching = [\Transaction.category]
+        _observedTransactions = Query(descriptor)
     }
 
     private var weekendBudgetMultiplier: Decimal {
@@ -94,10 +99,16 @@ struct ReportObservedContent: View {
             hasher.combine(transaction.date)
             hasher.combine(transaction.dailyBudgetOverride)
             hasher.combine(transaction.category?.id)
-            hasher.combine(transaction.category?.reportDisplayName)
-            hasher.combine(transaction.category?.reportIcon)
-            hasher.combine(transaction.category?.reportColorHex)
-            hasher.combine(transaction.category?.dailyBudgetOverride)
+        }
+        // 分类的展示与预算归属字段单独过一遍小表，而不是逐笔交易重复读取。
+        for category in categories {
+            hasher.combine(category.id)
+            hasher.combine(category.name)
+            hasher.combine(category.icon)
+            hasher.combine(category.colorHex)
+            hasher.combine(category.parentCategoryName)
+            hasher.combine(category.defaultKey)
+            hasher.combine(category.dailyBudgetOverride)
         }
         for budget in budgets {
             hasher.combine(budget.id)
@@ -111,7 +122,19 @@ struct ReportObservedContent: View {
     }
 
     var body: some View {
-        Group {
+        // 一次 body 求值只算一遍摘要，任务标识与缓存键共用。
+        let generationKey = GenerationKey(
+            isActive: isActive,
+            digest: transactionDigest,
+            retry: retryToken,
+            weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent,
+            period: period,
+            payday: payday,
+            targetKind: target.isCurrent ? "current" : (target.isScheduled ? "scheduled" : "completed"),
+            targetReferenceDate: target.referenceDate
+        )
+
+        return Group {
             switch state {
             case .loading:
                 ProgressView("正在生成报表…")
@@ -143,19 +166,10 @@ struct ReportObservedContent: View {
                 reportContent(data)
             }
         }
-        .task(id: GenerationKey(
-            isActive: isActive,
-            digest: transactionDigest,
-            retry: retryToken,
-            weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent,
-            period: period,
-            payday: payday,
-            targetKind: target.isCurrent ? "current" : (target.isScheduled ? "scheduled" : "completed"),
-            targetReferenceDate: target.referenceDate
-        )) {
+        .task(id: generationKey) {
             // 不活跃时跳过；isActive 参与 key，回到前台会重新触发并按最新数据生成。
             guard isActive else { return }
-            await generateReport()
+            await generateReport(digest: generationKey.digest)
         }
     }
 
@@ -174,10 +188,32 @@ struct ReportObservedContent: View {
         }
     }
 
+    /// 已完成 / 定时报表在数据不变时结果确定，可以缓存；
+    /// 「当前进行中」的参照时刻持续变化，缓存键永远打不中，不参与缓存。
+    private func cacheKey(digest: Int) -> ReportPageCache.Key? {
+        guard !target.isCurrent else { return nil }
+        return ReportPageCache.Key(
+            digest: digest,
+            period: period,
+            targetKind: target.isScheduled ? "scheduled" : "completed",
+            targetReferenceDate: target.referenceDate,
+            payday: payday,
+            weekendMultiplierPercent: weekendBudgetMultiplierPercent
+        )
+    }
+
     @MainActor
-    private func generateReport() async {
+    private func generateReport(digest: Int) async {
         let token = UUID()
         generationToken = token
+        let key = cacheKey(digest: digest)
+
+        if let key, let cached = await ReportPageCache.shared.value(for: key) {
+            guard generationToken == token else { return }
+            apply(cached)
+            return
+        }
+
         let previous = state.visibleData
         state = previous.map(ReportLoadState.refreshing) ?? .loading
         do {
@@ -198,14 +234,22 @@ struct ReportObservedContent: View {
                 weekendMultiplier: weekendBudgetMultiplier
             )
             try Task.checkCancellation()
-            guard generationToken == token else { return }
-            let page = ReportPageData(report: calculation.report, budget: calculation.budget)
-            withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
-                state = calculation.report.transactionCount == 0 ? .empty(page) : .loaded(page)
+            if let key {
+                await ReportPageCache.shared.insert(calculation, for: key)
             }
+            guard generationToken == token else { return }
+            apply(calculation)
         } catch {
             guard !Task.isCancelled, generationToken == token else { return }
             state = .failed(error.localizedDescription)
+        }
+    }
+
+    @MainActor
+    private func apply(_ calculation: ReportPageCalculation) {
+        let page = ReportPageData(report: calculation.report, budget: calculation.budget)
+        withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
+            state = calculation.report.transactionCount == 0 ? .empty(page) : .loaded(page)
         }
     }
 }

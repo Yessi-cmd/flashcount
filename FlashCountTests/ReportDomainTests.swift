@@ -433,6 +433,74 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.streakDays, 200, "断点之前的记录不得计入连续天数")
     }
 
+    /// 历史报表缓存：命中要求数据摘要一致，超出容量按最近最少使用淘汰。
+    func testReportPageCacheHitsOnSameDigestAndEvictsLeastRecentlyUsed() async throws {
+        let cache = ReportPageCache()
+        let reference = try date(2026, 7, 12, 12)
+        let calculation = makeCalculation(reference: reference)
+
+        func key(digest: Int, day: Int) throws -> ReportPageCache.Key {
+            ReportPageCache.Key(
+                digest: digest,
+                period: .monthly,
+                targetKind: "completed",
+                targetReferenceDate: try date(2026, day <= 12 ? 7 : 8, max(day % 28, 1)),
+                payday: 1,
+                weekendMultiplierPercent: 100
+            )
+        }
+
+        let original = try key(digest: 1, day: 1)
+        await cache.insert(calculation, for: original)
+        let hit = await cache.value(for: original)
+        XCTAssertNotNil(hit, "同一摘要应命中缓存")
+
+        // 数据变了 → 摘要变了 → 必须重新计算，不得复用旧结果。
+        let afterEdit = ReportPageCache.Key(
+            digest: 2,
+            period: original.period,
+            targetKind: original.targetKind,
+            targetReferenceDate: original.targetReferenceDate,
+            payday: original.payday,
+            weekendMultiplierPercent: original.weekendMultiplierPercent
+        )
+        let staleHit = await cache.value(for: afterEdit)
+        XCTAssertNil(staleHit, "摘要变化后不得命中旧缓存")
+
+        // 灌满并超出容量：最早的条目应被淘汰，最近访问过的应保留。
+        for day in 2...14 {
+            await cache.insert(calculation, for: try key(digest: 1, day: day))
+        }
+        let evicted = await cache.value(for: original)
+        XCTAssertNil(evicted, "超出容量后最久未使用的条目应被淘汰")
+        let recent = await cache.value(for: try key(digest: 1, day: 14))
+        XCTAssertNotNil(recent, "最近写入的条目应保留")
+    }
+
+    private func makeCalculation(reference: Date) -> ReportPageCalculation {
+        let snapshot = ReportDataSnapshot(
+            currentTransactions: [],
+            comparisonTransactions: [],
+            loggedDays: [],
+            budgetTransactions: [],
+            budgets: []
+        )
+        let report = ReportCalculator(calendar: calendar).generateReport(
+            period: .monthly,
+            target: .completed(containing: reference),
+            snapshot: snapshot
+        )
+        let budget = ReportBudgetSnapshotService.snapshotValue(
+            budgets: [],
+            transactions: [],
+            reportRange: report.reportRange,
+            target: report.target,
+            payday: 1,
+            calendar: calendar
+        )
+        return ReportPageCalculation(report: report, budget: budget)
+    }
+
     /// 时间桶改为二分归组后，边界（桶起点、桶末尾、区间外）归属必须与逐桶过滤一致。
     func testTimeBucketsAssignBoundaryTransactionsToTheOwningBucket() async throws {
         let context = try makeContext()

@@ -97,6 +97,7 @@
 		987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8F866E732FA0C08D5772C1 /* ReportView.swift */; };
 		9A1B7990A72D765C519C66E1 /* AppDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A218A299FB92357FF2E66D84 /* AppDeepLink.swift */; };
 		9C98201360AFB29C8C44140A /* FinanceDomainTests+Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 747B4F624E99D955259D74B8 /* FinanceDomainTests+Budget.swift */; };
+		9D4B54216A18717C90A757B7 /* ReportPageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9DC9D3772627449CAE070F /* ReportPageCache.swift */; };
 		9E273460795C36FE8FF71EC0 /* ErrorHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBFD2135FE36029863FB0A1A /* ErrorHandling.swift */; };
 		A0AC83B2A0FF088F7C84F224 /* ReportPeriodCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46165C4E87806B426267358D /* ReportPeriodCalculator.swift */; };
 		A13EA735400140C43507A11A /* CalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07DB9D3D6E1549D61AC58249 /* CalendarView.swift */; };
@@ -221,6 +222,7 @@
 		4A23FD76130EA35FAE6B2BE5 /* ReportStreakCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportStreakCalculator.swift; sourceTree = "<group>"; };
 		4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthServiceTests.swift; sourceTree = "<group>"; };
 		4A843AEFBCC16B33EAF56D8C /* BackupExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupExporter.swift; sourceTree = "<group>"; };
+		4A9DC9D3772627449CAE070F /* ReportPageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPageCache.swift; sourceTree = "<group>"; };
 		4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendBudgetPreferences.swift; sourceTree = "<group>"; };
 		5135CC79D6F54B517077FC78 /* FlashCountApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountApp.swift; sourceTree = "<group>"; };
 		5149DDB0778D319390564E4F /* RecurringOccurrenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringOccurrenceService.swift; sourceTree = "<group>"; };
@@ -569,6 +571,7 @@
 				C5ED7B860543EE1DAC1F409D /* RecurringSuggestionService.swift */,
 				3CC9CB89C291CEFB4E009431 /* ReportAnalytics.swift */,
 				3AA4AA2FED697F988BDA4C7A /* ReportModels.swift */,
+				4A9DC9D3772627449CAE070F /* ReportPageCache.swift */,
 				46165C4E87806B426267358D /* ReportPeriodCalculator.swift */,
 				4A23FD76130EA35FAE6B2BE5 /* ReportStreakCalculator.swift */,
 				F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */,
@@ -914,6 +917,7 @@
 				F3D56E55CBFD10AD0416EFD3 /* ReportChartCards.swift in Sources */,
 				0617EEB4B93D014CDE1EA99B /* ReportModels.swift in Sources */,
 				8D7FFB96F080DB2883EA49CE /* ReportObservedContent.swift in Sources */,
+				9D4B54216A18717C90A757B7 /* ReportPageCache.swift in Sources */,
 				A0AC83B2A0FF088F7C84F224 /* ReportPeriodCalculator.swift in Sources */,
 				D284938ECE4AE2580EF1C53F /* ReportPresentation.swift in Sources */,
 				76C7819968ECFCD63E637773 /* ReportReminderNotificationService.swift in Sources */,
