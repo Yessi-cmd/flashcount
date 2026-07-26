@@ -19,7 +19,15 @@ struct LedgerView: View {
         sort: \Category.sortOrder
     ) var allCategories: [Category]
 
+    // 行动中心 badge 需要的原始数据。快照本身在 .task 里算，不放进 body：
+    // pendingOccurrences 会实际推演周期规则，跟着每次渲染跑太贵。
+    @Query(sort: \RecurringRule.nextDueDate) var recurringRules: [RecurringRule]
+    @Query var recurringOccurrences: [RecurringOccurrence]
+    @Query(sort: \InstallmentBill.createdAt, order: .reverse) var installmentBills: [InstallmentBill]
+    @Query(sort: \Reminder.dueDate) var reminderModels: [Reminder]
+
     @State var filterState = LedgerFilterState()
+    @State var pendingActionCount = 0
 
     @State var showAddTransaction = false
     @State var editingTransaction: Transaction?
@@ -78,6 +86,22 @@ struct LedgerView: View {
         )
     }
 
+    /// badge 只在可能变化时重算：条目数量或发薪日变了。
+    /// 金额改动不影响待办条数，不值得为它跑一遍推演。
+    var actionCenterDigest: String {
+        [
+            allBudgets.count,
+            allTransactions.count,
+            recurringRules.count,
+            recurringOccurrences.count,
+            installmentBills.count,
+            reminderModels.count,
+            payday
+        ]
+        .map(String.init)
+        .joined(separator: "-")
+    }
+
     func isIncomeHidden(_ transaction: Transaction) -> Bool {
         PrivacyVisibilityPolicy.hidesIncome(
             isExpense: transaction.isExpense,
@@ -100,7 +124,10 @@ struct LedgerView: View {
                 AmbientBackground(accent: DesignSystem.primaryColor)
 
                 ScrollView {
-                    VStack(spacing: DesignSystem.sectionSpacing) {
+                    // 搜索与日期条做成 pinned section header：初次进入仍排在结论之后，
+                    // 滚到列表时自动吸顶——它们恰恰是浏览列表时才想调的东西，
+                    // 过去一滚就全部滚出屏幕。
+                    LazyVStack(spacing: DesignSystem.sectionSpacing, pinnedViews: [.sectionHeaders]) {
                         // B 方向先呈现核心结论，再提供搜索与筛选工具。
                         monthlySummaryCard(displayedMonthlySummary)
 
@@ -108,120 +135,10 @@ struct LedgerView: View {
                             ledgerBudgetCard(budgetReminder)
                         }
 
-                        // 搜索栏
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.subheadline)
-                                .foregroundStyle(DesignSystem.textTertiary)
-                            TextField("搜索备注、分类、金额...", text: $filterState.searchText)
-                                .font(.subheadline)
-                                .foregroundStyle(DesignSystem.textPrimary)
-                            if !filterState.searchText.isEmpty {
-                                Button {
-                                    filterState.searchText = ""
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(DesignSystem.textTertiary)
-                                        .frame(width: 44, height: 44)
-                                }
-                                .accessibilityLabel("清除搜索")
-                                .accessibilityIdentifier("ledger.clearSearch")
-                            }
-                        }
-                        .padding(10)
-                        .background(DesignSystem.softFill)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-
-                        // 活跃筛选条件标签
-                        if filterState.hasActiveFilters {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 6) {
-                                    if filterState.typeFilter != .all {
-                                        FilterChip(
-                                            label: filterState.typeFilter.rawValue,
-                                            color: filterState.typeFilter == .expense ? DesignSystem.expenseColor : DesignSystem.incomeColor
-                                        ) { filterState.typeFilter = .all }
-                                    }
-                                    if let id = filterState.categoryFilterId,
-                                       let cat = allCategories.first(where: { $0.id == id }) {
-                                        FilterChip(
-                                            label: cat.name,
-                                            color: Color(hex: cat.colorHex)
-                                        ) { filterState.categoryFilterId = nil }
-                                    }
-                                    if let minVal = Decimal(string: filterState.minAmountText), minVal > 0 {
-                                        FilterChip(
-                                            label: "¥\(minVal.formattedAmount)以上",
-                                            color: DesignSystem.primaryColor
-                                        ) { filterState.minAmountText = "" }
-                                    }
-                                    if let maxVal = Decimal(string: filterState.maxAmountText), maxVal > 0 {
-                                        FilterChip(
-                                            label: "¥\(maxVal.formattedAmount)以下",
-                                            color: DesignSystem.primaryColor
-                                        ) { filterState.maxAmountText = "" }
-                                    }
-                                    Button {
-                                        withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
-                                            filterState.clearAdvancedFilters()
-                                        }
-                                        HapticManager.selection()
-                                    } label: {
-                                        Text("清除全部")
-                                            .font(.caption.weight(.medium))
-                                            .foregroundStyle(DesignSystem.textTertiary)
-                                    }
-                                }
-                            }
-                        }
-
-                        // 日期筛选快捷标签
-                        dateFilterStrip
-
-                        // 自定义日期范围
-                        if filterState.dateFilter == .custom {
-                            Button {
-                                withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
-                                    showCustomDatePicker.toggle()
-                                }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: showCustomDatePicker ? "chevron.up" : "chevron.down")
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(DesignSystem.primaryColor)
-                                    Text("\(filterState.customStartDate.shortDateString) → \(filterState.customEndDate.shortDateString)")
-                                        .font(.subheadline.weight(.medium))
-                                        .foregroundStyle(DesignSystem.textPrimary)
-                                    Spacer()
-                                    Image(systemName: "calendar")
-                                        .font(.caption)
-                                        .foregroundStyle(DesignSystem.textTertiary)
-                                }
-                                .padding(10)
-                                .background(DesignSystem.softFill)
-                                .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
-                            }
-                            .buttonStyle(.plain)
-
-                            if showCustomDatePicker {
-                                HStack(spacing: 12) {
-                                    DatePicker("开始", selection: $filterState.customStartDate, displayedComponents: .date)
-                                        .datePickerStyle(.compact)
-                                    Text("→")
-                                        .foregroundStyle(DesignSystem.textTertiary)
-                                    DatePicker("结束", selection: $filterState.customEndDate, displayedComponents: .date)
-                                        .datePickerStyle(.compact)
-                                }
-                                .transition(.move(edge: .top).combined(with: .opacity))
-                            }
-                        }
-
-                        // 交易列表 / 日历
-                        if showCalendar {
-                            CalendarView()
-                        } else {
-                            transactionList(presentation)
+                        Section {
+                            ledgerBody(presentation)
+                        } header: {
+                            stickyFilterHeader
                         }
                     }
                     .padding()
@@ -298,14 +215,34 @@ struct LedgerView: View {
                             .accessibilityLabel("筛选与排序，当前\(filterState.sortDirection.detail(for: filterState.sortField))")
                             .accessibilityIdentifier("ledger.filter")
 
+                            // 常亮的警示色图标很快会被脱敏，真有急事时也不会被看见。
+                            // 有待办才亮起并给出数量，没有就退成普通灰。
                             Button {
                                 showActionCenter = true
                             } label: {
-                                Image(systemName: "bolt.badge.clock")
-                                    .foregroundStyle(DesignSystem.warningColor)
-                                    .frame(width: 44, height: 44)
+                                ZStack(alignment: .topTrailing) {
+                                    Image(systemName: pendingActionCount > 0 ? "bolt.badge.clock.fill" : "bolt.badge.clock")
+                                        .foregroundStyle(pendingActionCount > 0 ? DesignSystem.warningColor : DesignSystem.textSecondary)
+                                        .frame(width: 44, height: 44)
+
+                                    if pendingActionCount > 0 {
+                                        Text(pendingActionCount > 99 ? "99+" : "\(pendingActionCount)")
+                                            .font(.caption2.weight(.bold))
+                                            .monospacedDigit()
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 4)
+                                            .frame(minWidth: 16, minHeight: 16)
+                                            .background(DesignSystem.dangerColor)
+                                            .clipShape(Capsule())
+                                            .offset(x: 2, y: 2)
+                                    }
+                                }
                             }
-                            .accessibilityLabel("本地行动中心")
+                            .accessibilityLabel(
+                                pendingActionCount > 0
+                                    ? "本地行动中心，\(pendingActionCount) 项待处理"
+                                    : "本地行动中心，暂无待处理"
+                            )
                             .accessibilityIdentifier("ledger.actionCenter")
 
                             Menu {
@@ -408,6 +345,9 @@ struct LedgerView: View {
             }
             .task(id: ledgerQueryID) {
                 await loadFirstPage()
+            }
+            .task(id: actionCenterDigest) {
+                refreshPendingActionCount()
             }
             .onChange(of: filterState.debouncedSearchText) { resetLedgerPage() }
             .onChange(of: filterState.dateFilter) { resetLedgerPage() }
