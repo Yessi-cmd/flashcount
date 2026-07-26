@@ -231,6 +231,124 @@ final class BackupImporterTests: XCTestCase {
         XCTAssertEqual(try destination.fetchCount(FetchDescriptor<Transaction>()), 1)
     }
 
+    // MARK: - 资产类模型与模板
+
+    /// 分期账单、储蓄目标、记账模板三组数据的往返。它们互不引用，但都带
+    /// `isArchived`/时间戳这类容易在 DTO 映射里漏掉的字段。
+    func testInstallmentSavingsAndTemplatesRoundTrip() throws {
+        let source = try makeContext()
+        let firstRepayment = Date(timeIntervalSince1970: 1_700_000_000)
+
+        let bill = InstallmentBill(
+            name: "手机分期",
+            totalAmount: 6_000,
+            installmentCount: 12,
+            paidInstallments: 3,
+            repaymentDay: 8,
+            firstRepaymentDate: firstRepayment,
+            note: "免息"
+        )
+        let goal = SavingsGoal(
+            name: "旅行基金",
+            targetAmount: 20_000,
+            currentAmount: 7_500,
+            targetDate: firstRepayment.addingTimeInterval(86_400 * 200),
+            note: "夏天出发"
+        )
+        let archivedGoal = SavingsGoal(name: "已完成目标", targetAmount: 100, currentAmount: 100)
+        archivedGoal.isCompleted = true
+        archivedGoal.isArchived = true
+        let template = TransactionTemplate(
+            name: "咖啡",
+            amount: Decimal(string: "9.90") ?? 9.9,
+            isExpense: true,
+            note: "楼下",
+            categoryName: "餐饮",
+            sortOrder: 2
+        )
+        source.insert(bill)
+        source.insert(goal)
+        source.insert(archivedGoal)
+        source.insert(template)
+        try source.save()
+        let snapshot = try DataBackupService(modelContext: source).exportJSON()
+
+        let destination = try makeContext()
+        let result = try DataBackupService(modelContext: destination).importJSON(data: snapshot, mode: .merge)
+
+        XCTAssertEqual(result.installmentBillsImported, 1)
+        XCTAssertEqual(result.savingsGoalsImported, 2)
+        XCTAssertEqual(result.templatesImported, 1)
+
+        let restoredBill = try XCTUnwrap(destination.fetch(FetchDescriptor<InstallmentBill>()).first)
+        XCTAssertEqual(restoredBill.id, bill.id)
+        XCTAssertEqual(restoredBill.totalAmount, 6_000)
+        XCTAssertEqual(restoredBill.installmentCount, 12)
+        XCTAssertEqual(restoredBill.paidInstallments, 3, "已还期数必须保留，否则还款进度会倒退")
+        XCTAssertEqual(restoredBill.repaymentDay, 8)
+        XCTAssertEqual(restoredBill.firstRepaymentDate, firstRepayment)
+
+        let goals = Dictionary(
+            uniqueKeysWithValues: try destination.fetch(FetchDescriptor<SavingsGoal>()).map { ($0.name, $0) }
+        )
+        XCTAssertEqual(goals["旅行基金"]?.currentAmount, 7_500)
+        XCTAssertEqual(goals["旅行基金"]?.targetDate, goal.targetDate)
+        XCTAssertEqual(goals["已完成目标"]?.isCompleted, true)
+        XCTAssertEqual(goals["已完成目标"]?.isArchived, true, "归档与完成状态都要跟着回来")
+
+        let restoredTemplate = try XCTUnwrap(destination.fetch(FetchDescriptor<TransactionTemplate>()).first)
+        XCTAssertEqual(restoredTemplate.amount, Decimal(string: "9.90"))
+        XCTAssertEqual(restoredTemplate.categoryName, "餐饮")
+        XCTAssertEqual(restoredTemplate.sortOrder, 2)
+    }
+
+    /// 这三组同样要按 UUID 去重，重复导入不能翻倍。
+    func testInstallmentSavingsAndTemplatesAreDeduplicatedOnSecondImport() throws {
+        let source = try makeContext()
+        source.insert(InstallmentBill(
+            name: "分期",
+            totalAmount: 1_200,
+            installmentCount: 6,
+            repaymentDay: 1,
+            firstRepaymentDate: Date(timeIntervalSince1970: 1_700_000_000)
+        ))
+        source.insert(SavingsGoal(name: "目标", targetAmount: 500, currentAmount: 100))
+        source.insert(TransactionTemplate(name: "模板", amount: 5, isExpense: true))
+        try source.save()
+        let snapshot = try DataBackupService(modelContext: source).exportJSON()
+
+        let destination = try makeContext()
+        let service = DataBackupService(modelContext: destination)
+        _ = try service.importJSON(data: snapshot, mode: .merge)
+        let second = try service.importJSON(data: snapshot, mode: .merge)
+
+        XCTAssertEqual(second.installmentBillsImported, 0)
+        XCTAssertEqual(second.savingsGoalsImported, 0)
+        XCTAssertEqual(second.templatesImported, 0)
+        XCTAssertEqual(try destination.fetchCount(FetchDescriptor<InstallmentBill>()), 1)
+        XCTAssertEqual(try destination.fetchCount(FetchDescriptor<SavingsGoal>()), 1)
+        XCTAssertEqual(try destination.fetchCount(FetchDescriptor<TransactionTemplate>()), 1)
+    }
+
+    /// replace 模式必须先清空本地数据，导入结果只反映备份内容。
+    func testReplaceModeDiscardsLocalDataInsteadOfMerging() throws {
+        let source = try makeContext()
+        source.insert(Transaction(amount: 10, note: "备份里的"))
+        source.insert(SavingsGoal(name: "备份目标", targetAmount: 100, currentAmount: 10))
+        try source.save()
+        let snapshot = try DataBackupService(modelContext: source).exportJSON()
+
+        let destination = try makeContext()
+        destination.insert(Transaction(amount: 999, note: "本机原有"))
+        destination.insert(SavingsGoal(name: "本机目标", targetAmount: 1, currentAmount: 1))
+        try destination.save()
+
+        _ = try DataBackupService(modelContext: destination).importJSON(data: snapshot, mode: .replace)
+
+        XCTAssertEqual(try destination.fetch(FetchDescriptor<Transaction>()).map(\.note), ["备份里的"])
+        XCTAssertEqual(try destination.fetch(FetchDescriptor<SavingsGoal>()).map(\.name), ["备份目标"])
+    }
+
     // MARK: - 夹具
 
     private func makeContext() throws -> ModelContext {

@@ -15,7 +15,7 @@
 - [x] **AGENTS.md 未反映本轮结构变化**（已完成，见 DONE.md） — 新增 `QuickEntryFeedbackCenter` 服务未进 Services 表；记账保存反馈、隐私锁解锁流程、底栏中央按钮行为、分类格子交互模型都已改变，Caveats 仍是旧描述。AGENTS.md 自己规定结构变化必须同批更新，且它是 agent 唯一真源。影响范围：文档，无代码风险。
 - [x] **本轮 UX 改动缺 ADR**（已完成，见 DONE.md） — `docs/decisions/` 按规定应记录重大决策。至少两项够格：分类格子交互模型（单点即选 + 明确的换小类入口，且两种失败方案要留下"别再试"的记录）、隐私锁放宽（去掉确认弹窗与切 tab 重锁）。影响范围：文档。
 - [x] **新增三个类型无测试**（已完成，见 DONE.md） — `QuickEntryFeedbackCenter`（提示条生命周期与过期）、`AdaptiveMetricRow`/`AdaptiveMetric`（横纵排切换）、`QuickEntrySavedToast`。前者是纯逻辑，值得单测。影响范围：新增测试文件。
-- [ ] **补齐逻辑层覆盖率** — 基线：逻辑层合计 ≈82.6%，全目标 43.24%（约 80% 计数行是视图代码，见 `BLOCKERS.md` 说明 85% 总量目标为何不成立）。已完成 `BackupImporter`（69.6%→78.3%）、`CSVTransactionService`（68.2%→88.2%）、`CategoryManagementService`（61.2%→85.8%）、`LedgerQueryService`（67.6%→75.7%）、`CashFlowForecastService`（68.3%→约 88%）。逻辑层合计（仅单元测试）81.8%，距 85% 差约 306 行。下一批候选按未覆盖行排序：`CashFlowForecastService` 68.3%、`ReportBudgetSnapshotService` 56.4%、`ReminderNotificationService` 5.6%（后者大半是系统通知中心调用，可测部分有限）。影响范围：测试。
+- [ ] **补齐逻辑层覆盖率** — 基线：逻辑层合计 ≈82.6%，全目标 43.24%（约 80% 计数行是视图代码，见 `BLOCKERS.md` 说明 85% 总量目标为何不成立）。已完成 `BackupImporter`（69.6%→78.3%）、`CSVTransactionService`（68.2%→88.2%）、`CategoryManagementService`（61.2%→85.8%）、`LedgerQueryService`（67.6%→75.7%）、`CashFlowForecastService`（68.3%→约 88%）。逻辑层合计（仅单元测试）82.7%，距 85% 差约 218 行。`BackupImporter` 已到 87.2%。下一批候选按未覆盖行排序：`CashFlowForecastService` 68.3%、`ReportBudgetSnapshotService` 56.4%、`ReminderNotificationService` 5.6%（后者大半是系统通知中心调用，可测部分有限）。影响范围：测试。
 
 ## 中
 
@@ -24,6 +24,7 @@
 - [ ] **`BackupImporter.importJSON()` 455 行 —— 先补覆盖率，再拆** — 实测该文件只有 69.6% 覆盖（`DataServices` 里最低的之一），是这批长函数里兜底最弱的。顺序刻意定为先补导入路径的测试、再按模型分组拆分；反过来做等于在没有安全网的地方动数据导入。影响范围：备份导入。
 - [x] **`DataHealthService.scan()` 203 行**（已完成，见 DONE.md） — 各项健康检查可拆为独立私有方法，顺带让单项检查可被单测。影响范围：数据健康中心。
 - [x] **`BackupExporter.exportJSON()` 145 行 —— 判定为不该拆**（见 DONE.md）
+- [ ] **`recoverPendingImport()` 无法测试** — 中断恢复这条路（约 20 行）完全没覆盖，因为 `.prepared` 阶段的日志文件只有进程被杀才会留下，而 `writeImportJournal`/`readImportJournal` 是 `private`。要测必须把日志读写改成 `internal`（一次很小的可测性放宽），或在测试里按私有 JSON 结构手写日志文件（脆弱）。刻意没做，先记在这里。影响范围：备份导入的崩溃恢复。
 - [ ] **`BackupImporter.importJSON()` 第二批：头部小节** — 剩余 362 行里，分类／账本／交易／周期规则／周期发生项／预算／资金池之间靠 `categoryMap`/`ledgerMap`/`ruleMap`/`transactionMap`/`importedTransactionDelta` 互相传值，需要先引入一个承载中间状态的类型才能拆。覆盖率 78.3%，动之前建议再补几条（replace 模式、旧版 assets 折算、cashPoolStates 三个分支）。影响范围：备份导入。
 - [x] **补齐公开接口文档注释：269/269 完成**（见 DONE.md） — 269 个顶层类型中原缺 147 个，已完成 Core(8)、Models(9)、BudgetServices(8)、DataHealth 家族(11)、FinanceServices(38)。**服务层与模型层已 100% 完成**。剩余 45 个全在视图层（Report 12、Ledger 7、Settings 6、Asset 5、ActionCenter 4、Components 4、其他 7）。SwiftUI 视图多为自解释，建议只补有非显然约束的那些（例如 `ReportShareCard` 必须全参数传入、报表页 `isActive` 守卫），不做逐个填充。要求写出不变量与「为什么存在」，复述类型名的注释不算。影响范围：文档注释。
 - [ ] **`LedgerPresentation.makePresentation()` 118 行** — 分组/汇总/筛选三段职责混在一起。影响范围：账本列表呈现。
