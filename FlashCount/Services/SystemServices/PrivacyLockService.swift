@@ -21,7 +21,6 @@ enum PrivacyVisibilityPolicy {
 final class PrivacyLockService: ObservableObject {
     @Published private(set) var isUnlocked = false
     @Published var lastError: String?
-    @Published var isRevealConfirmationPresented = false
 
     var maskedText: String { "****" }
     var hidesSensitiveAmounts: Bool { !isUnlocked }
@@ -36,20 +35,20 @@ final class PrivacyLockService: ObservableObject {
 #endif
     }
 
+    /// 用户点眼睛按钮或点一个被遮挡的数字时直接进生物识别。
+    ///
+    /// 这里以前先弹一次「显示隐私金额？」确认，再走 Face ID——两步里第一步没有
+    /// 提供任何新信息：用户主动点的就是那个数字，意图已经明确，而系统验证弹窗
+    /// 本身就是确认环节。原先那句说明并入了下面的验证原因文案。
     func requestReveal() {
         guard !isUnlocked else { return }
         lastError = nil
-        isRevealConfirmationPresented = true
-    }
-
-    func confirmReveal() async -> Bool {
-        isRevealConfirmationPresented = false
-        return await unlock()
+        Task { _ = await unlock() }
     }
 
     private func unlock() async -> Bool {
         lastError = nil
-        let reason = "显示收入、资产和其他隐私金额"
+        let reason = "显示收入、资产和其他隐私金额；本次使用期间保持可见，进入后台后自动隐藏"
 
         switch await evaluateBiometrics(reason: reason) {
         case .unlocked:
@@ -123,7 +122,6 @@ final class PrivacyLockService: ObservableObject {
     }
 
     func lock() {
-        isRevealConfirmationPresented = false
         isUnlocked = false
     }
 }
@@ -145,6 +143,6 @@ struct PrivacyVisibilityButton: View {
                 .frame(width: 44, height: 44)
         }
         .accessibilityLabel(privacyLock.isUnlocked ? "隐藏隐私金额" : "验证并显示隐私金额")
-        .accessibilityHint(privacyLock.isUnlocked ? "立即隐藏所有收入和资产金额" : "先确认，再验证设备所有者身份")
+        .accessibilityHint(privacyLock.isUnlocked ? "立即隐藏所有收入和资产金额" : "验证设备所有者身份后显示，进入后台会自动隐藏")
     }
 }

@@ -79,19 +79,17 @@ final class FinanceDomainTests: XCTestCase {
         XCTAssertFalse(PrivacyVisibilityPolicy.hidesProtectedMetadata(isProtectedIncome: true, isUnlocked: true))
     }
 
-    func testPrivacyRevealRequiresConfirmationBeforeAuthentication() {
+    /// 请求显示会直接进生物识别（中间那次「确认」弹窗已经去掉），
+    /// 但在验证成功之前一个字都不能露出来——这条才是隐私锁的安全性所在。
+    func testPrivacyRevealStaysLockedUntilAuthenticationSucceeds() {
         let privacyLock = PrivacyLockService()
 
         XCTAssertFalse(privacyLock.isUnlocked)
-        XCTAssertFalse(privacyLock.isRevealConfirmationPresented)
 
         privacyLock.requestReveal()
-
-        XCTAssertFalse(privacyLock.isUnlocked)
-        XCTAssertTrue(privacyLock.isRevealConfirmationPresented)
+        XCTAssertFalse(privacyLock.isUnlocked, "验证尚未完成时不能提前解锁")
 
         privacyLock.lock()
-        XCTAssertFalse(privacyLock.isRevealConfirmationPresented)
         XCTAssertFalse(privacyLock.isUnlocked)
     }
 
