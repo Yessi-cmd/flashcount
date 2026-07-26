@@ -24,6 +24,9 @@ Packages/
 *.swp
 *~
 
+# Local agent workspace (session settings, temporary worktrees)
+/.claude/
+
 # Local AI agent guidance and generated context
 /AGENTS.md
 /CLAUDE.md
