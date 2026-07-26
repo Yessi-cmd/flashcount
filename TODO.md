@@ -25,7 +25,7 @@
 - [ ] **`DataHealthService.scan()` 203 行** — 各项健康检查可拆为独立私有方法，顺带让单项检查可被单测。影响范围：数据健康中心。
 - [ ] **`BackupExporter.exportJSON()` 145 行** — 同上，按模型分组。影响范围：备份导出。
 - [ ] **`LedgerPresentation.makePresentation()` 118 行** — 分组/汇总/筛选三段职责混在一起。影响范围：账本列表呈现。
-- [ ] **README 与代码状态的两处出入** — 报表一栏未提发薪周期报（实际有五种周期）；测试示例设备为 iPhone 16，AGENTS.md 与本地惯例是 iPhone 17 Pro。影响范围：文档。
+- [x] **README 与代码状态的两处出入**（已完成，见 DONE.md） — 报表一栏未提发薪周期报（实际有五种周期）；测试示例设备为 iPhone 16，AGENTS.md 与本地惯例是 iPhone 17 Pro。影响范围：文档。
 
 ## 低
 
