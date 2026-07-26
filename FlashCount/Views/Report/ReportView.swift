@@ -110,6 +110,7 @@ struct ReportView: View {
                         rangeNavigator
 
                         ReportObservedContent(
+                            isActive: isActive,
                             scope: observationScope,
                             period: selectedPeriod,
                             target: target,

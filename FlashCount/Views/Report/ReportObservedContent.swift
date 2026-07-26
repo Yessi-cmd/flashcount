@@ -22,6 +22,7 @@ enum ReportLoadState {
 }
 
 private struct GenerationKey: Hashable {
+    let isActive: Bool
     let digest: Int
     let retry: Int
     let weekendBudgetMultiplierPercent: Int
@@ -40,6 +41,9 @@ struct ReportObservedContent: View {
     @Query private var observedTransactions: [Transaction]
     @Query(sort: \Budget.createdAt) private var budgets: [Budget]
 
+    /// 报表 Tab 是否在前台。TabView 会保活页面，若不看这个标记，
+    /// 用户在账本页每记一笔都会在后台把整份报表重算一遍。
+    let isActive: Bool
     let scope: ReportObservationScope
     let period: ReportPeriod
     let target: ReportTarget
@@ -53,12 +57,14 @@ struct ReportObservedContent: View {
     @State private var generationToken: UUID?
 
     init(
+        isActive: Bool = true,
         scope: ReportObservationScope,
         period: ReportPeriod,
         target: ReportTarget,
         payday: Int,
         weekendBudgetMultiplierPercent: Int
     ) {
+        self.isActive = isActive
         self.scope = scope
         self.period = period
         self.target = target
@@ -138,6 +144,7 @@ struct ReportObservedContent: View {
             }
         }
         .task(id: GenerationKey(
+            isActive: isActive,
             digest: transactionDigest,
             retry: retryToken,
             weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent,
@@ -146,6 +153,8 @@ struct ReportObservedContent: View {
             targetKind: target.isCurrent ? "current" : (target.isScheduled ? "scheduled" : "completed"),
             targetReferenceDate: target.referenceDate
         )) {
+            // 不活跃时跳过；isActive 参与 key，回到前台会重新触发并按最新数据生成。
+            guard isActive else { return }
             await generateReport()
         }
     }
