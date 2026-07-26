@@ -193,6 +193,7 @@ struct ReportObservedContent: View {
             timeBucketBarChart(data: data)
             categoryPieChart(data: data)
             topCategoriesCard(data: data)
+            incomeCompositionCard(data: data)
             insightsCard(data: data)
         }
     }

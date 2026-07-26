@@ -239,6 +239,77 @@ extension ReportObservedContent {
         .accessibilityIdentifier("report.budgetCard")
     }
 
+    /// 收入构成。收入侧此前只有总额和结余率，没有任何结构信息。
+    @ViewBuilder
+    func incomeCompositionCard(data: ReportData) -> some View {
+        if !data.incomeBreakdown.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label("收入构成", systemImage: "arrow.down.circle.fill")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(DesignSystem.textSecondary)
+                    Spacer()
+                    if !privacyLock.hidesSensitiveAmounts {
+                        Text(data.totalIncome.formattedCurrency)
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(DesignSystem.incomeColor)
+                    }
+                }
+
+                if privacyLock.hidesSensitiveAmounts {
+                    // 锁定时连分类名都不展示：「工资」「奖金」本身就是隐私信息。
+                    Button {
+                        privacyLock.requestReveal()
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "lock.fill")
+                            Text("验证后查看收入来源构成")
+                            Spacer()
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(DesignSystem.primaryColor)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(DesignSystem.softFill)
+                        .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    ForEach(data.incomeBreakdown.prefix(5)) { item in
+                        VStack(alignment: .leading, spacing: 5) {
+                            HStack(spacing: 10) {
+                                Image(systemName: item.categoryIcon)
+                                    .font(.caption)
+                                    .foregroundStyle(Color(hex: item.categoryColor))
+                                    .frame(width: 22)
+                                Text(item.categoryName)
+                                    .font(.subheadline)
+                                    .foregroundStyle(DesignSystem.textPrimary)
+                                Spacer()
+                                Text(item.amount.formattedCurrency)
+                                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                                    .foregroundStyle(DesignSystem.incomeColor)
+                                Text(ReportPercentageFormatter.categoryShare(item.percentage))
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(DesignSystem.textTertiary)
+                            }
+                            GeometryReader { proxy in
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(DesignSystem.incomeColor.opacity(0.3))
+                                    .frame(width: proxy.size.width * min(max(item.percentage, 0), 1), height: 3)
+                            }
+                            .frame(height: 3)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+            .glassCard()
+            .accessibilityIdentifier("report.incomeComposition")
+        }
+    }
+
     func insightsCard(data: ReportData) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Label("智能洞察", systemImage: "brain.head.profile.fill")

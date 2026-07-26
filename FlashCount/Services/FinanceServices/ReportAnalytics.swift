@@ -224,8 +224,13 @@ struct ReportCalculator {
         let incomeChange = percentageChange(current: totalIncome, previous: comparisonIncomeTotal)
         let categoryBreakdown = buildCategoryBreakdown(
             transactions: currentExpenses,
-            totalExpense: totalExpense,
+            total: totalExpense,
             previousTransactions: comparisonExpenses
+        )
+        let incomeBreakdown = buildCategoryBreakdown(
+            transactions: currentIncome,
+            total: totalIncome,
+            previousTransactions: comparisonIncome
         )
         let timeBuckets = buildTimeBuckets(
             transactions: currentExpenses,
@@ -262,6 +267,7 @@ struct ReportCalculator {
             incomeChange: incomeChange,
             hasHiddenPrivateIncome: !includePrivateIncome && currentTransactions.contains(where: \.isProtectedIncome),
             categoryBreakdown: categoryBreakdown,
+            incomeBreakdown: incomeBreakdown,
             timeBuckets: timeBuckets,
             streakDays: streakDays,
             smartAnalysis: smartAnalysis,
@@ -287,7 +293,7 @@ struct ReportCalculator {
 
     private func buildCategoryBreakdown(
         transactions: [ReportTransactionSnapshot],
-        totalExpense: Decimal,
+        total: Decimal,
         previousTransactions: [ReportTransactionSnapshot]
     ) -> [CategorySpending] {
         let grouped = Dictionary(grouping: transactions) { $0.categoryName ?? "未分类" }
@@ -302,8 +308,8 @@ struct ReportCalculator {
                 categoryIcon: firstTransaction?.categoryIcon ?? "questionmark",
                 categoryColor: firstTransaction?.categoryColor ?? "#667EEA",
                 amount: amount,
-                percentage: totalExpense > 0
-                    ? NSDecimalNumber(decimal: amount / totalExpense).doubleValue
+                percentage: total > 0
+                    ? NSDecimalNumber(decimal: amount / total).doubleValue
                     : 0,
                 changeFromLastPeriod: percentageChange(current: amount, previous: previousAmount)
             )

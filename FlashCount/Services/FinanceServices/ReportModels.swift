@@ -75,6 +75,9 @@ struct ReportData {
     let incomeChange: Double?
     let hasHiddenPrivateIncome: Bool
     let categoryBreakdown: [CategorySpending]
+    /// 收入的分类构成。界面必须在隐私锁开启时整体遮挡——
+    /// 金额之外，分类名本身（「工资」「奖金」）同样是敏感信息。
+    let incomeBreakdown: [CategorySpending]
     let timeBuckets: [ReportTimeBucket]
     let streakDays: Int
     let smartAnalysis: ReportSmartAnalysis

@@ -433,6 +433,52 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.streakDays, 200, "断点之前的记录不得计入连续天数")
     }
 
+    /// 收入构成按分类聚合，且受保护收入在隐藏时不得出现在构成里。
+    func testIncomeBreakdownAggregatesByCategoryAndRespectsPrivacyFlag() throws {
+        let reference = try date(2026, 7, 12, 12)
+        func income(_ amount: Decimal, _ name: String, protected: Bool) throws -> ReportTransactionSnapshot {
+            ReportTransactionSnapshot(
+                amount: amount,
+                isExpense: false,
+                date: try date(2026, 7, 3),
+                categoryName: name,
+                categoryIcon: "banknote",
+                categoryColor: "#34C759",
+                isProtectedIncome: protected,
+                isIncludedInDailyBudget: false
+            )
+        }
+        let snapshot = ReportDataSnapshot(
+            currentTransactions: [
+                try income(6_000, "工资", protected: true),
+                try income(2_000, "兼职", protected: false)
+            ],
+            comparisonTransactions: [],
+            loggedDays: [],
+            budgetTransactions: [],
+            budgets: []
+        )
+
+        let visible = ReportCalculator(calendar: calendar).generateReport(
+            period: .monthly,
+            target: .current(referenceDate: reference),
+            snapshot: snapshot,
+            includePrivateIncome: true
+        )
+        XCTAssertEqual(visible.incomeBreakdown.map(\.categoryName), ["工资", "兼职"])
+        XCTAssertEqual(visible.incomeBreakdown.first?.amount, 6_000)
+        XCTAssertEqual(visible.incomeBreakdown.first?.percentage, 0.75)
+
+        let masked = ReportCalculator(calendar: calendar).generateReport(
+            period: .monthly,
+            target: .current(referenceDate: reference),
+            snapshot: snapshot,
+            includePrivateIncome: false
+        )
+        XCTAssertEqual(masked.incomeBreakdown.map(\.categoryName), ["兼职"], "隐藏受保护收入时不得泄露其分类")
+        XCTAssertEqual(masked.incomeBreakdown.first?.percentage, 1)
+    }
+
     /// 历史报表缓存：命中要求数据摘要一致，超出容量按最近最少使用淘汰。
     func testReportPageCacheHitsOnSameDigestAndEvictsLeastRecentlyUsed() async throws {
         let cache = ReportPageCache()
