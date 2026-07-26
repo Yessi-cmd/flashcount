@@ -27,5 +27,8 @@ Packages/
 # Local agent workspace (session settings, temporary worktrees)
 /.claude/
 
+# Machine-private XcodeGen overrides (signing team, etc.)
+/project.local.yml
+
 # CocoaPods (if used later)
 Pods/

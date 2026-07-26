@@ -53,6 +53,7 @@ private struct AppRootView: View {
 
     var body: some View {
         Group {
+#if DEBUG
             if isBudgetScopeReview {
                 DailyBudgetScopeView()
                     .onAppear { prepareReviewDataIfNeeded() }
@@ -72,21 +73,11 @@ private struct AppRootView: View {
                     )
                 }
             } else {
-                switch startupState {
-                case .preparing:
-                    ProgressView("正在准备本地账本…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                case .ready:
-                    MainTabView()
-                        .environmentObject(privacyLock)
-                case .failed(let message):
-                    StartupFailureView(
-                        title: "本地数据准备失败",
-                        message: message,
-                        retry: { startupAttempt += 1 }
-                    )
-                }
+                mainAppContent
             }
+#else
+            mainAppContent
+#endif
         }
         .tint(DesignSystem.primaryColor)
         .fontDesign(.rounded)
@@ -134,7 +125,9 @@ private struct AppRootView: View {
             }
         }
         .task(id: startupAttempt) {
+#if DEBUG
             guard visualExplorationDirection == nil, !isBudgetScopeReview, !isQuickEntryReview else { return }
+#endif
             await prepareAppData()
         }
         .alert("后台处理未完成", isPresented: Binding(
@@ -147,38 +140,47 @@ private struct AppRootView: View {
         }
     }
 
-    /// Debug-only visual lab. Production launches always keep the normal app root.
-    private var visualExplorationDirection: VisualDirection? {
+    @ViewBuilder
+    private var mainAppContent: some View {
+        switch startupState {
+        case .preparing:
+            ProgressView("正在准备本地账本…")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        case .ready:
+            MainTabView()
+                .environmentObject(privacyLock)
+        case .failed(let message):
+            StartupFailureView(
+                title: "本地数据准备失败",
+                message: message,
+                retry: { startupAttempt += 1 }
+            )
+        }
+    }
+
 #if DEBUG
+    /// Debug-only visual lab. Production builds compile none of this —
+    /// the exploration views themselves are also `#if DEBUG`.
+    private var visualExplorationDirection: VisualDirection? {
         let arguments = ProcessInfo.processInfo.arguments
         guard arguments.contains("-visualDirectionExploration") || arguments.contains("-visualHomeExploration") else { return nil }
         if arguments.contains("-visualDirectionB") { return .soft }
         if arguments.contains("-visualDirectionC") { return .precise }
         return .restrained
-#else
-        return nil
-#endif
     }
 
     private var isBudgetScopeReview: Bool {
-#if DEBUG
         ProcessInfo.processInfo.arguments.contains("-visualBudgetScopeReview")
-#else
-        false
-#endif
     }
 
     private var isQuickEntryReview: Bool {
-#if DEBUG
         ProcessInfo.processInfo.arguments.contains("-visualQuickEntryReview")
-#else
-        false
-#endif
     }
 
     private func prepareReviewDataIfNeeded() {
         _ = try? DefaultDataService(modelContext: modelContext).prepareAppData()
     }
+#endif
 
     private func prepareAppData() async {
         startupState = .preparing

@@ -1,4 +1,5 @@
 import Foundation
+import OSLog
 import SwiftData
 
 /// Legacy JSON codec. New reminder writes never go through this file; it
@@ -44,7 +45,8 @@ struct FileReminderStore {
             let backupURL = fileURL.deletingPathExtension()
                 .appendingPathExtension("corrupted-\(ISO8601DateFormatter().string(from: Date())).json")
             try? FileManager.default.moveItem(at: fileURL, to: backupURL)
-            print("提醒文件损坏，已备份到: \(backupURL.lastPathComponent), 错误: \(error.localizedDescription)")
+            Logger(subsystem: "com.flashcount.app", category: "ReminderStore")
+                .error("提醒文件损坏，已备份到 \(backupURL.lastPathComponent, privacy: .public)：\(error.localizedDescription, privacy: .public)")
             throw LoadError.corrupted(backupURL, error)
         }
     }

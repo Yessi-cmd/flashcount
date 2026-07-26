@@ -87,9 +87,9 @@ struct PhysicalAssetView: View {
                     if let asset = confirmDeleteAsset {
                         withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                             modelContext.delete(asset)
+                            // safeSave 失败会回滚删除；把错误告诉用户而不是静默吞掉
                             if let error = safeSave(modelContext) {
-                                // 静默处理：资产页面没有单独的 saveError state
-                                print("删除实物资产失败: \(error)")
+                                saveError = error
                             }
                         }
                     }

@@ -19,6 +19,7 @@ struct AssetDashboardView: View {
     @State private var editingAsset: Asset?
     @State private var showTutorial = false
     @State private var confirmDeleteAsset: Asset?
+    @State private var deleteError: String?
 
     /// 单次遍历构建页面需要的资产快照，避免每个卡片再次 filter/reduce 同一批 SwiftData 结果。
     private struct DashboardSnapshot {
@@ -206,6 +207,7 @@ struct AssetDashboardView: View {
             .sheet(item: $editingAsset) { asset in
                 AddAssetView(editAsset: asset)
             }
+            .saveErrorAlert($deleteError)
             .alert("确认删除", isPresented: .init(
                 get: { confirmDeleteAsset != nil },
                 set: { if !$0 { confirmDeleteAsset = nil } }
@@ -215,8 +217,9 @@ struct AssetDashboardView: View {
                     if let asset = confirmDeleteAsset {
                         withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
                             modelContext.delete(asset)
+                            // safeSave 失败会回滚删除；把错误告诉用户而不是静默吞掉
                             if let error = safeSave(modelContext) {
-                                print("删除账户失败: \(error)")
+                                deleteError = error
                             }
                         }
                     }

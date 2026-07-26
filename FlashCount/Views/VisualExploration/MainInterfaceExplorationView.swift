@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Isolated main-interface visual lab. It uses fixed content and does not touch SwiftData.
@@ -711,3 +712,4 @@ private struct PreciseMainInterface: View {
         .buttonStyle(HomePressStyle())
     }
 }
+#endif

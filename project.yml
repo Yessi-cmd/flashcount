@@ -1,4 +1,9 @@
 name: FlashCount
+# 本机私有覆盖（如 Release 签名的 DEVELOPMENT_TEAM）放在 project.local.yml，
+# 该文件已被 gitignore；缺失时照常生成（CI / 新克隆无需它）。
+include:
+  - path: project.local.yml
+    optional: true
 options:
   bundleIdPrefix: com.flashcount
   deploymentTarget:
@@ -43,7 +48,6 @@ targets:
         Debug:
           DEVELOPMENT_TEAM: ""
         Release:
-          DEVELOPMENT_TEAM: "66WCCRKRLC"
           PROVISIONING_PROFILE_SPECIFIER: ""
   FlashCountTests:
     type: bundle.unit-test

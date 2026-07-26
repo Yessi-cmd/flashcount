@@ -1,3 +1,4 @@
+#if DEBUG
 import SwiftUI
 
 /// Three isolated visual treatments for the same budget content.
@@ -710,3 +711,4 @@ private struct PreciseBudgetDirection: View {
         .buttonStyle(ExplorationPressStyle())
     }
 }
+#endif
