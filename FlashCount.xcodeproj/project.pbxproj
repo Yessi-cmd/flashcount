@@ -85,6 +85,7 @@
 		8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */; };
 		8D7FFB96F080DB2883EA49CE /* ReportObservedContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8787892FBE7527E71758B45 /* ReportObservedContent.swift */; };
 		8E2B8F3AA30DF91D2F8E4A81 /* ReportBudgetSnapshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3474D18D3D98F0E29892BC0 /* ReportBudgetSnapshotService.swift */; };
+		8F9FB7C797F056DE5FD1794F /* QuickEntryLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = E94FA939D27F7853D52D9940 /* QuickEntryLogic.swift */; };
 		910B7574E688BB5DE807C3C7 /* BackTapSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 028A18C5446374159C5C739F /* BackTapSetupView.swift */; };
 		9518C01319B7D3B8E9D5F2C0 /* TransactionMutationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */; };
 		9542F7F221B42C848E869513 /* CashPoolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28E6DA89B6319DACF056D151 /* CashPoolView.swift */; };
@@ -122,6 +123,7 @@
 		CE7B1D6D32B88BC5FA52091D /* BackupImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FA43688643A3C342CFFFB0 /* BackupImporter.swift */; };
 		D284938ECE4AE2580EF1C53F /* ReportPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FF48441638307D9EDBA856 /* ReportPresentation.swift */; };
 		D6D8F110738749552014E054 /* RecurringSuggestionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5ED7B860543EE1DAC1F409D /* RecurringSuggestionService.swift */; };
+		D718F1186AB97470A28802CE /* QuickEntrySections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 324FD870540C3BD710486C69 /* QuickEntrySections.swift */; };
 		DB2D5B73969518D0F9E6832B /* CategoryManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4AA931D05FE98E02F5BC0EB /* CategoryManagementView.swift */; };
 		DE83E5479BD532D70F116869 /* Category.swift in Sources */ = {isa = PBXBuildFile; fileRef = 437BC90EE7A47F7AA13A5C1F /* Category.swift */; };
 		DF3833A27A9AC1A6E0042549 /* BudgetComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A051412B9C908E512258A73 /* BudgetComponents.swift */; };
@@ -194,6 +196,7 @@
 		2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoneyValidationTests.swift; sourceTree = "<group>"; };
 		30159AD8FBCFF39D60087239 /* RecurringCatchUpPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringCatchUpPreferences.swift; sourceTree = "<group>"; };
 		30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryView.swift; sourceTree = "<group>"; };
+		324FD870540C3BD710486C69 /* QuickEntrySections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntrySections.swift; sourceTree = "<group>"; };
 		338B2E3E70FD9CBF647930A3 /* LedgerActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerActions.swift; sourceTree = "<group>"; };
 		36EFD1230AE17F67A1659B34 /* NotificationScheduleCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationScheduleCoordinator.swift; sourceTree = "<group>"; };
 		3C4577B9A4B3DCE41C5A23B6 /* TemplateManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemplateManagementView.swift; sourceTree = "<group>"; };
@@ -295,6 +298,7 @@
 		E2BD91F5AD8968CAB66EA504 /* DataHealthRepairPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthRepairPreviewView.swift; sourceTree = "<group>"; };
 		E44850532ED0D315BFCB16D9 /* InstallmentBill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBill.swift; sourceTree = "<group>"; };
 		E6C353AB5561EBD96657B182 /* DailyBudgetScopeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBudgetScopeView.swift; sourceTree = "<group>"; };
+		E94FA939D27F7853D52D9940 /* QuickEntryLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryLogic.swift; sourceTree = "<group>"; };
 		ED4B2EBB93F770D4860E517A /* ActionCenterSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterSummaryView.swift; sourceTree = "<group>"; };
 		EE30225D24B9028D99C97465 /* ReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderView.swift; sourceTree = "<group>"; };
 		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -483,6 +487,8 @@
 			isa = PBXGroup;
 			children = (
 				12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */,
+				E94FA939D27F7853D52D9940 /* QuickEntryLogic.swift */,
+				324FD870540C3BD710486C69 /* QuickEntrySections.swift */,
 				30F36E7D8B4A5B1B308F1B43 /* QuickEntryView.swift */,
 			);
 			path = QuickEntry;
@@ -884,6 +890,8 @@
 				974A04365C4FFFFB6E96DA01 /* PrivacyLockService.swift in Sources */,
 				E0EDF6CED6EA923227750436 /* QuickAddIntent.swift in Sources */,
 				408D4A9C5FE25933D921CC65 /* QuickEntryControls.swift in Sources */,
+				8F9FB7C797F056DE5FD1794F /* QuickEntryLogic.swift in Sources */,
+				D718F1186AB97470A28802CE /* QuickEntrySections.swift in Sources */,
 				8B14B7CCE526CEA574D835BD /* QuickEntryView.swift in Sources */,
 				A18379BF155BB463147BDC67 /* RecurringBackfillView.swift in Sources */,
 				1107FB196BC96BF4C83CFB2C /* RecurringCatchUpPreferences.swift in Sources */,
