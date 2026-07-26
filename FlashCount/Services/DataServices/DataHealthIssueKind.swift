@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 体检覆盖的问题类型。顺序即界面上的展示顺序。
 enum DataHealthIssueKind: String, CaseIterable, Identifiable, Equatable {
     case duplicateUUID
     case orphanBudget

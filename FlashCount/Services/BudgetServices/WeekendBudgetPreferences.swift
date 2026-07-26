@@ -23,6 +23,12 @@ enum WeekendBudgetMultiplier: Int, CaseIterable, Identifiable {
     }
 }
 
+/// 周末额度倍数的读写与归一化，存在 `@AppStorage`。
+///
+/// 存的是百分比整数（150 / 200）而不是 `Decimal`，因为 `@AppStorage`
+/// 不直接支持 `Decimal`；任何非法值一律回落到默认档，避免存进一个
+/// 会让每日额度算出离谱结果的倍数。周末提高的额度会由工作日自动摊平，
+/// 整个发薪周期的预算上限不变。
 enum WeekendBudgetPreferences {
     static let storageKey = "weekendBudgetMultiplierPercent"
     static let defaultRawValue = WeekendBudgetMultiplier.oneAndHalf.rawValue

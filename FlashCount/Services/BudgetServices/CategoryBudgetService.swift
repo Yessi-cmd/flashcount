@@ -1,5 +1,8 @@
 import Foundation
 
+/// 单个分类预算的当前状态，连同给用户看的一句话结论。
+///
+/// 一级分类预算会统计其下全部子分类。
 struct CategoryBudgetSnapshot: Identifiable {
     var id: UUID { budget.id }
 
@@ -25,6 +28,8 @@ struct CategoryBudgetSnapshot: Identifiable {
     }
 }
 
+/// 分类预算的定位与分析。与总预算共用发薪周期口径：
+/// `categoryId != nil` 的预算是分类预算，`nil` 的是账本级总预算。
 enum CategoryBudgetService {
     static func currentBudgets(
         in budgets: [Budget],
