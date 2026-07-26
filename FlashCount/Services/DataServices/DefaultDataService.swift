@@ -4,6 +4,20 @@ import SwiftData
 /// Handles non-destructive startup data preparation.
 @MainActor
 final class DefaultDataService {
+    /// Thrown when single-ledger consolidation would delete a ledger that
+    /// still owns records. `Ledger` cascades deletes to its transactions and
+    /// budgets, so deleting a non-empty ledger destroys user data.
+    enum ConsolidationError: LocalizedError {
+        case ledgerNotEmpty(ledgerName: String)
+
+        var errorDescription: String? {
+            switch self {
+            case .ledgerNotEmpty(let ledgerName):
+                return "账本「\(ledgerName)」仍有未迁移的记录，已中止整理以保护数据。没有任何数据被删除或覆盖，请重启 App 重试。"
+            }
+        }
+    }
+
     private let modelContext: ModelContext
 
     init(modelContext: ModelContext) {
@@ -81,6 +95,12 @@ final class DefaultDataService {
         }
 
         for ledger in refreshed where ledger.id != primary.id {
+            // If any record is still attached here, the migration above failed.
+            // Refuse to delete so the caller rolls back instead of letting the
+            // cascade rules destroy user data.
+            guard ledger.transactions.isEmpty, ledger.budgets.isEmpty else {
+                throw ConsolidationError.ledgerNotEmpty(ledgerName: ledger.name)
+            }
             modelContext.delete(ledger)
         }
     }
