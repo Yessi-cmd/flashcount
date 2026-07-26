@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 
+/// 分类管理被拒绝的原因，文案直接面向用户。
 enum CategoryManagementError: LocalizedError, Equatable {
     case invalidName
     case duplicateName
@@ -21,6 +22,11 @@ enum CategoryManagementError: LocalizedError, Equatable {
     }
 }
 
+/// 分类的改名、归档、合并。
+///
+/// 这些操作会牵连交易、周期规则、预算与模板的引用，因此每一项都必须原子完成——
+/// 半途失败会留下指向已消失分类的记录。归档一级分类会级联到其子分类，
+/// 且不允许归档最后一个可用的一级分类（否则记账页会无分类可选）。
 @MainActor
 final class CategoryManagementService {
     enum MoveDirection { case up, down }

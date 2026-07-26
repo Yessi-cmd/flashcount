@@ -419,8 +419,8 @@ enum RecurringSuggestionService {
     }
 }
 
-@ModelActor
 /// 在 `@ModelActor` 上把周期建议所需数据读成值快照。
+@ModelActor
 actor RecurringSuggestionDataStore {
     func makeInput() throws -> RecurringSuggestionInput {
         let transactions = try modelContext.fetch(

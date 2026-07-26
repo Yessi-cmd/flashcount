@@ -3,6 +3,10 @@ import Foundation
 import LocalAuthentication
 import SwiftUI
 
+/// 什么该被隐私锁遮挡的唯一判定处。
+///
+/// 集中在这里是为了让「收入、资产、受保护收入的元数据」三条规则在所有页面
+/// 一致——散落在各视图里迟早会漏掉一处，而漏掉一处就等于隐私锁没生效。
 enum PrivacyVisibilityPolicy {
     static func hidesIncome(isExpense: Bool, isUnlocked: Bool) -> Bool {
         !isExpense && !isUnlocked
@@ -17,6 +21,12 @@ enum PrivacyVisibilityPolicy {
     }
 }
 
+/// 隐私金额的解锁状态。
+///
+/// 注入在 `AppRootView`，全 App 共享一个实例。`isUnlocked` 只能由一次成功的
+/// 生物识别或设备密码验证置真——任何「先显示再验证」的写法都是安全缺陷。
+/// 进入后台时上锁（见 `AppRootView`）；切换 tab 不上锁，那只会把解锁成本
+/// 乘上切换次数。
 @MainActor
 final class PrivacyLockService: ObservableObject {
     @Published private(set) var isUnlocked = false
@@ -126,6 +136,7 @@ final class PrivacyLockService: ObservableObject {
     }
 }
 
+/// 眼睛按钮：已解锁时立即上锁，未解锁时直接发起生物识别。
 struct PrivacyVisibilityButton: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
 

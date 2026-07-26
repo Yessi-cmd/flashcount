@@ -1,6 +1,8 @@
 import Foundation
 import SwiftData
 
+/// 体检修复被拒绝的原因。`stalePreview` 表示预览之后数据变过，
+/// 此时执行会落在与预览不同的数据上。
 enum DataHealthError: LocalizedError, Equatable {
     case stalePreview
 
@@ -12,6 +14,12 @@ enum DataHealthError: LocalizedError, Equatable {
     }
 }
 
+/// 本地数据体检与修复。
+///
+/// 只读地扫描出问题、给出修复方案，执行前用数据指纹确认数据未变。
+/// 刻意保守：能安全自动处理的才自动处理（重新编号、补账本归属、补资金增减），
+/// 涉及语义判断的（孤儿预算、未分类交易、非正金额）一律只报告不改写——
+/// 猜错比不猜更糟。
 @MainActor
 final class DataHealthService {
     private let modelContext: ModelContext

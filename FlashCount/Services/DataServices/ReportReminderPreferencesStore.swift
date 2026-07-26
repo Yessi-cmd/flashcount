@@ -1,5 +1,6 @@
 import Foundation
 
+/// 报表提醒的时刻（时、分）。
 struct ReportReminderTime: Codable, Equatable, Sendable {
     var hour: Int
     var minute: Int
@@ -50,11 +51,13 @@ struct ReportReminderPreferences: Codable, Equatable, Sendable {
     }
 }
 
+/// 报表提醒偏好的存取抽象，便于测试注入。
 protocol ReportReminderPreferencesStoring {
     func load() -> ReportReminderPreferences
     func save(_ preferences: ReportReminderPreferences) throws
 }
 
+/// 基于 `UserDefaults` 的报表提醒偏好实现。
 struct UserDefaultsReportReminderPreferencesStore: ReportReminderPreferencesStoring {
     static let defaultKey = "reportReminderPreferences.v1"
 

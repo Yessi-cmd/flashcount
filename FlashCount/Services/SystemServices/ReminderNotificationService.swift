@@ -1,12 +1,14 @@
 import Foundation
 import UserNotifications
 
+/// 提醒通知调度的抽象，便于测试替换真实通知中心。
 protocol ReminderNotificationScheduling {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization() async -> Bool
     func rebuild(reminders: [ReminderItem]) async throws
 }
 
+/// 提醒的通知权限申请与分类注册。
 enum ReminderNotificationService {
     private static let delegate = ReminderNotificationDelegate()
 
@@ -35,6 +37,7 @@ enum ReminderNotificationService {
     }
 }
 
+/// 走真实通知中心的提醒调度实现。
 struct SystemReminderNotificationScheduler: ReminderNotificationScheduling {
     func authorizationStatus() async -> UNAuthorizationStatus {
         await ReminderNotificationService.authorizationStatus()
