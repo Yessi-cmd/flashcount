@@ -40,6 +40,9 @@ struct AssetBreakdownLine: Identifiable, Equatable {
 
 enum AssetBreakdownKind: String, Identifiable, CaseIterable {
     case availableFunds
+    /// 资金净额单独成一种。它此前借用 `availableFunds`，于是点「资金净额」
+    /// 打开的是标题写着「可动用资金」的明细——下钻必须解释用户点的那个数字。
+    case netFunds
     case totalAssets
     case totalLiabilities
 
@@ -48,6 +51,7 @@ enum AssetBreakdownKind: String, Identifiable, CaseIterable {
     var title: String {
         switch self {
         case .availableFunds: return "可动用资金"
+        case .netFunds: return "资金净额"
         case .totalAssets: return "总资产"
         case .totalLiabilities: return "总负债"
         }
@@ -57,6 +61,8 @@ enum AssetBreakdownKind: String, Identifiable, CaseIterable {
         switch self {
         case .availableFunds:
             return "可动用资金 = 资金净额 + 记账增减 − 分期待还。若这里的数字和你的实际情况不符，先看看是哪一项对不上，再决定要不要校准。"
+        case .netFunds:
+            return "你手工登记的每一个资金项，正负相抵后的合计。不含记账增减与分期待还——那两项体现在「可动用资金」里。"
         case .totalAssets:
             return "只统计资金池里的正向资金，不含实物资产估值与储蓄目标。"
         case .totalLiabilities:
@@ -70,9 +76,28 @@ extension AssetPortfolioSnapshot {
     func breakdown(_ kind: AssetBreakdownKind) -> [AssetBreakdownLine] {
         switch kind {
         case .availableFunds: return availableFundsLines()
+        case .netFunds: return netFundsLines()
         case .totalAssets: return totalAssetsLines()
         case .totalLiabilities: return totalLiabilitiesLines()
         }
+    }
+
+    private func netFundsLines() -> [AssetBreakdownLine] {
+        var lines = activeCashPoolItems.map { item in
+            AssetBreakdownLine(
+                id: "net-\(item.id.uuidString)",
+                label: item.name,
+                detail: item.kind.displayName,
+                amount: item.signedAmount
+            )
+        }
+        lines.append(AssetBreakdownLine(
+            id: "net-total",
+            label: "资金净额",
+            amount: cashPoolManualTotal,
+            style: .total
+        ))
+        return lines
     }
 
     private func availableFundsLines() -> [AssetBreakdownLine] {

@@ -127,23 +127,27 @@ struct AssetDashboardView: View {
                     .font(DesignSystem.Typography.amount).monospacedDigit()
                     .foregroundStyle(snapshot.netWorth >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor)
             }
-            HStack(spacing: 24) {
+            AdaptiveMetricRow {
                 breakdownButton(kind: .totalAssets, in: snapshot) {
-                    VStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("总资产").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                         Text(hidesAssetMoney ? privacyLock.maskedText : snapshot.totalAssets.formattedCurrency)
                             .font(.subheadline.weight(.semibold).monospacedDigit())
                             .foregroundStyle(DesignSystem.incomeColor)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
                 }
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 30)
+                AdaptiveMetricDivider(height: 30)
                 breakdownButton(kind: .totalLiabilities, in: snapshot) {
-                    VStack(spacing: 4) {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text("总负债").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                         Text(hidesAssetMoney ? privacyLock.maskedText : snapshot.totalLiabilities.formattedCurrency)
                             .font(.subheadline.weight(.semibold).monospacedDigit())
                             .foregroundStyle(DesignSystem.expenseColor)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 12)
                 }
             }
 
@@ -173,13 +177,13 @@ struct AssetDashboardView: View {
             NavigationLink {
                 PhysicalAssetView()
             } label: {
-                HStack(spacing: 0) {
-                physicalMetric(title: "当前估值", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalTotalValue.formattedCurrency, color: DesignSystem.primaryColor)
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                physicalMetric(title: "总折旧", value: hidesAssetMoney ? privacyLock.maskedText : (snapshot.physicalPurchaseTotal - snapshot.physicalTotalValue).formattedCurrency, color: DesignSystem.expenseColor)
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                // 合计而非平均：用户想知道「这些东西每天一共花我多少」。
-                physicalMetric(title: "每日合计成本", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalDailyCostTotal.formattedCurrency, color: DesignSystem.warningColor)
+                AdaptiveMetricRow {
+                    physicalMetric(title: "当前估值", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalTotalValue.formattedCurrency, color: DesignSystem.primaryColor)
+                    AdaptiveMetricDivider()
+                    physicalMetric(title: "总折旧", value: hidesAssetMoney ? privacyLock.maskedText : (snapshot.physicalPurchaseTotal - snapshot.physicalTotalValue).formattedCurrency, color: DesignSystem.expenseColor)
+                    AdaptiveMetricDivider()
+                    // 合计而非平均：用户想知道「这些东西每天一共花我多少」。
+                    physicalMetric(title: "每日合计成本", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalDailyCostTotal.formattedCurrency, color: DesignSystem.warningColor)
                 }
             }
             .buttonStyle(.plain)
@@ -196,16 +200,19 @@ struct AssetDashboardView: View {
                 Spacer()
             }
 
-            HStack(spacing: 0) {
+            AdaptiveMetricRow {
                 breakdownButton(kind: .availableFunds, in: snapshot) {
                     privateMetric(title: "可动用资金", value: snapshot.cashPoolAvailable, color: DesignSystem.primaryColor)
                 }
                 .accessibilityIdentifier("assets.availableFunds")
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                breakdownButton(kind: .availableFunds, in: snapshot) {
+                AdaptiveMetricDivider()
+                // 这一格以前传的也是 .availableFunds，点「资金净额」打开的却是
+                // 标题写着「可动用资金」的明细——下钻和它对应的数字必须是同一个。
+                breakdownButton(kind: .netFunds, in: snapshot) {
                     privateMetric(title: "资金净额", value: snapshot.cashPoolManualTotal, color: DesignSystem.incomeColor)
                 }
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
+                .accessibilityIdentifier("assets.netFunds")
+                AdaptiveMetricDivider()
                 NavigationLink {
                     InstallmentBillView()
                 } label: {
@@ -264,11 +271,11 @@ struct AssetDashboardView: View {
             NavigationLink {
                 SavingsGoalView()
             } label: {
-                HStack(spacing: 0) {
+                AdaptiveMetricRow {
                     privateMetric(title: "已存", value: snapshot.savingsCurrentTotal, color: DesignSystem.incomeColor)
-                    Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
+                    AdaptiveMetricDivider()
                     privateMetric(title: "目标", value: snapshot.savingsTargetTotal, color: DesignSystem.primaryColor)
-                    Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
+                    AdaptiveMetricDivider()
                     privateMetric(title: "还差", value: max(snapshot.savingsTargetTotal - snapshot.savingsCurrentTotal, 0), color: DesignSystem.warningColor)
                 }
             }
@@ -278,31 +285,15 @@ struct AssetDashboardView: View {
     }
 
     private func privateMetric(title: String, value: Decimal, color: Color) -> some View {
-        VStack(spacing: 3) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(DesignSystem.textTertiary)
-            Text(hidesAssetMoney ? privacyLock.maskedText : value.formattedCurrency)
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-        }
-        .frame(maxWidth: .infinity)
+        AdaptiveMetric(
+            title: title,
+            value: hidesAssetMoney ? privacyLock.maskedText : value.formattedCurrency,
+            color: color
+        )
     }
 
     private func physicalMetric(title: String, value: String, color: Color) -> some View {
-        VStack(spacing: 3) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(DesignSystem.textTertiary)
-            Text(value)
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity)
+        AdaptiveMetric(title: title, value: value, color: color)
     }
 
     private var emptyState: some View {
