@@ -28,92 +28,161 @@ final class DataHealthService {
         let actions: [DataHealthRekeyAction]
     }
 
+    /// `scan()` 读到的一整份本地数据。原先这十三个数组是 `scan()` 的局部变量，
+    /// 各项检查也都写在同一个函数体里，加起来 203 行；拆开后每项检查能单独读，
+    /// findings 的组装也不再和检查逻辑交织。
+    private struct Snapshot {
+        let transactions: [Transaction]
+        let categories: [Category]
+        let ledgers: [Ledger]
+        let recurringRules: [RecurringRule]
+        let recurringOccurrences: [RecurringOccurrence]
+        let budgets: [Budget]
+        let physicalAssets: [PhysicalAsset]
+        let cashPoolItems: [CashPoolItem]
+        let cashPoolStates: [CashPoolState]
+        let savingsGoals: [SavingsGoal]
+        let installmentBills: [InstallmentBill]
+        let transactionTemplates: [TransactionTemplate]
+        let reminders: [Reminder]
+    }
+
+    /// 重复 UUID 检查在所有类型上的合计。
+    private struct DuplicateTotals {
+        var count = 0
+        var repairableCount = 0
+        var manualCount = 0
+        var actions: [DataHealthRekeyAction] = []
+    }
+
+    /// 无账本交易的归属修复。`defaultLedgerToInsert` 非空表示连默认账本都得先建。
+    private struct LedgerRepair {
+        let missingTransactions: [Transaction]
+        let actions: [DataHealthLedgerAction]
+        let defaultLedgerToInsert: Ledger?
+    }
+
+    /// 资金池增减缺失的修复，连同要保留／删除哪个状态记录的决定。
+    private struct DeltaRepair {
+        let emptyCount: Int
+        let values: [(Transaction, Decimal)]
+        let repairableCount: Int
+        let manualCount: Int
+        let decision: CashPoolStateDecision
+        let duplicateStatesToDelete: [CashPoolState]
+    }
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
 
     func scan() throws -> DataHealthReport {
-        let transactions = try modelContext.fetch(FetchDescriptor<Transaction>())
-        let categories = try modelContext.fetch(FetchDescriptor<Category>())
-        let ledgers = try modelContext.fetch(FetchDescriptor<Ledger>())
-        let recurringRules = try modelContext.fetch(FetchDescriptor<RecurringRule>())
-        let recurringOccurrences = try modelContext.fetch(FetchDescriptor<RecurringOccurrence>())
-        let budgets = try modelContext.fetch(FetchDescriptor<Budget>())
-        let physicalAssets = try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
-        let cashPoolItems = try modelContext.fetch(FetchDescriptor<CashPoolItem>())
-        let cashPoolStates = try modelContext.fetch(FetchDescriptor<CashPoolState>())
-        let savingsGoals = try modelContext.fetch(FetchDescriptor<SavingsGoal>())
-        let installmentBills = try modelContext.fetch(FetchDescriptor<InstallmentBill>())
-        let transactionTemplates = try modelContext.fetch(FetchDescriptor<TransactionTemplate>())
-        let reminders = try modelContext.fetch(FetchDescriptor<Reminder>())
+        let snapshot = try fetchSnapshot()
+        let fingerprint = makeFingerprint(snapshot)
+        let duplicates = duplicateTotals(in: snapshot)
+        let orphanBudgets = orphanBudgets(in: snapshot)
+        let ledgerRepair = ledgerRepair(in: snapshot)
+        let deltaRepair = deltaRepair(in: snapshot)
 
-        let fingerprint = makeFingerprint(
-            transactions: transactions,
-            categories: categories,
-            ledgers: ledgers,
-            recurringRules: recurringRules,
-            recurringOccurrences: recurringOccurrences,
-            budgets: budgets,
-            physicalAssets: physicalAssets,
-            cashPoolItems: cashPoolItems,
-            cashPoolStates: cashPoolStates,
-            savingsGoals: savingsGoals,
-            installmentBills: installmentBills,
-            transactionTemplates: transactionTemplates,
-            reminders: reminders
+        let findings = makeFindings(
+            snapshot: snapshot,
+            duplicates: duplicates,
+            orphanBudgets: orphanBudgets,
+            ledgerRepair: ledgerRepair,
+            deltaRepair: deltaRepair
         )
 
+        let plan = DataHealthRepairPlan(
+            fingerprint: fingerprint,
+            rekeyActions: duplicates.actions,
+            ledgerActions: ledgerRepair.actions,
+            deltaActions: deltaRepair.decision.canRepair
+                ? deltaRepair.values.map { DataHealthDeltaAction(transaction: $0.0, value: $0.1) }
+                : [],
+            stateUpdate: deltaRepair.decision.update,
+            newStateValue: deltaRepair.decision.newStateValue,
+            duplicateStatesToDelete: deltaRepair.duplicateStatesToDelete,
+            defaultLedgerToInsert: ledgerRepair.defaultLedgerToInsert
+        )
+
+        return DataHealthReport(scannedAt: Date(), findings: findings, plan: plan)
+    }
+
+    // MARK: - 扫描各步骤
+
+    private func fetchSnapshot() throws -> Snapshot {
+        Snapshot(
+            transactions: try modelContext.fetch(FetchDescriptor<Transaction>()),
+            categories: try modelContext.fetch(FetchDescriptor<Category>()),
+            ledgers: try modelContext.fetch(FetchDescriptor<Ledger>()),
+            recurringRules: try modelContext.fetch(FetchDescriptor<RecurringRule>()),
+            recurringOccurrences: try modelContext.fetch(FetchDescriptor<RecurringOccurrence>()),
+            budgets: try modelContext.fetch(FetchDescriptor<Budget>()),
+            physicalAssets: try modelContext.fetch(FetchDescriptor<PhysicalAsset>()),
+            cashPoolItems: try modelContext.fetch(FetchDescriptor<CashPoolItem>()),
+            cashPoolStates: try modelContext.fetch(FetchDescriptor<CashPoolState>()),
+            savingsGoals: try modelContext.fetch(FetchDescriptor<SavingsGoal>()),
+            installmentBills: try modelContext.fetch(FetchDescriptor<InstallmentBill>()),
+            transactionTemplates: try modelContext.fetch(FetchDescriptor<TransactionTemplate>()),
+            reminders: try modelContext.fetch(FetchDescriptor<Reminder>())
+        )
+    }
+
+    private func duplicateTotals(in snapshot: Snapshot) -> DuplicateTotals {
         let incomingReferences = rawReferences(
-            categories: categories,
-            recurringOccurrences: recurringOccurrences,
-            budgets: budgets
+            categories: snapshot.categories,
+            recurringOccurrences: snapshot.recurringOccurrences,
+            budgets: snapshot.budgets
         )
 
-        var rekeyActions: [DataHealthRekeyAction] = []
-        var duplicateUUIDCount = 0
-        var duplicateUUIDRepairableCount = 0
-        var duplicateUUIDManualCount = 0
-
-        let duplicateCollections: [(DataHealthRecordType, [any DataHealthIdentifiedModel])] = [
-            (.transaction, transactions),
-            (.category, categories),
-            (.ledger, ledgers),
-            (.recurringRule, recurringRules),
-            (.recurringOccurrence, recurringOccurrences),
-            (.budget, budgets),
-            (.physicalAsset, physicalAssets),
-            (.cashPoolItem, cashPoolItems),
-            (.savingsGoal, savingsGoals),
-            (.installmentBill, installmentBills),
-            (.transactionTemplate, transactionTemplates),
-            (.reminder, reminders)
+        let collections: [(DataHealthRecordType, [any DataHealthIdentifiedModel])] = [
+            (.transaction, snapshot.transactions),
+            (.category, snapshot.categories),
+            (.ledger, snapshot.ledgers),
+            (.recurringRule, snapshot.recurringRules),
+            (.recurringOccurrence, snapshot.recurringOccurrences),
+            (.budget, snapshot.budgets),
+            (.physicalAsset, snapshot.physicalAssets),
+            (.cashPoolItem, snapshot.cashPoolItems),
+            (.savingsGoal, snapshot.savingsGoals),
+            (.installmentBill, snapshot.installmentBills),
+            (.transactionTemplate, snapshot.transactionTemplates),
+            (.reminder, snapshot.reminders)
         ]
 
-        for (recordType, objects) in duplicateCollections {
+        var totals = DuplicateTotals()
+        for (recordType, objects) in collections {
             let result = duplicateUUIDResult(
                 objects: objects,
                 recordType: recordType,
                 incomingReferences: incomingReferences
             )
-            duplicateUUIDCount += result.count
-            duplicateUUIDRepairableCount += result.repairableCount
-            duplicateUUIDManualCount += result.manualCount
-            rekeyActions.append(contentsOf: result.actions)
+            totals.count += result.count
+            totals.repairableCount += result.repairableCount
+            totals.manualCount += result.manualCount
+            totals.actions.append(contentsOf: result.actions)
         }
+        return totals
+    }
 
-        let orphanBudgets = budgets.filter { budget in
+    private func orphanBudgets(in snapshot: Snapshot) -> [Budget] {
+        snapshot.budgets.filter { budget in
             guard let categoryID = budget.categoryId else { return false }
-            return !categories.contains { $0.id == categoryID }
+            return !snapshot.categories.contains { $0.id == categoryID }
         }
+    }
 
-        let missingLedgerTransactions = transactions.filter { $0.ledger == nil }
-        let defaultLedger = ledgers.first(where: { $0.isDefault }) ?? ledgers.first
+    private func ledgerRepair(in snapshot: Snapshot) -> LedgerRepair {
+        let missingTransactions = snapshot.transactions.filter { $0.ledger == nil }
+        let defaultLedger = snapshot.ledgers.first(where: { $0.isDefault }) ?? snapshot.ledgers.first
+
         let ledgerForRepair: Ledger?
         let defaultLedgerToInsert: Ledger?
         if let defaultLedger {
             ledgerForRepair = defaultLedger
             defaultLedgerToInsert = nil
-        } else if !missingLedgerTransactions.isEmpty {
+        } else if !missingTransactions.isEmpty {
+            // 一个账本都没有时，修复需要连默认账本一起建出来。
             let createdLedger = Ledger.defaultLedgers()[0]
             ledgerForRepair = createdLedger
             defaultLedgerToInsert = createdLedger
@@ -122,42 +191,69 @@ final class DataHealthService {
             defaultLedgerToInsert = nil
         }
 
-        let ledgerActions = missingLedgerTransactions.compactMap { transaction -> DataHealthLedgerAction? in
+        let actions = missingTransactions.compactMap { transaction -> DataHealthLedgerAction? in
             guard let ledgerForRepair else { return nil }
             return DataHealthLedgerAction(transaction: transaction, ledger: ledgerForRepair)
         }
 
-        let invalidAmountTransactions = transactions.filter { $0.amount <= 0 }
-        let uncategorizedTransactions = transactions.filter { $0.category == nil }
-        let emptyDeltaTransactions = transactions.filter { $0.cashPoolDelta == nil }
-        let validEmptyDeltaTransactions = emptyDeltaTransactions.filter { $0.amount > 0 }
-        let deltaValues = validEmptyDeltaTransactions.map {
-            ($0, CashPoolService.transactionDelta(for: $0))
-        }
+        return LedgerRepair(
+            missingTransactions: missingTransactions,
+            actions: actions,
+            defaultLedgerToInsert: defaultLedgerToInsert
+        )
+    }
 
-        let sortedCashPoolStates = cashPoolStates.sorted { lhs, rhs in
+    private func deltaRepair(in snapshot: Snapshot) -> DeltaRepair {
+        let emptyDeltaTransactions = snapshot.transactions.filter { $0.cashPoolDelta == nil }
+        let values = emptyDeltaTransactions
+            .filter { $0.amount > 0 }
+            .map { ($0, CashPoolService.transactionDelta(for: $0)) }
+
+        // 只保留最近更新的状态记录；相同时间戳按 UUID 定序，避免结果随机。
+        let sortedStates = snapshot.cashPoolStates.sorted { lhs, rhs in
             if lhs.updatedAt == rhs.updatedAt {
                 return lhs.id.uuidString > rhs.id.uuidString
             }
             return lhs.updatedAt > rhs.updatedAt
         }
-        let primaryCashPoolState = sortedCashPoolStates.first
-        let duplicateStatesToDelete = Array(sortedCashPoolStates.dropFirst())
-        let stateDecision = cashPoolStateDecision(
-            transactions: transactions,
-            missingDeltaValues: deltaValues,
-            primaryState: primaryCashPoolState
+
+        let decision = cashPoolStateDecision(
+            transactions: snapshot.transactions,
+            missingDeltaValues: values,
+            primaryState: sortedStates.first
         )
+        let repairableCount = decision.canRepair ? values.count : 0
 
-        let deltaRepairableCount = stateDecision.canRepair ? deltaValues.count : 0
-        let deltaManualCount = emptyDeltaTransactions.count - deltaRepairableCount
+        return DeltaRepair(
+            emptyCount: emptyDeltaTransactions.count,
+            values: values,
+            repairableCount: repairableCount,
+            manualCount: emptyDeltaTransactions.count - repairableCount,
+            decision: decision,
+            duplicateStatesToDelete: Array(sortedStates.dropFirst())
+        )
+    }
 
-        let findings = [
+    private func makeFindings(
+        snapshot: Snapshot,
+        duplicates: DuplicateTotals,
+        orphanBudgets: [Budget],
+        ledgerRepair: LedgerRepair,
+        deltaRepair: DeltaRepair
+    ) -> [DataHealthFinding] {
+        let invalidAmountTransactions = snapshot.transactions.filter { $0.amount <= 0 }
+        let uncategorizedTransactions = snapshot.transactions.filter { $0.category == nil }
+        let duplicateUUIDCount = duplicates.count
+        let missingLedgerTransactions = ledgerRepair.missingTransactions
+        let ledgerActions = ledgerRepair.actions
+        let duplicateStatesToDelete = deltaRepair.duplicateStatesToDelete
+
+        return [
             DataHealthFinding(
                 kind: .duplicateUUID,
                 count: duplicateUUIDCount,
-                repairableCount: duplicateUUIDRepairableCount,
-                manualCount: duplicateUUIDManualCount,
+                repairableCount: duplicates.repairableCount,
+                manualCount: duplicates.manualCount,
                 detail: duplicateUUIDCount == 0
                     ? "各数据类型内没有发现重复 UUID。"
                     : "能安全重新编号的记录会保留原数据；存在原始 ID 引用歧义的记录不会自动处理。"
@@ -173,13 +269,13 @@ final class DataHealthService {
             ),
             DataHealthFinding(
                 kind: .emptyTransactionDelta,
-                count: emptyDeltaTransactions.count,
-                repairableCount: deltaRepairableCount,
-                manualCount: deltaManualCount,
+                count: deltaRepair.emptyCount,
+                repairableCount: deltaRepair.repairableCount,
+                manualCount: deltaRepair.manualCount,
                 detail: deltaDetail(
-                    emptyCount: emptyDeltaTransactions.count,
-                    validCount: deltaValues.count,
-                    canRepair: stateDecision.canRepair
+                    emptyCount: deltaRepair.emptyCount,
+                    validCount: deltaRepair.values.count,
+                    canRepair: deltaRepair.decision.canRepair
                 )
             ),
             DataHealthFinding(
@@ -219,21 +315,6 @@ final class DataHealthService {
                     : "非正金额不会被自动改写。"
             )
         ]
-
-        let plan = DataHealthRepairPlan(
-            fingerprint: fingerprint,
-            rekeyActions: rekeyActions,
-            ledgerActions: ledgerActions,
-            deltaActions: stateDecision.canRepair
-                ? deltaValues.map { DataHealthDeltaAction(transaction: $0.0, value: $0.1) }
-                : [],
-            stateUpdate: stateDecision.update,
-            newStateValue: stateDecision.newStateValue,
-            duplicateStatesToDelete: duplicateStatesToDelete,
-            defaultLedgerToInsert: defaultLedgerToInsert
-        )
-
-        return DataHealthReport(scannedAt: Date(), findings: findings, plan: plan)
     }
 
     func apply(_ plan: DataHealthRepairPlan) throws -> DataHealthApplyResult {
@@ -438,21 +519,23 @@ final class DataHealthService {
         return "资金池状态与交易投影存在无法判断的差额，未自动修改，以避免覆盖人工校准。"
     }
 
-    private func makeFingerprint(
-        transactions: [Transaction],
-        categories: [Category],
-        ledgers: [Ledger],
-        recurringRules: [RecurringRule],
-        recurringOccurrences: [RecurringOccurrence],
-        budgets: [Budget],
-        physicalAssets: [PhysicalAsset],
-        cashPoolItems: [CashPoolItem],
-        cashPoolStates: [CashPoolState],
-        savingsGoals: [SavingsGoal],
-        installmentBills: [InstallmentBill],
-        transactionTemplates: [TransactionTemplate],
-        reminders: [Reminder]
-    ) -> String {
+    /// 指纹覆盖每个模型的每个字段：预览与实际执行之间只要有一处变化就必须让
+    /// `apply` 拒绝，否则修复会作用在用户已经改过的数据上。
+    private func makeFingerprint(_ snapshot: Snapshot) -> String {
+        let transactions = snapshot.transactions
+        let categories = snapshot.categories
+        let ledgers = snapshot.ledgers
+        let recurringRules = snapshot.recurringRules
+        let recurringOccurrences = snapshot.recurringOccurrences
+        let budgets = snapshot.budgets
+        let physicalAssets = snapshot.physicalAssets
+        let cashPoolItems = snapshot.cashPoolItems
+        let cashPoolStates = snapshot.cashPoolStates
+        let savingsGoals = snapshot.savingsGoals
+        let installmentBills = snapshot.installmentBills
+        let transactionTemplates = snapshot.transactionTemplates
+        let reminders = snapshot.reminders
+
         var lines: [String] = []
 
         lines.append(contentsOf: transactions.map { transaction in

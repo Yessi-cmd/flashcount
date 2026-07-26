@@ -63,8 +63,10 @@ final class QuickEntryFeedbackCenter: ObservableObject {
     private let visibleDuration: Duration
     private var expiryTask: Task<Void, Never>?
 
-    init(visibleDuration: Duration = QuickEntryFeedbackCenter.defaultVisibleDuration) {
-        self.visibleDuration = visibleDuration
+    /// 默认值在 init 体内解析，而不是写成默认实参：默认实参在 nonisolated 上下文
+    /// 里求值，引用 `@MainActor` 隔离的静态属性在 Swift 6 语言模式下是错误。
+    init(visibleDuration: Duration? = nil) {
+        self.visibleDuration = visibleDuration ?? Self.defaultVisibleDuration
     }
 
     func present(_ entry: SavedEntry) {
