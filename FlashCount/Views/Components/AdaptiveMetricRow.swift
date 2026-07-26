@@ -12,14 +12,21 @@ extension EnvironmentValues {
     }
 }
 
+/// 横排还是纵排的判断规则，单独拎出来好被单测钉住。
+///
+/// 刻意用 `dynamicTypeSize` 判断，而不是 `ViewThatFits`：指标格子都带
+/// `maxWidth: .infinity`（等宽分栏要靠它），这种可伸缩的候选视图对任何提议宽度
+/// 都回答「放得下」，`ViewThatFits` 会永远选中第一个候选，等于没做适配。
+enum AdaptiveMetricLayout {
+    static func isHorizontal(for dynamicTypeSize: DynamicTypeSize) -> Bool {
+        !dynamicTypeSize.isAccessibilitySize
+    }
+}
+
 /// 并排指标的自适应容器。
 ///
 /// 资产页那些「已存 / 目标 / 还差」三联指标原先是固定横排 + `minimumScaleFactor(0.72)`：
 /// 辅助功能字号下金额被压到看不清，而不是换行。
-///
-/// 这里刻意用 `dynamicTypeSize` 判断，而不是 `ViewThatFits`：格子都带
-/// `maxWidth: .infinity`（等宽分栏要靠它），这种可伸缩的候选视图对任何提议宽度
-/// 都回答「放得下」，`ViewThatFits` 会永远选中第一个候选，等于没做适配。
 struct AdaptiveMetricRow<Content: View>: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -30,7 +37,7 @@ struct AdaptiveMetricRow<Content: View>: View {
     }
 
     private var isHorizontal: Bool {
-        !dynamicTypeSize.isAccessibilitySize
+        AdaptiveMetricLayout.isHorizontal(for: dynamicTypeSize)
     }
 
     var body: some View {

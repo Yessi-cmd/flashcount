@@ -57,15 +57,22 @@ final class QuickEntryFeedbackCenter: ObservableObject {
     @Published private(set) var lastSaved: SavedEntry?
 
     /// 提示条是撤销的时间窗，不是常驻状态；几秒后自己收起。
-    static let visibleSeconds: Int = 5
+    static let defaultVisibleDuration: Duration = .seconds(5)
 
+    /// 可注入，好让过期行为能在测试里用毫秒级窗口验证，而不是让测试等 5 秒。
+    private let visibleDuration: Duration
     private var expiryTask: Task<Void, Never>?
+
+    init(visibleDuration: Duration = QuickEntryFeedbackCenter.defaultVisibleDuration) {
+        self.visibleDuration = visibleDuration
+    }
 
     func present(_ entry: SavedEntry) {
         expiryTask?.cancel()
         lastSaved = entry
+        let duration = visibleDuration
         expiryTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(Self.visibleSeconds))
+            try? await Task.sleep(for: duration)
             guard !Task.isCancelled else { return }
             self?.lastSaved = nil
         }

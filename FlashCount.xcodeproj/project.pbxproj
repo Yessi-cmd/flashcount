@@ -29,6 +29,7 @@
 		14154192A38EC9EC98CEEFFC /* Transaction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76B154163C08B8060A9DE277 /* Transaction.swift */; };
 		14A503E907A93958C352D9F4 /* RecurringService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */; };
 		1686278248E2E0EB0BD43158 /* ReportSummaryCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */; };
+		19014C10D1A522531CDAC8C0 /* QuickEntryFeedbackCenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE652267F314C0B04170B98 /* QuickEntryFeedbackCenterTests.swift */; };
 		19C11AC50C3838C9B4B2FA40 /* PhysicalAssetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E32DFBBBE5DF24FBC82DCD84 /* PhysicalAssetTests.swift */; };
 		1A452CBB6A09B051CE15209A /* DefaultDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F8BA17A1077C74363D442E /* DefaultDataService.swift */; };
 		1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */; };
@@ -352,6 +353,7 @@
 		FAA5288E4B0ADB2DA4F1023A /* DataHealthIssueKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthIssueKind.swift; sourceTree = "<group>"; };
 		FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRule.swift; sourceTree = "<group>"; };
 		FBFD2135FE36029863FB0A1A /* ErrorHandling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandling.swift; sourceTree = "<group>"; };
+		FDE652267F314C0B04170B98 /* QuickEntryFeedbackCenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryFeedbackCenterTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -514,6 +516,7 @@
 				2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */,
 				6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */,
 				E32DFBBBE5DF24FBC82DCD84 /* PhysicalAssetTests.swift */,
+				FDE652267F314C0B04170B98 /* QuickEntryFeedbackCenterTests.swift */,
 				60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */,
 				A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */,
 				77045E48D3D60F6A725BAD72 /* ReportShareCardTests.swift */,
@@ -871,6 +874,7 @@
 				EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */,
 				0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */,
 				19C11AC50C3838C9B4B2FA40 /* PhysicalAssetTests.swift in Sources */,
+				19014C10D1A522531CDAC8C0 /* QuickEntryFeedbackCenterTests.swift in Sources */,
 				AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */,
 				CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */,
 				4BF40B9AD247ADCC097163AB /* ReportShareCardTests.swift in Sources */,
