@@ -61,7 +61,7 @@ struct OnboardingView: View {
                             Image(systemName: "lightbulb.fill").font(.caption).foregroundStyle(DesignSystem.primaryColor)
                             Text("小贴士").font(.caption.weight(.semibold)).foregroundStyle(DesignSystem.primaryColor)
                         }
-                        Text("添加锁屏 Widget 或设置 Back Tap\n让记账快人一步；进入 App 后可在设置中查看教程")
+                        Text("设置 Back Tap 或 Siri 快捷指令\n让记账快人一步；进入 App 后可在设置中查看教程")
                             .font(.caption)
                             .foregroundStyle(DesignSystem.textSecondary)
                             .multilineTextAlignment(.center)
@@ -99,15 +99,11 @@ struct TutorialView: View {
     @Environment(\.dismiss) private var dismiss
 
     private let tutorials: [(step: String, icon: String, title: String, detail: String)] = [
-        ("1", "square.grid.2x2", "桌面 Widget",
-         "长按桌面 → 点左上角 ＋ → 搜索 FlashCount → 添加小组件"),
-        ("2", "lock.fill", "锁屏 Widget",
-         "长按锁屏 → 自定义 → 添加小组件 → 搜索 FlashCount"),
-        ("3", "hand.tap.fill", "轻点背面",
+        ("1", "hand.tap.fill", "轻点背面",
          "设置 → 辅助功能 → 触控 → 轻点背面 → 轻点两下 → 选择「快速记账」"),
-        ("4", "mic.fill", "Siri 语音",
+        ("2", "mic.fill", "Siri 语音",
          "对 Siri 说「用 FlashCount 快速记账」"),
-        ("5", "square.and.arrow.up", "快捷指令",
+        ("3", "square.and.arrow.up", "快捷指令",
          "打开 iOS 快捷指令 App → 搜索 FlashCount → 添加到桌面或主屏幕"),
     ]
 

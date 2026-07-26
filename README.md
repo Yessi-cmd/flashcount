@@ -12,7 +12,7 @@
 
 | 功能 | 说明 |
 | --- | --- |
-| ⚡ 快速记账 | 支出、收入、分类、备注和模板，支持 Siri、Back Tap 与 Widget 快捷入口。 |
+| ⚡ 快速记账 | 支出、收入、分类、备注和模板，支持 Siri、Back Tap 与快捷指令入口。 |
 | 📒 单账本 | 将收支、预算、资产、分期和提醒集中到一个个人生活账本。 |
 | 🔄 周期账单 | 自动处理房租、订阅等周期规则，并提示补记与即将发生的项目。 |
 | 📊 预算与报表 | 追踪日常及分类预算，按日、周、月、年查看收支和趋势。 |
@@ -29,7 +29,7 @@
 
 ### 从 Release 安装
 
-最新版本在 [GitHub Releases](https://github.com/Yessi-cmd/flashcount/releases) 发布。若 Release 附有 `FlashCount-AltStore.ipa`，请使用 AltStore 安装；该包是未签名主 App，不包含 Widget，由 AltStore 在安装时重新签名。
+最新版本在 [GitHub Releases](https://github.com/Yessi-cmd/flashcount/releases) 发布。若 Release 附有 `FlashCount-AltStore.ipa`，请使用 AltStore 安装；该包是未签名主 App，由 AltStore 在安装时重新签名。
 
 ### 从源码构建
 

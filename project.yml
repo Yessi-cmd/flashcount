@@ -31,9 +31,6 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-    dependencies:
-      - target: FlashCountWidget
-        embed: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app
@@ -42,25 +39,6 @@ targets:
         SWIFT_EMIT_LOC_STRINGS: YES
         TARGETED_DEVICE_FAMILY: "1"
         CODE_SIGN_ENTITLEMENTS: FlashCount/FlashCount.entitlements
-      configs:
-        Debug:
-          DEVELOPMENT_TEAM: ""
-        Release:
-          DEVELOPMENT_TEAM: "66WCCRKRLC"
-          PROVISIONING_PROFILE_SPECIFIER: ""
-  FlashCountWidget:
-    type: app-extension
-    platform: iOS
-    sources:
-      - path: FlashCountWidget
-    settings:
-      base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app.widget
-        INFOPLIST_FILE: FlashCountWidget/Info.plist
-        GENERATE_INFOPLIST_FILE: NO
-        APPLICATION_EXTENSION_API_ONLY: YES
-        SKIP_INSTALL: YES
-        TARGETED_DEVICE_FAMILY: "1"
       configs:
         Debug:
           DEVELOPMENT_TEAM: ""

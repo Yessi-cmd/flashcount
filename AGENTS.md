@@ -25,7 +25,7 @@ xcodebuild test -project FlashCount.xcodeproj -scheme FlashCount \
   -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO
 ```
 
-Targets: `FlashCount` (app), `FlashCountWidget` (embedded extension), `FlashCountTests` (unit), `FlashCountUITests` (UI smoke). Configs: `Debug`, `Release`. GitHub Actions (`.github/workflows/ios-ci.yml`) regenerates the project and runs the full test suite on an iOS simulator for pushes and PRs to `main`.
+Targets: `FlashCount` (app), `FlashCountTests` (unit), `FlashCountUITests` (UI smoke). Configs: `Debug`, `Release`. The former `FlashCountWidget` extension was removed in July 2026 — it only offered deep-link shortcuts and never shipped in AltStore packages; quick entry lives in Siri/Back Tap/Shortcuts instead. GitHub Actions (`.github/workflows/ios-ci.yml`) regenerates the project and runs the full test suite on an iOS simulator for pushes and PRs to `main`.
 
 Never hand-edit `FlashCount.xcodeproj/` — edit `project.yml`, then regenerate with XcodeGen.
 
@@ -116,7 +116,7 @@ Grouped under `FlashCount/Services/`:
 
 When asked to **打包** (package), produce an AltStore-compatible `.ipa` in `build/`:
 
-- Build AltStore packages with `scripts/package-altstore.sh`. They must contain only the unsigned main app, with no code signature or provisioning profile.
+- Build AltStore packages with `scripts/package-altstore.sh`. They must contain only the unsigned main app, with no app extensions, code signature, or provisioning profile.
 - Keep IPA outputs in `build/` (gitignored) using only the canonical names `FlashCount.ipa` and `FlashCount-AltStore.ipa`. Never add version numbers, dates, or suffix copies to IPA filenames; a rebuild replaces the canonical file only after verification succeeds. Keep at most one IPA per distribution channel.
 - Never publish a development-signed IPA. Inspect an IPA for embedded provisioning profiles and personal/device identifiers before any external upload.
 - Follow the full packaging and verification policy in `docs/packaging.md`.

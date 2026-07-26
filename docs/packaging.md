@@ -30,13 +30,13 @@
 1. 从 `project.yml` 重新生成 Xcode 工程。
 2. 对真机 `arm64` 构建全新的未签名 Release App。
 3. 明确关闭代码覆盖率，避免覆盖率映射把本机源码绝对路径写入主程序。
-4. 仅在 IPA 产物中移除 Widget；项目源码和正常 Xcode 构建仍保留 Widget。
+4. 防御性移除任何 `PlugIns/` 扩展目录（项目自 2026-07 起已不含 Widget 扩展，此步通常为空操作）。
 5. 移除 `_CodeSignature`、`embedded.mobileprovision`、调试符号和本地符号，交由 AltStore 安装时重签名。
 6. 验证 ZIP 完整性、严格 `arm64` 架构、完全未签名状态、本机路径、签名标识和运行时数据等禁止内容。
 7. 所有检查通过后，原子替换 `build/FlashCount-AltStore.ipa`。失败时保留上一个可用产物。
 8. 删除 `build/` 中不符合两个固定名称的旧 IPA 副本。
 
-AltStore 包不包含 Widget，避免额外 App ID 和扩展重签名造成安装卡住。
+AltStore 包不包含任何扩展，避免额外 App ID 和扩展重签名造成安装卡住。
 
 ## 发布前检查
 
