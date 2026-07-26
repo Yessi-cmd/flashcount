@@ -4,6 +4,7 @@
 
 ## 2026-07-27
 
+- **备份导入补 9 个测试（195 全绿），`BackupImporter` 覆盖率 69.6% → 78.3%** — 此前完全没被覆盖的几条路：`previewJSON`（且断言它必须只读——用户看完摘要还能取消）、文件入口与 Data 入口结果一致、同一份备份导入两次整份跳过、实物资产往返、未知资产类别／未知周期频率只跳过那一条而不拖垮整份备份。过程中一条测试的前提被证伪：我原以为同名账本会按名称复用，实际 `importJSON` 末尾与默认数据播种共用事务调用 `stageDefaultData()`，做的是单账本整理（交易归主账本、其余删除）。测试改为钉住这个更重要的不变量：导入后账本恰好一个、交易挂在它上面。
 - **`DataHealthService.scan()` 从 203 行拆到 40 行以内** — 引入 `Snapshot`（十三个模型数组）与 `DuplicateTotals`/`LedgerRepair`/`DeltaRepair` 三个中间结果类型，把「取数 / 重复 UUID / 孤儿预算 / 无账本归属 / 资金池增减 / 组装 findings / 组装 plan」各归各位。行为完全不变，`DataHealthServiceTests`（该文件覆盖率 88.9%，是这批长函数里兜底最好的，因此先动它）6 个测试全绿。顺带修掉 `QuickEntryFeedbackCenter` 默认实参引用 `@MainActor` 静态属性的编译警告——lint 信号必须保持 0。
 - **README 对齐当前代码** — 报表补上发薪周期报与下钻；资产一栏改写为「净资产只按资金池口径统计」，原文「汇总现金、储蓄目标、实物资产…查看净资产」与代码相反（实物估值与储蓄目标刻意不计入净资产）；测试示例设备 iPhone 16 → iPhone 17 Pro 与 AGENTS.md 统一；快速记账补上「+」累加与撤销。其余声明逐条核对无误：全仓 0 处 URLSession、iOS 17.0 / Swift 5.9 / Xcode 26、备份 CSV 提醒均本地、Siri 入口在 QuickAddIntent。
 - **记账金额输入抽成 `QuickEntryAmountInput` 纯类型并补 23 个单测（186 全绿）** — 位数限制（整数 12 位、小数 2 位、整数位满后仍可输小数）、`00` 与 `.` 的边界、「+」累加（多次累加、空按忽略与报错的区分、清除累加不动当前输入）、`resolved()` 的求和与 0 元拒绝。这段是 AGENTS.md 列为关键约定的 Decimal 金额处理，此前埋在 View 扩展里依赖 `@State`，只能靠 UI 测试摸到一两个点。顺带把 `handleKeyPress` 从 46 行缩到 20 行。
