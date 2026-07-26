@@ -163,7 +163,7 @@ struct CategoryWheelOverlay: View {
 
             ZStack {
                 Color.black
-                    .opacity(isPresented ? (colorScheme == .dark ? 0.38 : 0.24) : 0)
+                    .opacity(isPresented ? (colorScheme == .dark ? 0.45 : 0.30) : 0)
                     .ignoresSafeArea()
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -206,12 +206,6 @@ struct CategoryWheelOverlay: View {
                 children: children,
                 selectedCategoryID: selectedCategory?.id,
                 activeIndex: dialState.activeIndex ?? selectionPulseIndex
-            )
-            .shadow(
-                color: .black.opacity(colorScheme == .dark ? 0.34 : 0.15),
-                radius: 22,
-                x: 0,
-                y: 12
             )
 
             ForEach(Array(children.enumerated()), id: \.element.id) { index, child in
@@ -352,11 +346,11 @@ struct CategoryWheelOverlay: View {
             }
         }
         .frame(maxWidth: 360, maxHeight: 560)
-        .background(CategoryWheelPalette.porcelainBase)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(CategoryWheelPalette.rim, lineWidth: 1.2)
+                .strokeBorder(CategoryWheelPalette.edgeLine, lineWidth: 1)
         }
         .shadow(color: .black.opacity(colorScheme == .dark ? 0.35 : 0.16), radius: 22, x: 0, y: 12)
         .padding(.horizontal, 24)
@@ -507,70 +501,173 @@ private struct CategoryWheelSurface: View {
     let selectedCategoryID: UUID?
     let activeIndex: Int?
 
+    @ViewBuilder
     var body: some View {
-        Canvas(opaque: false, rendersAsynchronously: false) { context, _ in
-            let outerRect = circleRect(radius: layout.outerRadius)
-            let innerRect = circleRect(radius: layout.innerRadius)
+#if compiler(>=6.2)
+        if #available(iOS 26.0, *) {
+            decorations
+                .liquidGlassSurface(shape: .circle)
+        } else {
+            legacySurface
+        }
+#else
+        legacySurface
+#endif
+    }
 
-            context.fill(
-                Path(ellipseIn: outerRect),
-                with: .linearGradient(
-                    Gradient(colors: [CategoryWheelPalette.porcelainHighlight, CategoryWheelPalette.porcelainBase]),
-                    startPoint: CGPoint(x: layout.size * 0.2, y: 0),
-                    endPoint: CGPoint(x: layout.size * 0.8, y: layout.size)
+    /// iOS 17/18 没有系统 Liquid Glass：系统材质做基底，手绘折射高光沿近似玻璃厚度。
+    private var legacySurface: some View {
+        decorations
+            .background {
+                Circle()
+                    .fill(.thinMaterial)
+                    .shadow(
+                        color: .black.opacity(colorScheme == .dark ? 0.38 : 0.18),
+                        radius: 24,
+                        x: 0,
+                        y: 14
+                    )
+            }
+            .overlay(legacySpecularRim)
+    }
+
+    /// 左上主高光、右下弱反光的边缘，光感随圆周变化而非均匀描边。
+    private var legacySpecularRim: some View {
+        ZStack {
+            Circle()
+                .strokeBorder(CategoryWheelPalette.edgeLine, lineWidth: 1)
+            Circle()
+                .inset(by: 1.1)
+                .strokeBorder(
+                    AngularGradient(
+                        stops: [
+                            .init(color: CategoryWheelPalette.specularStrong, location: 0),
+                            .init(color: CategoryWheelPalette.specularSoft, location: 0.18),
+                            .init(color: .clear, location: 0.38),
+                            .init(color: CategoryWheelPalette.specularSoft, location: 0.52),
+                            .init(color: .clear, location: 0.66),
+                            .init(color: CategoryWheelPalette.specularSoft, location: 0.84),
+                            .init(color: CategoryWheelPalette.specularStrong, location: 1)
+                        ],
+                        center: .center,
+                        angle: .degrees(-135)
+                    ),
+                    lineWidth: 1.3
                 )
-            )
+        }
+        .allowsHitTesting(false)
+    }
+
+    /// 扇区色彩与中心透镜。基底透明，玻璃层在下方（系统 glassEffect 或 legacy 材质）。
+    private var decorations: some View {
+        Canvas(opaque: false, rendersAsynchronously: false) { context, _ in
+            let innerRect = circleRect(radius: layout.innerRadius)
 
             for (index, child) in children.enumerated() {
                 let isActive = activeIndex == index
                 let isSelected = selectedCategoryID == child.id
                 let color = Color(hex: child.colorHex)
-                let path = layout.sectorPath(for: index, radialOffset: isActive ? 2.5 : 0)
-                let start = layout.labelPoint(for: index, radialOffset: -layout.labelRadius * 0.45)
-                let end = layout.labelPoint(for: index, radialOffset: layout.labelRadius * 0.55)
+                let radialOffset: CGFloat = isActive ? 2.5 : 0
+                let path = layout.sectorPath(for: index, radialOffset: radialOffset)
+                let outerStop = layout.labelPoint(for: index, radialOffset: layout.labelRadius * 0.55)
+                let innerStop = layout.labelPoint(for: index, radialOffset: -layout.labelRadius * 0.10)
 
-                context.fill(
+                if isActive {
+                    var glow = context
+                    glow.addFilter(.shadow(color: color.opacity(0.45), radius: 9))
+                    glow.fill(path, with: .color(color.opacity(colorScheme == .dark ? 0.30 : 0.20)))
+                }
+
+                // 色彩只在外沿聚拢，中部留给中性玻璃；暗色再叠 screen 混合避免发闷。
+                var wedge = context
+                if colorScheme == .dark {
+                    wedge.blendMode = .screen
+                }
+                wedge.fill(
                     path,
                     with: .linearGradient(
                         Gradient(colors: [
-                            color.opacity(isActive ? 0.28 : isSelected ? 0.18 : 0.10),
-                            color.opacity(isActive ? 0.16 : isSelected ? 0.10 : 0.035)
+                            color.opacity(tintPeak(isActive: isActive, isSelected: isSelected)),
+                            color.opacity(0)
                         ]),
-                        startPoint: start,
-                        endPoint: end
+                        startPoint: outerStop,
+                        endPoint: innerStop
                     )
                 )
-                context.stroke(
-                    path,
-                    with: .color(isActive || isSelected ? color.opacity(0.62) : CategoryWheelPalette.separator),
-                    lineWidth: isActive ? 1.45 : isSelected ? 1.2 : 0.85
+
+                // 外沿一道彩色光弧：光从玻璃边缘透入的痕迹，也是各分区的色彩锚点。
+                let middle = layout.middleAngle(for: index)
+                let middleRadians = Angle.degrees(middle).radians
+                let arcCenter = CGPoint(
+                    x: layout.center.x + CGFloat(cos(middleRadians)) * radialOffset,
+                    y: layout.center.y + CGFloat(sin(middleRadians)) * radialOffset
                 )
+                let arcInset = layout.sectorInset + 1.2
+                var rimArc = Path()
+                rimArc.addArc(
+                    center: arcCenter,
+                    radius: layout.outerRadius - 0.8,
+                    startAngle: .degrees(middle - layout.sectorAngle / 2 + arcInset),
+                    endAngle: .degrees(middle + layout.sectorAngle / 2 - arcInset),
+                    clockwise: false
+                )
+                context.stroke(
+                    rimArc,
+                    with: .color(color.opacity(rimArcOpacity(isActive: isActive, isSelected: isSelected))),
+                    lineWidth: isActive ? 2 : 1.6
+                )
+
+                if isActive || isSelected {
+                    context.stroke(
+                        path,
+                        with: .color(color.opacity(isActive ? 0.50 : 0.30)),
+                        lineWidth: isActive ? 1.1 : 0.8
+                    )
+                }
             }
+
+            var groove = context
+            groove.addFilter(.blur(radius: 1.8))
+            groove.stroke(
+                Path(ellipseIn: innerRect.insetBy(dx: -1.4, dy: -1.4)),
+                with: .color(CategoryWheelPalette.groove),
+                lineWidth: 2.6
+            )
 
             context.fill(
                 Path(ellipseIn: innerRect),
                 with: .radialGradient(
-                    Gradient(colors: [CategoryWheelPalette.porcelainHighlight, CategoryWheelPalette.porcelainBase]),
-                    center: CGPoint(x: innerRect.midX - innerRect.width * 0.12, y: innerRect.midY - innerRect.height * 0.14),
+                    Gradient(colors: [CategoryWheelPalette.hubSheen, CategoryWheelPalette.hubSheenFade]),
+                    center: CGPoint(
+                        x: innerRect.midX - innerRect.width * 0.14,
+                        y: innerRect.midY - innerRect.height * 0.16
+                    ),
                     startRadius: 0,
-                    endRadius: layout.innerRadius
+                    endRadius: layout.innerRadius * 1.15
                 )
             )
-            context.stroke(Path(ellipseIn: innerRect), with: .color(CategoryWheelPalette.innerRim), lineWidth: 2)
-            context.stroke(Path(ellipseIn: outerRect), with: .color(CategoryWheelPalette.rim), lineWidth: 2.2)
-
-            let highlightRect = outerRect.insetBy(dx: 3.2, dy: 3.2)
             context.stroke(
-                Path(ellipseIn: highlightRect),
-                with: .linearGradient(
-                    Gradient(colors: [.white.opacity(colorScheme == .dark ? 0.10 : 0.72), .clear]),
-                    startPoint: CGPoint(x: highlightRect.minX, y: highlightRect.minY),
-                    endPoint: CGPoint(x: highlightRect.maxX, y: highlightRect.maxY)
-                ),
-                lineWidth: 1.1
+                Path(ellipseIn: innerRect),
+                with: .color(CategoryWheelPalette.hubHairline),
+                lineWidth: 1
             )
         }
         .frame(width: layout.size, height: layout.size)
+    }
+
+    /// 色彩从外沿最浓、向圆心渐隐至无，像光从玻璃边缘透入。暗色档位按 screen 混合调校。
+    private func tintPeak(isActive: Bool, isSelected: Bool) -> Double {
+        let dark = colorScheme == .dark
+        if isActive { return dark ? 0.52 : 0.38 }
+        if isSelected { return dark ? 0.38 : 0.28 }
+        return dark ? 0.30 : 0.20
+    }
+
+    private func rimArcOpacity(isActive: Bool, isSelected: Bool) -> Double {
+        let dark = colorScheme == .dark
+        if isActive { return dark ? 0.85 : 0.70 }
+        if isSelected { return dark ? 0.65 : 0.55 }
+        return dark ? 0.50 : 0.40
     }
 
     private func circleRect(radius: CGFloat) -> CGRect {
@@ -584,34 +681,34 @@ private struct CategoryWheelSurface: View {
 }
 
 private enum CategoryWheelPalette {
-    static let porcelainHighlight = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.17, green: 0.19, blue: 0.17, alpha: 1)
-            : UIColor(red: 1.0, green: 0.994, blue: 0.978, alpha: 1)
+    static let specularStrong = Color(uiColor: UIColor { traits in
+        UIColor.white.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.30 : 0.85)
     })
 
-    static let porcelainBase = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.095, green: 0.11, blue: 0.10, alpha: 1)
-            : UIColor(red: 0.955, green: 0.935, blue: 0.895, alpha: 1)
+    static let specularSoft = Color(uiColor: UIColor { traits in
+        UIColor.white.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.10 : 0.35)
     })
 
-    static let rim = Color(uiColor: UIColor { traits in
+    static let edgeLine = Color(uiColor: UIColor { traits in
         traits.userInterfaceStyle == .dark
-            ? UIColor(red: 0.48, green: 0.45, blue: 0.39, alpha: 0.55)
-            : UIColor(red: 0.66, green: 0.61, blue: 0.52, alpha: 0.64)
+            ? UIColor.white.withAlphaComponent(0.14)
+            : UIColor.black.withAlphaComponent(0.10)
     })
 
-    static let innerRim = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor.white.withAlphaComponent(0.13)
-            : UIColor.white.withAlphaComponent(0.88)
+    static let groove = Color(uiColor: UIColor { traits in
+        UIColor.black.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.24 : 0.10)
     })
 
-    static let separator = Color(uiColor: UIColor { traits in
-        traits.userInterfaceStyle == .dark
-            ? UIColor.white.withAlphaComponent(0.12)
-            : UIColor(red: 0.70, green: 0.68, blue: 0.63, alpha: 0.38)
+    static let hubSheen = Color(uiColor: UIColor { traits in
+        UIColor.white.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.10 : 0.42)
+    })
+
+    static let hubSheenFade = Color(uiColor: UIColor { traits in
+        UIColor.white.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.015 : 0.05)
+    })
+
+    static let hubHairline = Color(uiColor: UIColor { traits in
+        UIColor.white.withAlphaComponent(traits.userInterfaceStyle == .dark ? 0.22 : 0.70)
     })
 }
 
