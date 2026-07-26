@@ -129,6 +129,7 @@
 		AAF24BDAA8FF15A103F1C1A5 /* LegacyAssetRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6034BD6BC484918A111E209E /* LegacyAssetRemovalTests.swift */; };
 		AB314B983A9FA9676E868A9F /* Reminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8466A7DFE220F43816D4D85 /* Reminder.swift */; };
 		ABFFFD627940DC5832F15319 /* PhysicalAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495651D53C44DD6B14725323 /* PhysicalAsset.swift */; };
+		AC88BDB7C3593D1C7D96F46C /* LedgerFilterQueryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E86B579E1EAD806782774386 /* LedgerFilterQueryTests.swift */; };
 		AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */; };
 		AE768A256295BDEF75B75208 /* LedgerConsolidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0AFD575D6F4AE32DA7320F0 /* LedgerConsolidationTests.swift */; };
 		B81D4AC7DDCC78C1344B85F4 /* ActionCenterItemRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 644EEC0E4F8740428A7AA323 /* ActionCenterItemRow.swift */; };
@@ -350,6 +351,7 @@
 		E32DFBBBE5DF24FBC82DCD84 /* PhysicalAssetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetTests.swift; sourceTree = "<group>"; };
 		E44850532ED0D315BFCB16D9 /* InstallmentBill.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBill.swift; sourceTree = "<group>"; };
 		E6C353AB5561EBD96657B182 /* DailyBudgetScopeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBudgetScopeView.swift; sourceTree = "<group>"; };
+		E86B579E1EAD806782774386 /* LedgerFilterQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerFilterQueryTests.swift; sourceTree = "<group>"; };
 		E94FA939D27F7853D52D9940 /* QuickEntryLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryLogic.swift; sourceTree = "<group>"; };
 		ED4B2EBB93F770D4860E517A /* ActionCenterSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterSummaryView.swift; sourceTree = "<group>"; };
 		EE30225D24B9028D99C97465 /* ReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderView.swift; sourceTree = "<group>"; };
@@ -523,6 +525,7 @@
 				2138D1C9174D58A85735FE89 /* FinanceDomainTests+Recurring.swift */,
 				ABCA6FC8516383394A21726F /* InstallmentRepaymentServiceTests.swift */,
 				C0AFD575D6F4AE32DA7320F0 /* LedgerConsolidationTests.swift */,
+				E86B579E1EAD806782774386 /* LedgerFilterQueryTests.swift */,
 				61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */,
 				6034BD6BC484918A111E209E /* LegacyAssetRemovalTests.swift */,
 				B5FEB9024E51A499AAC08A77 /* LocalActionCenterServiceTests.swift */,
@@ -886,6 +889,7 @@
 				32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */,
 				518906D1BB40E34A9DF0FFCE /* InstallmentRepaymentServiceTests.swift in Sources */,
 				AE768A256295BDEF75B75208 /* LedgerConsolidationTests.swift in Sources */,
+				AC88BDB7C3593D1C7D96F46C /* LedgerFilterQueryTests.swift in Sources */,
 				1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */,
 				AAF24BDAA8FF15A103F1C1A5 /* LegacyAssetRemovalTests.swift in Sources */,
 				E7DF1CD725953C8F75956F96 /* LocalActionCenterServiceTests.swift in Sources */,
