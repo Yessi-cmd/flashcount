@@ -3,20 +3,51 @@ import SwiftUI
 // MARK: - 汇总类卡片：连续记账、资金概览、智能分析、预算、洞察
 
 extension ReportObservedContent {
-    func streakCard(days: Int) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 30))
-                .foregroundStyle(DesignSystem.primaryColor)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("连续记账 \(days) 天")
-                    .font(.headline)
-                    .foregroundStyle(DesignSystem.textPrimary)
-                Text(days >= 30 ? "稳定的记录习惯已经形成" : days >= 7 ? "保持这个节奏" : "每天记一笔，趋势会更清楚")
-                    .font(.caption)
-                    .foregroundStyle(DesignSystem.textSecondary)
+    func streakCard(data: ReportData) -> some View {
+        let days = data.streakDays
+        let loggedCount = data.loggingDays.filter(\.isLogged).count
+
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(DesignSystem.primaryColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("连续记账 \(days) 天")
+                        .font(.headline)
+                        .foregroundStyle(DesignSystem.textPrimary)
+                    Text(days >= 30 ? "稳定的记录习惯已经形成" : days >= 7 ? "保持这个节奏" : "每天记一笔，趋势会更清楚")
+                        .font(.caption)
+                        .foregroundStyle(DesignSystem.textSecondary)
+                }
+                Spacer()
             }
-            Spacer()
+
+            if !data.loggingDays.isEmpty {
+                // 一个数字看不出记账节奏；把最近 5 周铺开，断档一眼可见。
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7),
+                    spacing: 4
+                ) {
+                    ForEach(data.loggingDays) { day in
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(
+                                day.isLogged
+                                    ? DesignSystem.primaryColor.opacity(0.85)
+                                    : DesignSystem.dividerColor.opacity(0.6)
+                            )
+                            .frame(height: 14)
+                    }
+                }
+                // 35 个格子逐一朗读毫无意义，合并成一句结论。
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("最近 \(data.loggingDays.count) 天里有 \(loggedCount) 天记了账")
+                .accessibilityIdentifier("report.loggingHeatmap")
+
+                Text("最近 \(data.loggingDays.count) 天 · 已记 \(loggedCount) 天")
+                    .font(.caption2)
+                    .foregroundStyle(DesignSystem.textTertiary)
+            }
         }
         .padding()
         .background(DesignSystem.softFill)

@@ -433,6 +433,31 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.streakDays, 200, "断点之前的记录不得计入连续天数")
     }
 
+    /// 打卡网格覆盖截至报告期末的最近 35 天，并如实标记每天是否记账。
+    func testLoggingHeatmapCoversRecentDaysEndingAtReportEnd() async throws {
+        let context = try makeContext()
+        let reference = try date(2026, 7, 15, 12)
+        insertExpense(10, at: try date(2026, 7, 15, 9), into: context)
+        insertExpense(10, at: try date(2026, 7, 14, 9), into: context)
+        insertExpense(10, at: try date(2026, 7, 1, 9), into: context)
+        try context.save()
+
+        let report = try await generateReport(
+            period: .monthly,
+            target: .current(referenceDate: reference),
+            context: context
+        )
+
+        XCTAssertEqual(report.loggingDays.count, 35)
+        XCTAssertEqual(report.loggingDays.last?.date, try date(2026, 7, 15))
+        XCTAssertEqual(report.loggingDays.first?.date, try date(2026, 6, 11))
+        XCTAssertEqual(report.loggingDays.filter(\.isLogged).map(\.date), [
+            try date(2026, 7, 1),
+            try date(2026, 7, 14),
+            try date(2026, 7, 15)
+        ])
+    }
+
     /// 收入构成按分类聚合，且受保护收入在隐藏时不得出现在构成里。
     func testIncomeBreakdownAggregatesByCategoryAndRespectsPrivacyFlag() throws {
         let reference = try date(2026, 7, 12, 12)

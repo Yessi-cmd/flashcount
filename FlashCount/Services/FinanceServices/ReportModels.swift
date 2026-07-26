@@ -62,6 +62,13 @@ struct ReportSmartAnalysis {
     let insights: [ReportInsight]
 }
 
+/// 打卡网格里的一天。
+struct ReportLoggingDay: Identifiable, Equatable, Sendable {
+    var id: Date { date }
+    let date: Date
+    let isLogged: Bool
+}
+
 /// 报表数据。由 `ReportCalculator` 在后台 actor 上生成，界面只做展示。
 struct ReportData {
     let period: ReportPeriod
@@ -80,6 +87,8 @@ struct ReportData {
     let incomeBreakdown: [CategorySpending]
     let timeBuckets: [ReportTimeBucket]
     let streakDays: Int
+    /// 打卡热力网格：截至报告期末的最近若干天，每天是否有记录。
+    let loggingDays: [ReportLoggingDay]
     let smartAnalysis: ReportSmartAnalysis
     let transactionCount: Int
 }

@@ -242,6 +242,10 @@ struct ReportCalculator {
             loggedDays: snapshot.loggedDays,
             calendar: calendar
         )
+        let loggingDays = buildLoggingDays(
+            endingBefore: selection.reportRange.end,
+            loggedDays: snapshot.loggedDays
+        )
         let smartAnalysis = buildSmartAnalysis(
             categoryBreakdown: categoryBreakdown,
             expenseChange: expenseChange,
@@ -270,6 +274,7 @@ struct ReportCalculator {
             incomeBreakdown: incomeBreakdown,
             timeBuckets: timeBuckets,
             streakDays: streakDays,
+            loggingDays: loggingDays,
             smartAnalysis: smartAnalysis,
             transactionCount: currentTransactions.count
         )
@@ -342,6 +347,21 @@ struct ReportCalculator {
                 label: formatter.bucketLabel(for: range, granularity: granularity),
                 expense: totals[index]
             )
+        }
+    }
+
+    /// 打卡网格固定取最近 5 周（7 列 × 5 行）。
+    /// 年报若逐日铺开会有 365 格，既排不下也读不出信息。
+    private static let loggingGridDayCount = 35
+
+    private func buildLoggingDays(
+        endingBefore end: Date,
+        loggedDays: Set<Date>
+    ) -> [ReportLoggingDay] {
+        let reference = ReportStreakCalculator.referenceDay(endingBefore: end, calendar: calendar)
+        return (0..<Self.loggingGridDayCount).reversed().compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: reference) else { return nil }
+            return ReportLoggingDay(date: day, isLogged: loggedDays.contains(day))
         }
     }
 

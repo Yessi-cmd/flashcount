@@ -186,7 +186,7 @@ struct ReportObservedContent: View {
     private func reportContent(_ page: ReportPageData) -> some View {
         let data = page.report
         VStack(spacing: DesignSystem.sectionSpacing) {
-            streakCard(days: data.streakDays)
+            streakCard(data: data)
             summaryCard(data: data)
             smartAnalysisCard(data: data)
             budgetCard(page.budget)
