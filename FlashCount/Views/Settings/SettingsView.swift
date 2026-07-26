@@ -507,6 +507,7 @@ struct SettingsView: View {
 }
 
 // MARK: - ShareSheet (UIKit wrapper)
+/// 系统分享面板的 SwiftUI 包装，用于导出备份与 CSV。
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
     func makeUIViewController(context: Context) -> UIActivityViewController {

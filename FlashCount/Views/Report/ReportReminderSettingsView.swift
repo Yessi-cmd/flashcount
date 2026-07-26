@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
+/// 报表提醒的设置。系统本地通知名额有限，被放弃的远期通知会在这里说明。
 struct ReportReminderSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

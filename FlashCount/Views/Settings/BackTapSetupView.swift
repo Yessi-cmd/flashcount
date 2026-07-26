@@ -1,6 +1,7 @@
 import AppIntents
 import SwiftUI
 
+/// 「轻点背面」快捷记账的设置引导。
 struct BackTapSetupView: View {
     @Environment(\.dismiss) private var dismiss
 

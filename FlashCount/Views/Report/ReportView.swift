@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// 报表定位的参照点：进行中的当前周期，或某个已结束/已送达的时间点。
+/// 「进行中」的参照时刻一直在动，因此不进 `ReportPageCache`。
 enum ReportNavigationAnchor: Hashable {
     case current
     case completed(Date)
@@ -20,6 +22,7 @@ enum ReportNavigationAnchor: Hashable {
     }
 }
 
+/// 报表当前关心的日期范围，用于决定要观察哪些数据变化。
 struct ReportObservationScope: Hashable {
     let start: Date
     let end: Date

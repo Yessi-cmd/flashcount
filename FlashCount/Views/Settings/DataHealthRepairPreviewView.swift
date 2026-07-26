@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 修复前的预览：逐项列出将要执行的改动，确认后才写入。
 struct DataHealthRepairPreviewView: View {
     let report: DataHealthReport
     let onConfirm: () -> Void

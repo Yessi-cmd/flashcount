@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// App 入口。`ModelContainer` 建不起来时不静默失败，而是展示 `StartupFailureView`
+/// 并明确告知数据没有被删除——本地优先的 App 里，用户最怕的就是账本消失。
 @main
 struct FlashCountApp: App {
     private let modelContainer: ModelContainer?

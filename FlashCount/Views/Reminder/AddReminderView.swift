@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 新增或编辑一条提醒。
 struct AddReminderView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""

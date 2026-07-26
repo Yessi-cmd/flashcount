@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 记账页的自定义数字键盘。键位含义与「+」累加见 `QuickEntryAmountInput`。
 struct QuickEntryNumberPad: View {
     let onKeyPress: (String) -> Void
 
@@ -120,6 +121,7 @@ struct QuickEntryNumberPad: View {
     }
 }
 
+/// 记账页的保存按钮，颜色跟随收支类型。
 struct QuickEntrySubmitButton: View {
     let isEnabled: Bool
     let isExpense: Bool

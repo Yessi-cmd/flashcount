@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 
+/// 提醒列表。提醒存在 SwiftData 中，通知安排由 `NotificationScheduleCoordinator` 统一负责。
 struct ReminderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

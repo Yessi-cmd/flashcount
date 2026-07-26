@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// 资金池：手工登记的现金、可赎回理财与待还款。
+/// 这些条目的合计即「资金净额」，是净资产的唯一真源。
 struct CashPoolView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
@@ -304,6 +306,7 @@ struct CashPoolView: View {
     }
 }
 
+/// 新增或编辑一个资金项。
 struct AddCashPoolItemView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss

@@ -1,11 +1,14 @@
 import SwiftUI
 import SwiftData
 
+/// 一页报表的展示数据：报表本体 + 该周期的预算快照。
 struct ReportPageData {
     let report: ReportData
     let budget: ReportBudgetSnapshotValue
 }
 
+/// 报表页的加载状态。`refreshing` 保留上一份数据继续显示，
+/// 避免每次重算都把已经读到的内容闪成空白。
 enum ReportLoadState {
     case loading
     case refreshing(ReportPageData)

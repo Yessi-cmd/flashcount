@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// 记账与编辑页共用的一级分类格子。交互模型见类型内部注释：
+/// 点按只做选中，圆盘另有入口。
 struct CategorySelectionTile: View {
     let category: Category
     let selectedCategory: Category?
@@ -101,7 +103,7 @@ struct CategorySelectionTile: View {
                 ? "已选中：\(selectedCategory?.entryDisplayName ?? rootName)"
                 : "未选中"
         )
-        .accessibilityHint(hasChildren ? "点按直接选中，长按选择小类" : "")
+        .accessibilityHint(hasChildren ? "点按直接选中；要选具体小类，用下方的「换小类」按钮或本元素的「选择小类」操作" : "")
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier("category.tile.\(rootName)")
         .accessibilityAction(named: "选择小类") {
@@ -127,6 +129,7 @@ private struct CategorySelectionTileButtonStyle: ButtonStyle {
     }
 }
 
+/// 选择子分类的圆盘浮层。布局计算在 `CategoryWheelLayout`，由 `CategoryWheelLayoutTests` 覆盖。
 struct CategoryWheelOverlay: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize

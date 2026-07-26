@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// 分类的增删改与合并。所有写操作都走 `CategoryManagementService`，
+/// 因为改名与合并会牵连交易、周期规则、预算和模板的引用。
 struct CategoryManagementView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
