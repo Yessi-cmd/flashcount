@@ -8,6 +8,7 @@ struct InstallmentBillView: View {
 
     @State private var showAddBill = false
     @State private var editingBill: InstallmentBill?
+    @State private var repayingBill: InstallmentBill?
     @State private var saveError: String?
 
     private var activeBills: [InstallmentBill] {
@@ -58,6 +59,9 @@ struct InstallmentBillView: View {
             }
             .sheet(isPresented: $showAddBill) {
                 AddInstallmentBillView()
+            }
+            .sheet(item: $repayingBill) { bill in
+                InstallmentRepaymentSheet(bill: bill)
             }
             .sheet(item: $editingBill) { bill in
                 AddInstallmentBillView(editBill: bill)
@@ -185,14 +189,15 @@ struct InstallmentBillView: View {
             HStack {
                 Spacer()
                 Button {
-                    markOneInstallmentPaid(bill)
+                    repayingBill = bill
                 } label: {
                     Label("还一期", systemImage: "checkmark.circle.fill")
                         .font(.caption.weight(.medium))
                         .frame(minWidth: 44, minHeight: 44)
                 }
                 .disabled(bill.isCompleted)
-                .accessibilityHint("将已还期数增加一期")
+                .accessibilityHint("确认还款并记账")
+                .accessibilityIdentifier("installment.repay")
             }
         }
         .glassCard()
@@ -201,7 +206,7 @@ struct InstallmentBillView: View {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
             }
             Button {
-                markOneInstallmentPaid(bill)
+                repayingBill = bill
             } label: {
                 Label("还一期", systemImage: "checkmark.circle")
             }
@@ -269,16 +274,6 @@ struct InstallmentBillView: View {
         return date < Calendar.current.startOfDay(for: Date()) ? DesignSystem.expenseColor : DesignSystem.textTertiary
     }
 
-    private func markOneInstallmentPaid(_ bill: InstallmentBill) {
-        guard !bill.isCompleted else { return }
-        bill.paidInstallments = min(bill.normalizedPaidInstallments + 1, bill.normalizedInstallmentCount)
-        bill.updatedAt = Date()
-        if let error = safeSave(modelContext) {
-            saveError = error
-        } else {
-            HapticManager.success()
-        }
-    }
 }
 
 private struct AddInstallmentBillView: View {
