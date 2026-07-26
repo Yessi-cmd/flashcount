@@ -75,6 +75,7 @@
 		50DA9190E88420449175A95D /* CategoryBudgetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D2927DCAF44C764B12376C6 /* CategoryBudgetsView.swift */; };
 		518906D1BB40E34A9DF0FFCE /* InstallmentRepaymentServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCA6FC8516383394A21726F /* InstallmentRepaymentServiceTests.swift */; };
 		521BAA56D0D45CDDEC999D79 /* LedgerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A503499BBB8FAD9C2B718B91 /* LedgerPresentation.swift */; };
+		54F99BA3721CB70E9A36E004 /* QuickEntryAmountInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCF0A525836FFDC90EE053B /* QuickEntryAmountInputTests.swift */; };
 		566909CCF24EE8E82A4466DD /* DataHealthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */; };
 		57E48658B4E0DE4D34531491 /* LedgerQueryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9135D5FD720592C567187C6E /* LedgerQueryService.swift */; };
 		636984214ED3D236A36BE33C /* LedgerActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338B2E3E70FD9CBF647930A3 /* LedgerActions.swift */; };
@@ -155,6 +156,7 @@
 		E2A388E38382798E2CA5EE42 /* BackupValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC96BAF328BC8C136668E8ED /* BackupValidator.swift */; };
 		E2D3A01933DF811F95FFC072 /* RecurringOccurrenceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5149DDB0778D319390564E4F /* RecurringOccurrenceService.swift */; };
 		E371EC1E626E145C33A1646D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = EEBF638849D9D22CD83348A1 /* Assets.xcassets */; };
+		E54CA05D01C33B099580997C /* QuickEntryAmountInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1659670703AC67A536F80B72 /* QuickEntryAmountInput.swift */; };
 		E593E42B4BA66B8FD5435AE1 /* EditTransactionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50EA6A8307B2FDA8033E4DB /* EditTransactionView.swift */; };
 		E5F01D6D9E75A893B253FD5F /* BudgetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7836FC4CCC50F8A05E62E77C /* BudgetView.swift */; };
 		E7453E3C78C7446597DB37F8 /* RecurringRulesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */; };
@@ -200,6 +202,7 @@
 		12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryControls.swift; sourceTree = "<group>"; };
 		14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSearchDebounce.swift; sourceTree = "<group>"; };
 		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
+		1659670703AC67A536F80B72 /* QuickEntryAmountInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryAmountInput.swift; sourceTree = "<group>"; };
 		17FA43688643A3C342CFFFB0 /* BackupImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupImporter.swift; sourceTree = "<group>"; };
 		1A25736CBBC2CCA2F7E6527E /* AddReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddReminderView.swift; sourceTree = "<group>"; };
 		1A9EBEA175489728B6345C61 /* DataHealthFinding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthFinding.swift; sourceTree = "<group>"; };
@@ -332,6 +335,7 @@
 		D4F8BA17A1077C74363D442E /* DefaultDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultDataService.swift; sourceTree = "<group>"; };
 		D83CA6CAD2B4C390736693F6 /* SavingsGoalService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsGoalService.swift; sourceTree = "<group>"; };
 		DAD6025983922DA094678787 /* FlashCountTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FlashCountTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DBCF0A525836FFDC90EE053B /* QuickEntryAmountInputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryAmountInputTests.swift; sourceTree = "<group>"; };
 		DC3D5D9116336DEFBF736CF6 /* DataHealthFindingRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthFindingRow.swift; sourceTree = "<group>"; };
 		DC429AB33ED6D42759B6E578 /* ReminderStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderStore.swift; sourceTree = "<group>"; };
 		DF30FA16DCE6E0385B858671 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
@@ -516,6 +520,7 @@
 				2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */,
 				6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */,
 				E32DFBBBE5DF24FBC82DCD84 /* PhysicalAssetTests.swift */,
+				DBCF0A525836FFDC90EE053B /* QuickEntryAmountInputTests.swift */,
 				FDE652267F314C0B04170B98 /* QuickEntryFeedbackCenterTests.swift */,
 				60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */,
 				A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */,
@@ -705,6 +710,7 @@
 				214FECFB8A46540B23411B24 /* FlashCountSchema.swift */,
 				B8F2123F4154B8A530ECE311 /* MoneyValidation.swift */,
 				6958950D41A4E8CD91DCB2E5 /* QuickAddIntent.swift */,
+				1659670703AC67A536F80B72 /* QuickEntryAmountInput.swift */,
 				B66674F214D250C00FDB12AA /* ReportRoute.swift */,
 			);
 			path = Core;
@@ -874,6 +880,7 @@
 				EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */,
 				0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */,
 				19C11AC50C3838C9B4B2FA40 /* PhysicalAssetTests.swift in Sources */,
+				54F99BA3721CB70E9A36E004 /* QuickEntryAmountInputTests.swift in Sources */,
 				19014C10D1A522531CDAC8C0 /* QuickEntryFeedbackCenterTests.swift in Sources */,
 				AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */,
 				CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */,
@@ -969,6 +976,7 @@
 				0D20E9F543162AAB04EB83A4 /* PhysicalAssetView.swift in Sources */,
 				974A04365C4FFFFB6E96DA01 /* PrivacyLockService.swift in Sources */,
 				E0EDF6CED6EA923227750436 /* QuickAddIntent.swift in Sources */,
+				E54CA05D01C33B099580997C /* QuickEntryAmountInput.swift in Sources */,
 				408D4A9C5FE25933D921CC65 /* QuickEntryControls.swift in Sources */,
 				05F3C447974784318F300CFB /* QuickEntryFeedbackCenter.swift in Sources */,
 				8F9FB7C797F056DE5FD1794F /* QuickEntryLogic.swift in Sources */,

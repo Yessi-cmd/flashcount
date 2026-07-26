@@ -122,7 +122,7 @@ extension QuickEntryView {
                 Text("¥")
                     .font(.title3.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
-                Text(amountText.isEmpty ? "0.00" : amountText)
+                Text(amountInput.text.isEmpty ? "0.00" : amountInput.text)
                     .font(DesignSystem.Typography.amount)
                     .monospacedDigit()
                     .foregroundStyle(DesignSystem.textPrimary)
@@ -130,7 +130,7 @@ extension QuickEntryView {
                     .accessibilityIdentifier("quickEntry.amount")
             }
 
-            if pendingSum > 0 {
+            if amountInput.hasPendingSum {
                 pendingSumChip
             }
 
@@ -147,7 +147,7 @@ extension QuickEntryView {
         HStack(spacing: 6) {
             Image(systemName: "plus.forwardslash.minus")
                 .font(.caption2.weight(.semibold))
-            Text("已累加 \(pendingSum.formattedCurrency)，保存时合计 \(pendingTotalPreview.formattedCurrency)")
+            Text("已累加 \(amountInput.pendingSum.formattedCurrency)，保存时合计 \(amountInput.accumulatedPreview.formattedCurrency)")
                 .font(DesignSystem.Typography.supportingLabel)
                 .monospacedDigit()
             Button {
@@ -166,13 +166,6 @@ extension QuickEntryView {
         .background(DesignSystem.primaryColor.opacity(0.1))
         .clipShape(Capsule())
         .accessibilityIdentifier("quickEntry.pendingSum")
-    }
-
-    private var pendingTotalPreview: Decimal {
-        switch resolvedAmount() {
-        case .success(let value): return value
-        case .failure: return pendingSum
-        }
     }
 
     /// 日期区：以前只有一个被 `scaleEffect(0.8)` 缩到 44pt 以下的选择器，

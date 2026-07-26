@@ -23,7 +23,7 @@ struct QuickEntryView: View {
     @Query(sort: \Budget.createdAt) var allBudgets: [Budget]
     @Query var recentTransactions: [Transaction]
 
-    @State var amountText = ""
+    @State var amountInput = QuickEntryAmountInput()
     @State var amountError: MoneyValidationError?
     @State var isExpense = true
     @State var selectedCategory: Category?
@@ -44,8 +44,6 @@ struct QuickEntryView: View {
     /// 误触键盘上的「收入」再切回来，不该把刚选好的分类冲掉。
     @State var rememberedExpenseCategory: Category?
     @State var rememberedIncomeCategory: Category?
-    /// 「+」键累加的部分。拆账时先把每一笔加进来，最后一起保存。
-    @State var pendingSum: Decimal = 0
     @Namespace var typeSelectionNamespace
 
     init() {
@@ -63,9 +61,7 @@ struct QuickEntryView: View {
         isExpense ? expenseCategories : incomeCategories
     }
 
-    var canSubmitAmount: Bool {
-        !amountText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || pendingSum > 0
-    }
+    var canSubmitAmount: Bool { amountInput.canSubmit }
 
     /// 日期不是今天时，保存按钮和提示条都要说清这是补录——
     /// 日期控件本身太安静，看漏了就会把今天的账记到别的日子。

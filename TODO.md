@@ -19,7 +19,7 @@
 
 ## 中
 
-- [ ] **记账键盘输入与累加逻辑不可单测** — `handleKeyPress` 的位数限制（整数 12 位、小数 2 位、`00` 与 `.` 的特殊处理）和 `accumulateAmount()`/`resolvedAmount()` 的金额累加都写在 `QuickEntryView` 的扩展里、依赖 `@State`，只能靠 UI 测试间接摸到。AGENTS.md 把 Decimal 金额正确性列为关键约定，这段最该有单测。抽成纯类型后可完整覆盖。影响范围：记账页输入，有 UI 测试兜底。
+- [x] **记账键盘输入与累加逻辑不可单测**（已完成，见 DONE.md） — `handleKeyPress` 的位数限制（整数 12 位、小数 2 位、`00` 与 `.` 的特殊处理）和 `accumulateAmount()`/`resolvedAmount()` 的金额累加都写在 `QuickEntryView` 的扩展里、依赖 `@State`，只能靠 UI 测试间接摸到。AGENTS.md 把 Decimal 金额正确性列为关键约定，这段最该有单测。抽成纯类型后可完整覆盖。影响范围：记账页输入，有 UI 测试兜底。
 
 - [ ] **`BackupImporter.importJSON()` 455 行** — 单个函数承担全部模型的导入。按模型分组拆成私有步骤，行为不变；`FinanceDomainTests+Backup` 可兜底。影响范围：备份导入，风险中等，务必先看测试覆盖。
 - [ ] **`DataHealthService.scan()` 203 行** — 各项健康检查可拆为独立私有方法，顺带让单项检查可被单测。影响范围：数据健康中心。

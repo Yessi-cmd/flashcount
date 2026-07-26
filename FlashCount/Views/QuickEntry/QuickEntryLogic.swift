@@ -4,88 +4,34 @@ import SwiftData
 // MARK: - 输入、分类选择与保存逻辑
 
 extension QuickEntryView {
+    /// 金额键交给 `QuickEntryAmountInput`（纯逻辑，位数限制与累加都在那边被单测）；
+    /// 这里只负责收支切换和触感反馈。
     func handleKeyPress(_ key: String) {
-        let maxIntegerDigits = 12  // 最大整数位数（万亿级别）
-        amountError = nil
-
         switch key {
-        case "⌫":
-            if !amountText.isEmpty {
-                amountText.removeLast()
-            }
-        case ".":
-            if !amountText.contains(".") {
-                amountText += amountText.isEmpty ? "0." : "."
-            }
-        case "00":
-            let intPart = amountText.split(separator: ".").first.map(String.init) ?? amountText
-            if intPart.count >= maxIntegerDigits { return }
-            if !amountText.isEmpty && !amountText.contains(".") {
-                amountText += "00"
-            } else if amountText.contains(".") {
-                let parts = amountText.split(separator: ".")
-                if parts.count < 2 || parts[1].count < 2 {
-                    amountText += "0"
-                }
-            }
         case "收入":
             // 这两个键紧贴数字 6 和 3，误触概率不低；至少要有触感回执，
             // 让用户知道刚刚切换的是收支类型而不是输错了数字。
             selectTransactionType(false)
         case "支出":
             selectTransactionType(true)
-        case "+":
-            accumulateAmount()
         default:
-            // 限制整数部分最多 12 位
-            let intPart = amountText.split(separator: ".").first.map(String.init) ?? amountText
-            if !amountText.contains(".") && intPart.count >= maxIntegerDigits { return }
-            // 限制小数点后两位
-            if amountText.contains(".") {
-                let parts = amountText.split(separator: ".")
-                if parts.count >= 2 && parts[1].count >= 2 {
-                    return
-                }
-            }
-            amountText += key
-        }
-    }
-
-    /// 「+」把当前输入折进累加值，显示区随即清零等下一笔。
-    /// 拆账、凑总额是记账最常见的算术，此前键盘右下角是个空键位。
-    func accumulateAmount() {
-        switch MoneyValidation.parse(amountText, requirement: .positive) {
-        case .success(let value):
-            pendingSum += value
-            amountText = ""
             amountError = nil
-            HapticManager.impact(.light)
-        case .failure(let error):
-            // 已有累加值时空按一下「+」是无意义但无害的，不该报错。
-            guard !(pendingSum > 0 && amountText.isEmpty) else { return }
-            amountError = error
-            HapticManager.error()
+            switch amountInput.apply(key) {
+            case .changed(let accumulated):
+                if accumulated { HapticManager.impact(.light) }
+            case .ignored:
+                break
+            case .rejected(let error):
+                amountError = error
+                HapticManager.error()
+            }
         }
     }
 
     func clearPendingSum() {
-        pendingSum = 0
+        amountInput.clearPendingSum()
         amountError = nil
         HapticManager.selection()
-    }
-
-    /// 保存用的金额 = 已累加部分 + 当前输入。两者都空才算没填。
-    func resolvedAmount() -> Result<Decimal, MoneyValidationError> {
-        let trimmed = amountText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return pendingSum > 0 ? .success(pendingSum) : .failure(.empty)
-        }
-        switch MoneyValidation.parse(trimmed, requirement: .positive) {
-        case .success(let value):
-            return .success(pendingSum + value)
-        case .failure(let error):
-            return .failure(error)
-        }
     }
 
     func selectTransactionType(_ expense: Bool, providesHaptic: Bool = true) {
@@ -228,8 +174,7 @@ extension QuickEntryView {
     /// 应用模板 — 一键填入金额 / 分类 / 备注 / 收支类型
     func applyTemplate(_ template: TransactionTemplate, category: Category?) {
         withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
-            amountText = String(describing: template.amount)
-            pendingSum = 0
+            amountInput.replace(with: template.amount)
             isExpense = template.isExpense
             note = template.note
             selectedCategory = category
@@ -243,7 +188,7 @@ extension QuickEntryView {
     func saveTransaction() {
         guard !isSaving else { return }
         let amount: Decimal
-        switch resolvedAmount() {
+        switch amountInput.resolved() {
         case .success(let value):
             amount = value
             amountError = nil
