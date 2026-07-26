@@ -4,7 +4,9 @@ struct QuickEntryNumberPad: View {
     let onKeyPress: (String) -> Void
 
     private let legacyKeyHeight: CGFloat = 44
-    private let liquidGlassLabelHeight: CGFloat = 44
+    // 玻璃按钮自带上下内边距，38pt 标签的整键仍 ≥44pt 点按目标；
+    // 压缩键盘高度，把屏幕比例还给上方表单区。
+    private let liquidGlassLabelHeight: CGFloat = 38
 
     private let buttons = [
         ["7", "8", "9", "⌫"],
@@ -14,9 +16,9 @@ struct QuickEntryNumberPad: View {
     ]
 
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 5) {
             ForEach(buttons, id: \.self) { row in
-                HStack(spacing: 6) {
+                HStack(spacing: 5) {
                     ForEach(row, id: \.self) { button in
                         if button.isEmpty {
                             Color.clear.frame(height: legacyKeyHeight)
@@ -136,7 +138,7 @@ struct QuickEntrySubmitButton: View {
                 .font(DesignSystem.Typography.controlLabel)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 44)
+                .frame(minHeight: 40)
         }
         .buttonStyle(.glassProminent)
         .tint(isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor)

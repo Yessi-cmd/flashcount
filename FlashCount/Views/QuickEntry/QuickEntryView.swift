@@ -125,7 +125,8 @@ struct QuickEntryView: View {
                         }
                     }
                     .padding(.horizontal)
-                    .padding(.vertical, 8)
+                    .padding(.top, 4)
+                    .padding(.bottom, 8)
                 }
                 .scrollBounceBehavior(.basedOnSize)
                 .scrollIndicators(.hidden)
@@ -330,7 +331,7 @@ struct QuickEntryView: View {
     }
 
     private var amountDisplay: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text("¥")
                     .font(.title3.weight(.medium))
@@ -358,7 +359,7 @@ struct QuickEntryView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 6)
+        .padding(.vertical, 2)
     }
 
     private var categoryGrid: some View {
@@ -512,13 +513,13 @@ struct QuickEntryView: View {
                 bottomControlsContent
             }
             .padding(.horizontal)
-            .padding(.top, DesignSystem.space12)
+            .padding(.top, DesignSystem.space8)
             .padding(.bottom, DesignSystem.space8)
             .background(DesignSystem.surfaceBackground)
         } else {
             bottomControlsContent
                 .padding(.horizontal)
-                .padding(.top, DesignSystem.space12)
+                .padding(.top, DesignSystem.space8)
                 .padding(.bottom, DesignSystem.space8)
                 .background(DesignSystem.cardBackground)
                 .overlay(alignment: .top) {
@@ -530,7 +531,7 @@ struct QuickEntryView: View {
     }
 
     private var bottomControlsContent: some View {
-        VStack(spacing: DesignSystem.space12) {
+        VStack(spacing: DesignSystem.space8) {
             numberPad
             submitButton
         }
