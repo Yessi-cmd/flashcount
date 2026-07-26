@@ -116,6 +116,7 @@
 		96B3F99FAFDD16B3CE9293DC /* LedgerComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FC6A8D084532B8B141489D2 /* LedgerComponents.swift */; };
 		974A04365C4FFFFB6E96DA01 /* PrivacyLockService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE917E63B5B43B926D1745C8 /* PrivacyLockService.swift */; };
 		987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8F866E732FA0C08D5772C1 /* ReportView.swift */; };
+		98DBF5E5C36A7035E2C0C8D8 /* RecurringSuggestionPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12076086F5AAB6521742DE9D /* RecurringSuggestionPipelineTests.swift */; };
 		9A1B7990A72D765C519C66E1 /* AppDeepLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = A218A299FB92357FF2E66D84 /* AppDeepLink.swift */; };
 		9C98201360AFB29C8C44140A /* FinanceDomainTests+Budget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 747B4F624E99D955259D74B8 /* FinanceDomainTests+Budget.swift */; };
 		9D4B54216A18717C90A757B7 /* ReportPageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A9DC9D3772627449CAE070F /* ReportPageCache.swift */; };
@@ -207,6 +208,7 @@
 		09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationServiceTests.swift; sourceTree = "<group>"; };
 		0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderSettingsView.swift; sourceTree = "<group>"; };
 		10C7C05C009A9D11F4AA4043 /* CSVTransactionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionServiceTests.swift; sourceTree = "<group>"; };
+		12076086F5AAB6521742DE9D /* RecurringSuggestionPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionPipelineTests.swift; sourceTree = "<group>"; };
 		12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryControls.swift; sourceTree = "<group>"; };
 		14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSearchDebounce.swift; sourceTree = "<group>"; };
 		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
@@ -543,6 +545,7 @@
 				DBCF0A525836FFDC90EE053B /* QuickEntryAmountInputTests.swift */,
 				FDE652267F314C0B04170B98 /* QuickEntryFeedbackCenterTests.swift */,
 				4305A02A268173FF0BD50D08 /* RecurringSuggestionFrequencyTests.swift */,
+				12076086F5AAB6521742DE9D /* RecurringSuggestionPipelineTests.swift */,
 				60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */,
 				A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */,
 				77045E48D3D60F6A725BAD72 /* ReportShareCardTests.swift */,
@@ -910,6 +913,7 @@
 				54F99BA3721CB70E9A36E004 /* QuickEntryAmountInputTests.swift in Sources */,
 				19014C10D1A522531CDAC8C0 /* QuickEntryFeedbackCenterTests.swift in Sources */,
 				943B5D6FF3DF65F004BF889A /* RecurringSuggestionFrequencyTests.swift in Sources */,
+				98DBF5E5C36A7035E2C0C8D8 /* RecurringSuggestionPipelineTests.swift in Sources */,
 				AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */,
 				CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */,
 				4BF40B9AD247ADCC097163AB /* ReportShareCardTests.swift in Sources */,
