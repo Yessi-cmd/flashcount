@@ -13,6 +13,15 @@ struct AssetDashboardView: View {
     @Query(sort: \InstallmentBill.createdAt, order: .reverse) private var installmentBills: [InstallmentBill]
     @State private var showAddCashPoolItem = false
     @State private var showTutorial = false
+    @State private var breakdownRequest: BreakdownRequest?
+
+    /// 明细与卡片汇总必须来自同一次计算，所以点击时把行一并带走，
+    /// 而不是让弹层自己再算一遍。
+    private struct BreakdownRequest: Identifiable {
+        let id: String
+        let kind: AssetBreakdownKind
+        let lines: [AssetBreakdownLine]
+    }
 
     private var hidesAssetMoney: Bool {
         PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
@@ -100,6 +109,9 @@ struct AssetDashboardView: View {
                 AddCashPoolItemView(nextSortOrder: cashPoolItems.count)
             }
             .sheet(isPresented: $showTutorial) { TutorialView() }
+            .sheet(item: $breakdownRequest) { request in
+                AssetBreakdownSheet(kind: request.kind, lines: request.lines)
+            }
         }
     }
 
@@ -116,18 +128,22 @@ struct AssetDashboardView: View {
                     .foregroundStyle(snapshot.netWorth >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor)
             }
             HStack(spacing: 24) {
-                VStack(spacing: 4) {
-                    Text("总资产").font(.caption).foregroundStyle(DesignSystem.textTertiary)
-                    Text(hidesAssetMoney ? privacyLock.maskedText : snapshot.totalAssets.formattedCurrency)
-                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(DesignSystem.incomeColor)
+                breakdownButton(kind: .totalAssets, in: snapshot) {
+                    VStack(spacing: 4) {
+                        Text("总资产").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                        Text(hidesAssetMoney ? privacyLock.maskedText : snapshot.totalAssets.formattedCurrency)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(DesignSystem.incomeColor)
+                    }
                 }
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 30)
-                VStack(spacing: 4) {
-                    Text("总负债").font(.caption).foregroundStyle(DesignSystem.textTertiary)
-                    Text(hidesAssetMoney ? privacyLock.maskedText : snapshot.totalLiabilities.formattedCurrency)
-                        .font(.subheadline.weight(.semibold).monospacedDigit())
-                        .foregroundStyle(DesignSystem.expenseColor)
+                breakdownButton(kind: .totalLiabilities, in: snapshot) {
+                    VStack(spacing: 4) {
+                        Text("总负债").font(.caption).foregroundStyle(DesignSystem.textTertiary)
+                        Text(hidesAssetMoney ? privacyLock.maskedText : snapshot.totalLiabilities.formattedCurrency)
+                            .font(.subheadline.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(DesignSystem.expenseColor)
+                    }
                 }
             }
 
@@ -154,14 +170,19 @@ struct AssetDashboardView: View {
                     .foregroundStyle(DesignSystem.primaryColor)
             }
 
-            HStack(spacing: 0) {
+            NavigationLink {
+                PhysicalAssetView()
+            } label: {
+                HStack(spacing: 0) {
                 physicalMetric(title: "当前估值", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalTotalValue.formattedCurrency, color: DesignSystem.primaryColor)
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
                 physicalMetric(title: "总折旧", value: hidesAssetMoney ? privacyLock.maskedText : (snapshot.physicalPurchaseTotal - snapshot.physicalTotalValue).formattedCurrency, color: DesignSystem.expenseColor)
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
                 // 合计而非平均：用户想知道「这些东西每天一共花我多少」。
                 physicalMetric(title: "每日合计成本", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalDailyCostTotal.formattedCurrency, color: DesignSystem.warningColor)
+                }
             }
+            .buttonStyle(.plain)
         }
         .glassCard()
     }
@@ -176,11 +197,21 @@ struct AssetDashboardView: View {
             }
 
             HStack(spacing: 0) {
-                privateMetric(title: "可动用资金", value: snapshot.cashPoolAvailable, color: DesignSystem.primaryColor)
+                breakdownButton(kind: .availableFunds, in: snapshot) {
+                    privateMetric(title: "可动用资金", value: snapshot.cashPoolAvailable, color: DesignSystem.primaryColor)
+                }
+                .accessibilityIdentifier("assets.availableFunds")
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                privateMetric(title: "资金净额", value: snapshot.cashPoolManualTotal, color: DesignSystem.incomeColor)
+                breakdownButton(kind: .availableFunds, in: snapshot) {
+                    privateMetric(title: "资金净额", value: snapshot.cashPoolManualTotal, color: DesignSystem.incomeColor)
+                }
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                privateMetric(title: "分期待还", value: snapshot.installmentRemainingTotal, color: DesignSystem.expenseColor)
+                NavigationLink {
+                    InstallmentBillView()
+                } label: {
+                    privateMetric(title: "分期待还", value: snapshot.installmentRemainingTotal, color: DesignSystem.expenseColor)
+                }
+                .buttonStyle(.plain)
             }
         }
         .glassCard()
@@ -230,13 +261,18 @@ struct AssetDashboardView: View {
                     .foregroundStyle(DesignSystem.primaryColor)
             }
 
-            HStack(spacing: 0) {
-                privateMetric(title: "已存", value: snapshot.savingsCurrentTotal, color: DesignSystem.incomeColor)
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                privateMetric(title: "目标", value: snapshot.savingsTargetTotal, color: DesignSystem.primaryColor)
-                Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                privateMetric(title: "还差", value: max(snapshot.savingsTargetTotal - snapshot.savingsCurrentTotal, 0), color: DesignSystem.warningColor)
+            NavigationLink {
+                SavingsGoalView()
+            } label: {
+                HStack(spacing: 0) {
+                    privateMetric(title: "已存", value: snapshot.savingsCurrentTotal, color: DesignSystem.incomeColor)
+                    Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
+                    privateMetric(title: "目标", value: snapshot.savingsTargetTotal, color: DesignSystem.primaryColor)
+                    Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
+                    privateMetric(title: "还差", value: max(snapshot.savingsTargetTotal - snapshot.savingsCurrentTotal, 0), color: DesignSystem.warningColor)
+                }
             }
+            .buttonStyle(.plain)
         }
         .glassCard()
     }
@@ -281,6 +317,29 @@ struct AssetDashboardView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             }
         }.padding(.vertical, 60)
+    }
+
+    /// 隐私锁开启时数字本就是遮挡的，点开明细必须先验证。
+    private func breakdownButton<Label: View>(
+        kind: AssetBreakdownKind,
+        in snapshot: AssetPortfolioSnapshot,
+        @ViewBuilder label: () -> Label
+    ) -> some View {
+        Button {
+            guard privacyLock.isUnlocked else {
+                privacyLock.requestReveal()
+                return
+            }
+            breakdownRequest = BreakdownRequest(
+                id: kind.rawValue,
+                kind: kind,
+                lines: snapshot.breakdown(kind)
+            )
+        } label: {
+            label()
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("查看构成明细")
     }
 
     private func toolRow(icon: String, color: Color, title: String, subtitle: String) -> some View {

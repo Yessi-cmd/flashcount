@@ -20,6 +20,16 @@ struct AssetPortfolioSnapshot {
     let cashPoolManualTotal: Decimal
     let installmentRemainingTotal: Decimal
     let cashPoolAvailable: Decimal
+    // 以下分量供「这个数怎么来的」下钻使用。明细必须来自同一次计算，
+    // 否则界面上的拆解会和汇总数字各说各话。
+    /// 自安装以来所有记账对现金的累计影响。界面从不显示它，却决定着可动用资金。
+    let cashPoolTransactionDelta: Decimal
+    /// 非负债类资金项之和。
+    let cashPoolPositiveTotal: Decimal
+    /// 手工登记的负债类资金项之和。
+    let manualLiabilityTotal: Decimal
+    /// 记账支出吃穿登记余额后，超出的部分——它被翻转计入负债。
+    let overdraftLiability: Decimal
     let totalAssets: Decimal
     let totalLiabilities: Decimal
     let netWorth: Decimal
@@ -76,6 +86,10 @@ struct AssetPortfolioSnapshot {
         self.cashPoolManualTotal = manualTotal
         self.installmentRemainingTotal = installmentRemainingTotal
         self.cashPoolAvailable = manualTotal + cashPoolTransactionDelta - installmentRemainingTotal
+        self.cashPoolTransactionDelta = cashPoolTransactionDelta
+        self.cashPoolPositiveTotal = positiveTotal
+        self.manualLiabilityTotal = manualLiabilityTotal
+        self.overdraftLiability = max(-liquidNet, 0)
         self.totalAssets = liquidAssetTotal
         self.totalLiabilities = liquidLiabilityTotal
         self.netWorth = liquidAssetTotal - liquidLiabilityTotal

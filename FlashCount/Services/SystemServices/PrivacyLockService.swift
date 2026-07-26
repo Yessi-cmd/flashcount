@@ -26,6 +26,16 @@ final class PrivacyLockService: ObservableObject {
     var maskedText: String { "****" }
     var hidesSensitiveAmounts: Bool { !isUnlocked }
 
+    init() {
+#if DEBUG
+        // 隐私金额默认遮挡，而解锁要过生物识别——UI 测试和视觉走查无法完成。
+        // 仅 DEBUG 编译，Release 二进制里不存在这段。
+        if ProcessInfo.processInfo.arguments.contains("-uiTestUnlockPrivacy") {
+            isUnlocked = true
+        }
+#endif
+    }
+
     func requestReveal() {
         guard !isUnlocked else { return }
         lastError = nil

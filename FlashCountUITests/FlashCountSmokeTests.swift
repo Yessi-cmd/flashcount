@@ -454,6 +454,42 @@ final class FlashCountSmokeTests: XCTestCase {
         add(sheet)
     }
 
+    func testAvailableFundsDrillDownExplainsItsComposition() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestActionCenter",
+            "-uiTestUnlockPrivacy",
+            "-visualReviewTab", "4"
+        ]
+        app.launch()
+
+        let availableFunds = app.buttons["assets.availableFunds"]
+        XCTAssertTrue(availableFunds.waitForExistence(timeout: 10), "可动用资金应可点击下钻")
+        availableFunds.tap()
+
+        XCTAssertTrue(
+            app.navigationBars["可动用资金"].waitForExistence(timeout: 5),
+            "应打开可动用资金的构成明细"
+        )
+
+        let breakdown = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        breakdown.name = "asset-available-funds-breakdown"
+        breakdown.lifetime = .keepAlways
+        add(breakdown)
+
+        // 「记账增减」是唯一能继续下钻到具体交易的分量。
+        let ledgerDelta = app.buttons["assetBreakdown.drill.transaction-delta"]
+        XCTAssertTrue(ledgerDelta.waitForExistence(timeout: 5))
+        ledgerDelta.tap()
+        XCTAssertTrue(app.navigationBars["记账增减"].waitForExistence(timeout: 5))
+
+        let impacts = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        impacts.name = "asset-cash-impact-list"
+        impacts.lifetime = .keepAlways
+        add(impacts)
+    }
+
     /// 账本工具栏的次级动作收在「更多」菜单里；先展开菜单再点目标项。
     private func openLedgerMoreItem(_ app: XCUIApplication, identifier: String) {
         let more = app.buttons["ledger.more"]

@@ -85,6 +85,7 @@ Grouped under `FlashCount/Services/`:
 | `AssetPortfolioSnapshot` | The asset tab's whole aggregation, extracted from the view so net worth math is testable |
 | `InstallmentRepaymentService` | Advances an installment and writes its expense in one commit |
 | `SavingsGoalService` | Deposit / withdraw against a goal, without touching the ledger |
+| `AssetBreakdown` | Turns a snapshot into drill-down lines for 可动用资金 / 总资产 / 总负债 |
 | `LocalAnalyticsDataStore` → `ReportComputationWorker` → `ReportCalculator` | The only report pipeline: a `@ModelActor` reads value snapshots off the UI context, an actor computes, `ReportCalculator` (in `ReportAnalytics.swift`) aggregates. Report/insight types live in `ReportModels.swift`, period math in `ReportPeriodCalculator.swift`. Tests must exercise this path — a parallel `ReportService` once existed, went dead, and kept the tests pointed at code the app never ran. |
 | `ReportStreakCalculator` | Shared streak semantics. The data actor uses it to decide how far back to scan; the calculator uses it to count. Both sides must keep using it, or "how far we scan" and "how far we count" drift apart. Chunked scans are day-aligned — an unaligned boundary splits the seam day and reads as a false gap. |
 | `ReportPageCache` | LRU (12) for completed/scheduled reports, keyed by data digest. `.current` targets are deliberately excluded: their reference instant moves constantly and would only thrash the cache. |
@@ -104,6 +105,7 @@ Grouped under `FlashCount/Services/`:
 - The app is single-ledger by design. The `Ledger` model remains for schema stability; existing multi-ledger users had their data consolidated. See Model Relationships for the cascade-delete hazard.
 - `BudgetScope.includesInDailyBudget` controls which categories count toward daily budgets (餐饮/出行/购物 only, minus 数码配件/家具家电/大件消费).
 - Net worth has exactly one source of truth: the cash pool (`AssetPortfolioSnapshot`). The old `Asset` account list duplicated it and was summed alongside it, double-counting anything recorded twice. Physical assets and savings goals are deliberately excluded from net worth (illiquid / already sitting in cash) and the card says so on screen.
+- Asset figures are drillable (`AssetBreakdownSheet`). The breakdown lines come from `AssetPortfolioSnapshot.breakdown(_:)`, i.e. the same computation as the card, and `AssetBreakdownTests` asserts the item lines always sum to the headline number — a drill-down that disagrees with its total is worse than none. `记账增减` drills a second level into the transactions behind it; it is the one component users could never verify, which is what made 校准 the only recourse.
 - Paying an installment must write the matching expense (`InstallmentRepaymentService`). Available funds are `资金净额 + 交易增减 − 分期待还`, so releasing the liability without a ledger entry makes paying down debt look like gaining money. The opt-out exists only for users who already recorded the payment by hand.
 - Savings deposits deliberately create no transaction — the money moved from spendable to saved, it did not leave. Booking it would make budgets and reports count saving as spending.
 - `PhysicalAsset`'s time-dependent math takes an explicit `asOf:` date so depreciation can be tested. Multiply before dividing in money math; the reverse introduced a repeating-decimal artifact.
@@ -112,6 +114,7 @@ Grouped under `FlashCount/Services/`:
 - `ReportShareCard` takes every value as a parameter. `ImageRenderer` draws outside the view hierarchy, so any `@EnvironmentObject` it reached for would render blank.
 - The report tab only generates while `isActive`. TabView keeps the page alive, so without that guard every ledger save rebuilds the report offscreen.
 - `Views/VisualExploration/` is a DEBUG-only design lab reached via launch arguments; it never runs in Release.
+- `-uiTestUnlockPrivacy` (DEBUG only) starts `PrivacyLockService` unlocked so UI tests and visual reviews can see privacy-gated screens; biometrics cannot be satisfied in the simulator.
 
 ## Project Rules
 
