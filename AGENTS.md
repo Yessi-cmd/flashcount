@@ -83,6 +83,8 @@ Grouped under `FlashCount/Services/`:
 | `PayCycleService` | Computes pay-cycle date ranges from a payday (day of month) |
 | `CashPoolService` | Manages `CashPoolState.transactionDelta` aggregation |
 | `LocalAnalyticsDataStore` → `ReportComputationWorker` → `ReportCalculator` | The only report pipeline: a `@ModelActor` reads value snapshots off the UI context, an actor computes, `ReportCalculator` (in `ReportAnalytics.swift`) aggregates. Report/insight types live in `ReportModels.swift`, period math in `ReportPeriodCalculator.swift`. Tests must exercise this path — a parallel `ReportService` once existed, went dead, and kept the tests pointed at code the app never ran. |
+| `ReportStreakCalculator` | Shared streak semantics. The data actor uses it to decide how far back to scan; the calculator uses it to count. Both sides must keep using it, or "how far we scan" and "how far we count" drift apart. Chunked scans are day-aligned — an unaligned boundary splits the seam day and reads as a false gap. |
+| `ReportPageCache` | LRU (12) for completed/scheduled reports, keyed by data digest. `.current` targets are deliberately excluded: their reference instant moves constantly and would only thrash the cache. |
 | `DataBackupService` | Full JSON export/import with DTOs; `CodableMoney` amounts |
 | `CSVTransactionService` | CSV import/export of transactions |
 | `DataHealthService` | Local data health checks and repair plans |
@@ -98,6 +100,10 @@ Grouped under `FlashCount/Services/`:
 
 - The app is single-ledger by design. The `Ledger` model remains for schema stability; existing multi-ledger users had their data consolidated. See Model Relationships for the cascade-delete hazard.
 - `BudgetScope.includesInDailyBudget` controls which categories count toward daily budgets (餐饮/出行/购物 only, minus 数码配件/家具家电/大件消费).
+- Report figures are drillable: tapping a category or chart bucket opens `ReportDrillDownView`, which filters by `LedgerFilter.categoryRootName` — the same root-category grouping the cards aggregate on, so the drill-down total always reconciles with the number tapped.
+- The report's income composition card and the shared image card both hide income entirely while the privacy lock is engaged — for income, the category names (工资, 奖金) are themselves the disclosure, not just the amounts.
+- `ReportShareCard` takes every value as a parameter. `ImageRenderer` draws outside the view hierarchy, so any `@EnvironmentObject` it reached for would render blank.
+- The report tab only generates while `isActive`. TabView keeps the page alive, so without that guard every ledger save rebuilds the report offscreen.
 - `Views/VisualExploration/` is a DEBUG-only design lab reached via launch arguments; it never runs in Release.
 
 ## Project Rules

@@ -3,6 +3,9 @@ import SwiftUI
 // MARK: - 汇总类卡片：连续记账、资金概览、智能分析、预算、洞察
 
 extension ReportObservedContent {
+    /// 打卡网格按周一对齐，表头与之一一对应。
+    static let weekdaySymbols = ["一", "二", "三", "四", "五", "六", "日"]
+
     func streakCard(data: ReportData) -> some View {
         let days = data.streakDays
         let loggedCount = data.loggingDays.filter(\.isLogged).count
@@ -25,10 +28,16 @@ extension ReportObservedContent {
 
             if !data.loggingDays.isEmpty {
                 // 一个数字看不出记账节奏；把最近 5 周铺开，断档一眼可见。
+                // 网格按周一对齐，每列固定对应同一个星期几，所以表头是有意义的。
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7),
                     spacing: 4
                 ) {
+                    ForEach(Self.weekdaySymbols, id: \.self) { symbol in
+                        Text(symbol)
+                            .font(.system(size: 9))
+                            .foregroundStyle(DesignSystem.textTertiary)
+                    }
                     ForEach(data.loggingDays) { day in
                         RoundedRectangle(cornerRadius: 3, style: .continuous)
                             .fill(
@@ -36,10 +45,10 @@ extension ReportObservedContent {
                                     ? DesignSystem.primaryColor.opacity(0.85)
                                     : DesignSystem.dividerColor.opacity(0.6)
                             )
-                            .frame(height: 14)
+                            .frame(height: 16)
                     }
                 }
-                // 35 个格子逐一朗读毫无意义，合并成一句结论。
+                // 逐格朗读毫无意义，合并成一句结论。
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("最近 \(data.loggingDays.count) 天里有 \(loggedCount) 天记了账")
                 .accessibilityIdentifier("report.loggingHeatmap")

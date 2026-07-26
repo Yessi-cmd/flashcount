@@ -433,8 +433,9 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.streakDays, 200, "断点之前的记录不得计入连续天数")
     }
 
-    /// 打卡网格覆盖截至报告期末的最近 35 天，并如实标记每天是否记账。
-    func testLoggingHeatmapCoversRecentDaysEndingAtReportEnd() async throws {
+    /// 打卡网格以周一为列首对齐（否则 7 列排布会暗示错误的星期对应关系），
+    /// 覆盖到报告期末当天，并如实标记每天是否记账。
+    func testLoggingHeatmapAlignsToMondayAndEndsAtReportEnd() async throws {
         let context = try makeContext()
         let reference = try date(2026, 7, 15, 12)
         insertExpense(10, at: try date(2026, 7, 15, 9), into: context)
@@ -448,9 +449,12 @@ final class ReportDomainTests: XCTestCase {
             context: context
         )
 
-        XCTAssertEqual(report.loggingDays.count, 35)
+        // 2026-07-15 是周三；往前 34 天落在 6/11（周四）所在周，该周周一为 6/8。
+        let firstDay = try XCTUnwrap(report.loggingDays.first?.date)
+        XCTAssertEqual(firstDay, try date(2026, 6, 8))
+        XCTAssertEqual(calendar.component(.weekday, from: firstDay), 2, "网格第一格必须是周一")
         XCTAssertEqual(report.loggingDays.last?.date, try date(2026, 7, 15))
-        XCTAssertEqual(report.loggingDays.first?.date, try date(2026, 6, 11))
+        XCTAssertEqual(report.loggingDays.count, 38)
         XCTAssertEqual(report.loggingDays.filter(\.isLogged).map(\.date), [
             try date(2026, 7, 1),
             try date(2026, 7, 14),

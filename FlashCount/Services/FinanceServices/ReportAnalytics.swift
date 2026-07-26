@@ -350,19 +350,37 @@ struct ReportCalculator {
         }
     }
 
-    /// 打卡网格固定取最近 5 周（7 列 × 5 行）。
+    /// 打卡网格固定取最近 5 周。
     /// 年报若逐日铺开会有 365 格，既排不下也读不出信息。
-    private static let loggingGridDayCount = 35
+    private static let loggingGridWeekCount = 5
 
+    /// 网格按周一对齐，因此每一列固定对应同一个星期几。
+    /// 若直接「从参照日往前数 35 天」，列与星期几无关，7 列的排布反而会误导。
     private func buildLoggingDays(
         endingBefore end: Date,
         loggedDays: Set<Date>
     ) -> [ReportLoggingDay] {
         let reference = ReportStreakCalculator.referenceDay(endingBefore: end, calendar: calendar)
-        return (0..<Self.loggingGridDayCount).reversed().compactMap { offset in
-            guard let day = calendar.date(byAdding: .day, value: -offset, to: reference) else { return nil }
-            return ReportLoggingDay(date: day, isLogged: loggedDays.contains(day))
+        var weekCalendar = calendar
+        weekCalendar.firstWeekday = 2 // 周一，与报表其它周口径一致
+        weekCalendar.minimumDaysInFirstWeek = 4
+
+        guard let earliest = calendar.date(
+            byAdding: .day,
+            value: -(Self.loggingGridWeekCount * 7 - 1),
+            to: reference
+        ), let weekStart = weekCalendar.dateInterval(of: .weekOfYear, for: earliest)?.start else {
+            return []
         }
+
+        var days: [ReportLoggingDay] = []
+        var cursor = calendar.startOfDay(for: weekStart)
+        while cursor <= reference {
+            days.append(ReportLoggingDay(date: cursor, isLogged: loggedDays.contains(cursor)))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+        return days
     }
 
     private func bucketIndex(for date: Date, in ranges: [ReportDateRange]) -> Int? {
