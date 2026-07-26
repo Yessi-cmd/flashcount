@@ -15,7 +15,7 @@
 - [x] **AGENTS.md 未反映本轮结构变化**（已完成，见 DONE.md） — 新增 `QuickEntryFeedbackCenter` 服务未进 Services 表；记账保存反馈、隐私锁解锁流程、底栏中央按钮行为、分类格子交互模型都已改变，Caveats 仍是旧描述。AGENTS.md 自己规定结构变化必须同批更新，且它是 agent 唯一真源。影响范围：文档，无代码风险。
 - [x] **本轮 UX 改动缺 ADR**（已完成，见 DONE.md） — `docs/decisions/` 按规定应记录重大决策。至少两项够格：分类格子交互模型（单点即选 + 明确的换小类入口，且两种失败方案要留下"别再试"的记录）、隐私锁放宽（去掉确认弹窗与切 tab 重锁）。影响范围：文档。
 - [x] **新增三个类型无测试**（已完成，见 DONE.md） — `QuickEntryFeedbackCenter`（提示条生命周期与过期）、`AdaptiveMetricRow`/`AdaptiveMetric`（横纵排切换）、`QuickEntrySavedToast`。前者是纯逻辑，值得单测。影响范围：新增测试文件。
-- [ ] **补齐逻辑层覆盖率** — 基线：逻辑层合计 ≈82.6%，全目标 43.24%（约 80% 计数行是视图代码，见 `BLOCKERS.md` 说明 85% 总量目标为何不成立）。按未覆盖行排序推进 `Services/DataServices`（78.1%，2671 行）与 `Services/FinanceServices`（83.8%，3486 行）。影响范围：测试。
+- [ ] **补齐逻辑层覆盖率** — 基线：逻辑层合计 ≈82.6%，全目标 43.24%（约 80% 计数行是视图代码，见 `BLOCKERS.md` 说明 85% 总量目标为何不成立）。已完成 `BackupImporter`（69.6%→78.3%）与 `CSVTransactionService`（68.2%→88.2%）。逻辑层合计（仅单元测试）79.9%。下一批候选按未覆盖行排序：`Services/FinanceServices` 81.0%（3486 行，缺口最大）、`Core` 75.2%、`Services/BudgetServices` 75.4%、`Services/SystemServices` 77.1%。影响范围：测试。
 
 ## 中
 

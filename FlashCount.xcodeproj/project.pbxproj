@@ -73,6 +73,7 @@
 		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
 		4B6BDBD4D494CD302A0B6216 /* DataHealthRepairPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FC2A042FE21B6B6BD477C1 /* DataHealthRepairPlan.swift */; };
 		4BF40B9AD247ADCC097163AB /* ReportShareCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77045E48D3D60F6A725BAD72 /* ReportShareCardTests.swift */; };
+		4D6B4B7E8F02C4CDCEE325E8 /* CSVTransactionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10C7C05C009A9D11F4AA4043 /* CSVTransactionServiceTests.swift */; };
 		50DA9190E88420449175A95D /* CategoryBudgetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D2927DCAF44C764B12376C6 /* CategoryBudgetsView.swift */; };
 		518906D1BB40E34A9DF0FFCE /* InstallmentRepaymentServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCA6FC8516383394A21726F /* InstallmentRepaymentServiceTests.swift */; };
 		521BAA56D0D45CDDEC999D79 /* LedgerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A503499BBB8FAD9C2B718B91 /* LedgerPresentation.swift */; };
@@ -200,6 +201,7 @@
 		07DB9D3D6E1549D61AC58249 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationServiceTests.swift; sourceTree = "<group>"; };
 		0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderSettingsView.swift; sourceTree = "<group>"; };
+		10C7C05C009A9D11F4AA4043 /* CSVTransactionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionServiceTests.swift; sourceTree = "<group>"; };
 		12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryControls.swift; sourceTree = "<group>"; };
 		14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSearchDebounce.swift; sourceTree = "<group>"; };
 		150F70C88D7A26066D37B0AF /* PhysicalAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhysicalAssetView.swift; sourceTree = "<group>"; };
@@ -509,6 +511,7 @@
 				A09A3E2CB08BE1306C67F21D /* CashFlowForecastTests.swift */,
 				8EEE30A9A79A753F3D97B6A5 /* CategoryManagementServiceTests.swift */,
 				43E5ECC46BF137742CF4ACC0 /* CategoryWheelLayoutTests.swift */,
+				10C7C05C009A9D11F4AA4043 /* CSVTransactionServiceTests.swift */,
 				4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */,
 				F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */,
 				B69EF83BF53BB977C49FDF4E /* FinanceDomainTests+Backup.swift */,
@@ -867,6 +870,7 @@
 				363B3F0D215117E006A8DBE1 /* AssetBreakdownTests.swift in Sources */,
 				6E622DE3993822821DE7FF69 /* AssetPortfolioSnapshotTests.swift in Sources */,
 				376777F96DA7E678A10EF2B4 /* BackupImporterTests.swift in Sources */,
+				4D6B4B7E8F02C4CDCEE325E8 /* CSVTransactionServiceTests.swift in Sources */,
 				EAE5F1B90485C2B9D216D921 /* CashFlowForecastTests.swift in Sources */,
 				79C405E10782A42CD9094135 /* CategoryManagementServiceTests.swift in Sources */,
 				766F95A7EBCE7F17716BD6F8 /* CategoryWheelLayoutTests.swift in Sources */,
