@@ -1,5 +1,7 @@
 import Foundation
 
+/// 漏掉的周期账怎么补：让用户逐笔确认，还是启动时自动生成。
+/// 默认「先确认」——自动生成会在用户不知情时改动账本。
 enum RecurringCatchUpMode: String, CaseIterable, Identifiable {
     case review
     case automatic
@@ -21,6 +23,7 @@ enum RecurringCatchUpMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// 补账模式的读写，存在 `UserDefaults`。未知值一律回落到默认的「先确认」。
 enum RecurringCatchUpPreferences {
     static let storageKey = "recurringCatchUpMode"
     static let defaultMode: RecurringCatchUpMode = .review

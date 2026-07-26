@@ -32,6 +32,8 @@ struct CategorySpending: Identifiable {
     }
 }
 
+/// 洞察条目的语气，决定配色与图标。区分「提醒注意」和「值得肯定」，
+/// 全部一个颜色会让用户分不清哪条需要行动。
 enum ReportInsightTone: Equatable {
     case positive
     case neutral

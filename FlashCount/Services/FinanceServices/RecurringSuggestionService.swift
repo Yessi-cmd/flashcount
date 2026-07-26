@@ -16,6 +16,7 @@ struct RecurringSuggestion: Identifiable, Equatable, Sendable {
     var id: String { fingerprint }
 }
 
+/// 周期建议分析用的交易值快照。
 struct RecurringSuggestionTransactionInput: Equatable, Sendable {
     let amount: Decimal
     let date: Date
@@ -28,6 +29,7 @@ struct RecurringSuggestionTransactionInput: Equatable, Sendable {
     let ledgerID: UUID?
 }
 
+/// 已存在的周期规则值快照，用于避免给已建过规则的支出重复建议。
 struct RecurringSuggestionRuleInput: Equatable, Sendable {
     let isExpense: Bool
     let frequency: RecurringFrequency
@@ -38,11 +40,13 @@ struct RecurringSuggestionRuleInput: Equatable, Sendable {
     let note: String
 }
 
+/// 周期建议分析的完整输入（全部为值类型，可跨 actor）。
 struct RecurringSuggestionInput: Equatable, Sendable {
     let transactions: [RecurringSuggestionTransactionInput]
     let existingRules: [RecurringSuggestionRuleInput]
 }
 
+/// 记录用户忽略过哪些建议。忽略必须持久化，否则同一条建议每次启动都回来。
 protocol RecurringSuggestionDismissalStoring {
     func load() -> Set<String>
     func dismiss(_ fingerprint: String)
@@ -416,6 +420,7 @@ enum RecurringSuggestionService {
 }
 
 @ModelActor
+/// 在 `@ModelActor` 上把周期建议所需数据读成值快照。
 actor RecurringSuggestionDataStore {
     func makeInput() throws -> RecurringSuggestionInput {
         let transactions = try modelContext.fetch(
@@ -453,6 +458,7 @@ actor RecurringSuggestionDataStore {
     }
 }
 
+/// 在后台 actor 上做周期建议的识别计算。
 actor RecurringSuggestionWorker {
     func calculate(
         input: RecurringSuggestionInput,

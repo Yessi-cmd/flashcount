@@ -47,6 +47,7 @@ struct ReportTransactionSnapshot: Equatable, Sendable {
     }
 }
 
+/// 预算的值快照，供后台报表计算使用（不携带 `Budget` 模型对象）。
 struct ReportBudgetInputSnapshot: Equatable, Sendable {
     let id: UUID
     let monthlyLimit: Decimal
@@ -87,6 +88,10 @@ struct ReportBudgetInputSnapshot: Equatable, Sendable {
     }
 }
 
+/// 一次报表计算所需的全部输入，全部为值类型。
+///
+/// 由 `@ModelActor` 在主上下文读出后交给计算 actor——这是报表管线唯一的
+/// 数据入口，不要让计算侧直接访问 `ModelContext`。
 struct ReportDataSnapshot: Sendable {
     let currentTransactions: [ReportTransactionSnapshot]
     let comparisonTransactions: [ReportTransactionSnapshot]
@@ -663,6 +668,10 @@ struct ReportCalculator {
     }
 }
 
+/// 在后台 actor 上计算报表。
+///
+/// 输入必须是值快照（`ReportDataSnapshot`），不能是 SwiftData 模型对象——
+/// 模型不 `Sendable`，跨 actor 携带会在主线程之外触碰上下文。
 actor ReportComputationWorker {
     func calculatePage(
         period: ReportPeriod,
@@ -706,6 +715,7 @@ actor ReportComputationWorker {
     }
 }
 
+/// 一页报表的计算产物：报表数据 + 该周期的预算快照。
 struct ReportPageCalculation: Sendable {
     let report: ReportData
     let budget: ReportBudgetSnapshotValue

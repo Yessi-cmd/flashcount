@@ -4,6 +4,7 @@
 
 ## 2026-07-27
 
+- **FinanceServices 全部 38 个类型补文档注释（111 → 73 缺）** — 核心财务逻辑，写的都是约束：`PayCycleService`（全 App 的「本周期」都源于此，发薪日错则每个数字都错且界面无提示）、`CashPoolService`（可动用资金公式，以及「记账增减」用户无从核对所以必须可下钻、`calibrate` 是抹平而非解释差异）、`AssetBreakdownKind`（每种都须满足明细加总等于标题数字）、`LocalActionCenterSnapshot`（badge 与打开后的条数必须同口径）、`ReportDataSnapshot`/`ReportComputationWorker`（跨 actor 只能传值快照，模型不 Sendable）、`RecurringOccurrencePreview`（id 用 occurrenceKey 而非 UUID，重复推演不会产生两笔）、`RecurringBackfillAction.link`（用户常已手工记过，再生成就是重复记账）。
 - **BudgetServices 与 DataHealth 家族共 19 个类型补文档注释（147 → 111 缺）** — 同样只写不变量：`BudgetScope`（日常预算为何排除服饰/聚餐/大件，以及归属按 `defaultKey` 而非名称判断，用户改名不影响口径）、`BudgetReminderService`（预算按发薪周期定位，改发薪日会改变哪条生效）、`WeekendBudgetPreferences`（存百分比整数因为 `@AppStorage` 不支持 `Decimal`，非法值必须回落）、`DataHealthRepairPlan`（指纹不一致必须拒绝执行，否则修复落在用户已改过的数据上）、`DataHealthFinding`（可自动修与需人工判断必须分开呈现）。
 - **Core 与 Models 共 17 个类型补上文档注释** — 挑的是能写出不变量的那些：`MoneyValidation`（全仓金额必须只有一处解析）、`CashPoolState`（全库只应一条，否则余额来源不确定）、`SavingsGoal`（存入刻意不产生交易）、`InstallmentBill`（还款必须同时写支出）、`CashPoolItemKind`（`rawValue` 进备份不可改，文案走 `displayName`）、`FlashCountMigrationPlan`（V2→V3 必须在 `willMigrate` 阶段做）、`QuickEntryRoute`（`consume()` 取走即清零，否则记账页会自己弹回来）等。仓库顶层类型 269 个，原缺注释 147 个，剩 130 个记在 TODO 里按价值排序。
 - **判定 `BackupExporter.exportJSON()` 不该拆** — 它是一整个 `BackupData(...)` 字面量加内联 `.map`，没有分支、没有状态、没有交织的职责。拆成十二个 DTO 小函数只会增加间接层和抄写风险，而这是备份格式的关键路径。「超过 50 行」是启发式，这一处不指向真问题；同理已标注 `Category.expenseCategoryGroups()`（静态数据表）。

@@ -1,6 +1,10 @@
 import Foundation
 import SwiftData
 
+/// 一条待补记的周期发生项（还没写进账本）。
+///
+/// `id` 用 `occurrenceKey`（规则 + 计划日期）而不是 UUID，这样同一个到期日
+/// 无论推演多少次都指向同一条，重复补账因此不会产生两笔。
 struct RecurringOccurrencePreview: Identifiable, Equatable {
     let id: String
     let ruleID: UUID
@@ -18,12 +22,15 @@ struct RecurringOccurrencePreview: Identifiable, Equatable {
     }
 }
 
+/// 用户对一条待补记项的处置：生成一笔、跳过、或关联到已手工记过的交易。
+/// `link` 存在的原因是用户常常已经自己记过了——再生成一笔就是重复记账。
 enum RecurringBackfillAction: String, Codable {
     case generate
     case skip
     case link
 }
 
+/// 补账时对单条发生项的选择，可顺带改写金额与备注（实际扣款常与规则不同）。
 struct RecurringBackfillSelection {
     let occurrenceKey: String
     let action: RecurringBackfillAction
@@ -46,6 +53,8 @@ struct RecurringBackfillSelection {
     }
 }
 
+/// 一次补账的结果。`cashPoolDelta` 汇报这批操作对现金的净影响，
+/// 供调用方一次性对齐资金池，而不是每写一笔就改一次状态。
 struct RecurringBackfillResult: Equatable {
     let generatedCount: Int
     let skippedCount: Int

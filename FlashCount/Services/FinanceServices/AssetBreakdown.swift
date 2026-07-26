@@ -38,6 +38,8 @@ struct AssetBreakdownLine: Identifiable, Equatable {
     }
 }
 
+/// 可下钻的资产数字。每一种都必须满足「明细行加总等于卡片上的数字」，
+/// `AssetBreakdownTests` 对 `allCases` 逐一校验——对不上的下钻比不下钻更糟。
 enum AssetBreakdownKind: String, Identifiable, CaseIterable {
     case availableFunds
     /// 资金净额单独成一种。它此前借用 `availableFunds`，于是点「资金净额」

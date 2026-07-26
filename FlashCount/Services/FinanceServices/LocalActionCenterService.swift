@@ -1,5 +1,6 @@
 import Foundation
 
+/// 行动中心的分组类型，顺序即展示顺序（按紧急程度排列）。
 enum LocalActionKind: String, CaseIterable, Identifiable {
     case budgetOverrun
     case recurringDebit
@@ -30,6 +31,8 @@ enum LocalActionKind: String, CaseIterable, Identifiable {
     }
 }
 
+/// 行动项点击后要去的页面。每一条待办都必须有可去之处，
+/// 否则用户只能看着它却无法处理。
 enum LocalActionDestination: String, Hashable, Identifiable {
     case budget
     case recurringRules
@@ -39,6 +42,7 @@ enum LocalActionDestination: String, Hashable, Identifiable {
     var id: String { rawValue }
 }
 
+/// 行动项的紧急程度，用于排序与配色。
 enum LocalActionSeverity: Int, Comparable {
     case overdue = 0
     case urgent = 1
@@ -50,6 +54,8 @@ enum LocalActionSeverity: Int, Comparable {
     }
 }
 
+/// 一条待办。`isPrivacySensitiveAmount` 标记该金额在隐私锁生效时必须遮挡——
+/// 行动中心会同时列出收入类事项。
 struct LocalActionItem: Identifiable, Equatable {
     let id: String
     let kind: LocalActionKind
@@ -70,6 +76,7 @@ struct LocalActionItem: Identifiable, Equatable {
     }
 }
 
+/// 同类待办的一组。空分组不会出现在快照里。
 struct LocalActionSection: Identifiable, Equatable {
     let kind: LocalActionKind
     let items: [LocalActionItem]
@@ -78,6 +85,8 @@ struct LocalActionSection: Identifiable, Equatable {
     var title: String { kind.title }
 }
 
+/// 一次聚合出的全部待办。`totalCount` 同时用于账本页图标上的 badge，
+/// 因此 badge 与打开后看到的条数必须来自同一次计算口径。
 struct LocalActionCenterSnapshot: Equatable {
     let sections: [LocalActionSection]
 
