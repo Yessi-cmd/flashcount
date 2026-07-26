@@ -430,6 +430,30 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["报表"].waitForExistence(timeout: 5))
     }
 
+    func testReportShareRendersCardIntoSystemShareSheet() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestReportLayout",
+            "-visualReviewTab", "3"
+        ]
+        app.launch()
+
+        let share = app.buttons["report.share"]
+        XCTAssertTrue(share.waitForExistence(timeout: 10), "有数据的报表应提供分享入口")
+        share.tap()
+
+        XCTAssertTrue(
+            app.otherElements["ActivityListView"].waitForExistence(timeout: 10),
+            "应弹出系统分享面板"
+        )
+
+        let sheet = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        sheet.name = "report-share-sheet"
+        sheet.lifetime = .keepAlways
+        add(sheet)
+    }
+
     /// 账本工具栏的次级动作收在「更多」菜单里；先展开菜单再点目标项。
     private func openLedgerMoreItem(_ app: XCUIApplication, identifier: String) {
         let more = app.buttons["ledger.more"]

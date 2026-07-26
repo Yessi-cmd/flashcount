@@ -63,6 +63,7 @@
 		4AD3D846FD1695BA9132B7FC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1ADA7956C6C99C09B67BA62C /* PrivacyInfo.xcprivacy */; };
 		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
 		4B6BDBD4D494CD302A0B6216 /* DataHealthRepairPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FC2A042FE21B6B6BD477C1 /* DataHealthRepairPlan.swift */; };
+		4BF40B9AD247ADCC097163AB /* ReportShareCardTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77045E48D3D60F6A725BAD72 /* ReportShareCardTests.swift */; };
 		50DA9190E88420449175A95D /* CategoryBudgetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D2927DCAF44C764B12376C6 /* CategoryBudgetsView.swift */; };
 		521BAA56D0D45CDDEC999D79 /* LedgerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A503499BBB8FAD9C2B718B91 /* LedgerPresentation.swift */; };
 		566909CCF24EE8E82A4466DD /* DataHealthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */; };
@@ -126,6 +127,7 @@
 		CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */; };
 		CD161CD39C37F8747F8F19D5 /* SavingsGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6FDA81436A9B8623D1B0EA /* SavingsGoalView.swift */; };
 		CE7B1D6D32B88BC5FA52091D /* BackupImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FA43688643A3C342CFFFB0 /* BackupImporter.swift */; };
+		D0DECAD57D1195E1490A607A /* ReportShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0D1E8C8D9A7DB5B8F0AF2B /* ReportShareCard.swift */; };
 		D284938ECE4AE2580EF1C53F /* ReportPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FF48441638307D9EDBA856 /* ReportPresentation.swift */; };
 		D6D8F110738749552014E054 /* RecurringSuggestionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5ED7B860543EE1DAC1F409D /* RecurringSuggestionService.swift */; };
 		D718F1186AB97470A28802CE /* QuickEntrySections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 324FD870540C3BD710486C69 /* QuickEntrySections.swift */; };
@@ -251,6 +253,7 @@
 		6FC6A8D084532B8B141489D2 /* LedgerComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerComponents.swift; sourceTree = "<group>"; };
 		747B4F624E99D955259D74B8 /* FinanceDomainTests+Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FinanceDomainTests+Budget.swift"; sourceTree = "<group>"; };
 		76B154163C08B8060A9DE277 /* Transaction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Transaction.swift; sourceTree = "<group>"; };
+		77045E48D3D60F6A725BAD72 /* ReportShareCardTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportShareCardTests.swift; sourceTree = "<group>"; };
 		7836FC4CCC50F8A05E62E77C /* BudgetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetView.swift; sourceTree = "<group>"; };
 		786867EA7BF3F04C8601AAA1 /* RecurringRulesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringRulesView.swift; sourceTree = "<group>"; };
 		8000784A9F364513ECB6E916 /* BudgetReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetReminderService.swift; sourceTree = "<group>"; };
@@ -270,6 +273,7 @@
 		A6C0DD52FD2FB7E04CB69EA0 /* ActionCenterSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterSectionView.swift; sourceTree = "<group>"; };
 		A8787892FBE7527E71758B45 /* ReportObservedContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportObservedContent.swift; sourceTree = "<group>"; };
 		AC96BAF328BC8C136668E8ED /* BackupValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupValidator.swift; sourceTree = "<group>"; };
+		AD0D1E8C8D9A7DB5B8F0AF2B /* ReportShareCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportShareCard.swift; sourceTree = "<group>"; };
 		AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ledger.swift; sourceTree = "<group>"; };
 		AE9F137467C4C9058D41AD0C /* LedgerSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSections.swift; sourceTree = "<group>"; };
 		AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportSummaryCards.swift; sourceTree = "<group>"; };
@@ -475,6 +479,7 @@
 				6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */,
 				60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */,
 				A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */,
+				77045E48D3D60F6A725BAD72 /* ReportShareCardTests.swift */,
 				09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */,
 			);
 			path = FlashCountTests;
@@ -685,6 +690,7 @@
 				A8787892FBE7527E71758B45 /* ReportObservedContent.swift */,
 				C1FF48441638307D9EDBA856 /* ReportPresentation.swift */,
 				0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */,
+				AD0D1E8C8D9A7DB5B8F0AF2B /* ReportShareCard.swift */,
 				5B8F866E732FA0C08D5772C1 /* ReportView.swift */,
 				645B1B4DE420DECC9A7B518C /* Cards */,
 			);
@@ -817,6 +823,7 @@
 				0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */,
 				AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */,
 				CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */,
+				4BF40B9AD247ADCC097163AB /* ReportShareCardTests.swift in Sources */,
 				C848E682CA61B43B128D3D14 /* TransactionMutationServiceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -932,6 +939,7 @@
 				48ABF62D1E1FB42B901F8235 /* ReportReminderPreferencesStore.swift in Sources */,
 				A16A0F66608A906CB25BB8D6 /* ReportReminderSettingsView.swift in Sources */,
 				2D6A2C81E34D8CE4F16B8474 /* ReportRoute.swift in Sources */,
+				D0DECAD57D1195E1490A607A /* ReportShareCard.swift in Sources */,
 				1012BB03607699D92610830C /* ReportStreakCalculator.swift in Sources */,
 				1686278248E2E0EB0BD43158 /* ReportSummaryCards.swift in Sources */,
 				987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */,

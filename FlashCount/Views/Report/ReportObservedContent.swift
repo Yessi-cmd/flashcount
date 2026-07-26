@@ -58,6 +58,7 @@ struct ReportObservedContent: View {
     @State var selectedBucketID: Date?
     @State var showChartDetails = false
     @State var drillDown: ReportDrillDownRequest?
+    @State private var shareImage: ReportShareImage?
     @State private var generationToken: UUID?
 
     init(
@@ -167,6 +168,23 @@ struct ReportObservedContent: View {
                 reportContent(data)
             }
         }
+        .toolbar {
+            if let data = state.visibleData, data.report.transactionCount > 0 {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        shareImage = renderShareImage(for: data.report)
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("分享报表")
+                    .accessibilityIdentifier("report.share")
+                }
+            }
+        }
+        .sheet(item: $shareImage) { item in
+            ReportShareSheet(image: item.image)
+        }
         .sheet(item: $drillDown) { request in
             ReportDrillDownView(request: request)
         }
@@ -175,6 +193,28 @@ struct ReportObservedContent: View {
             guard isActive else { return }
             await generateReport(digest: generationKey.digest)
         }
+    }
+
+    /// 在本机把报表渲染成图片。隐私锁生效时不带入收入与结余——
+    /// 分享出去的内容不该比屏幕上看得见的更多。
+    @MainActor
+    private func renderShareImage(for data: ReportData) -> ReportShareImage? {
+        let card = ReportShareCard(
+            periodTitle: data.period.rawValue,
+            rangeTitle: ReportDateRangeFormatter().reportRange(data.reportRange, period: data.period).title,
+            totalExpense: data.totalExpense,
+            income: privacyLock.hidesSensitiveAmounts
+                ? nil
+                : (total: data.totalIncome, net: data.netChange),
+            topCategories: data.categoryBreakdown,
+            streakDays: data.streakDays
+        )
+        .environment(\.colorScheme, .light)
+
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3
+        guard let image = renderer.uiImage else { return nil }
+        return ReportShareImage(image: image)
     }
 
     /// 下钻页副标题：沿用报表自己的区间文案，避免两处口径出现分歧。
