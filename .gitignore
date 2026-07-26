@@ -27,11 +27,5 @@ Packages/
 # Local agent workspace (session settings, temporary worktrees)
 /.claude/
 
-# Local AI agent guidance and generated context
-/AGENTS.md
-/CLAUDE.md
-/docs/AI_PROJECT_CONTEXT.md
-/docs/agent.md
-
 # CocoaPods (if used later)
 Pods/
