@@ -12,7 +12,7 @@ FlashCountApp.swift          → @main entry, WindowGroup, versioned ModelContai
         └── MainTabView      → 5 tabs: 账本 / 预算 / [+] / 报表 / 资产
 ```
 
-**Persistence:** SwiftData with a versioned schema — `Schema(versionedSchema: FlashCountSchemaV2.self)` plus `FlashCountMigrationPlan` (see `FlashCount/Core/FlashCountSchema.swift`). SchemaV2 has 14 models: Transaction, Category, Ledger, RecurringRule, RecurringOccurrence, Budget, Asset, PhysicalAsset, CashPoolItem, CashPoolState, SavingsGoal, InstallmentBill, TransactionTemplate, Reminder. Reminders were migrated from a legacy JSON file into SwiftData; `FileReminderStore` (in `Services/DataServices/ReminderStore.swift`) is a read-only legacy codec kept for one-time import, alongside the live `ReminderDataService`.
+**Persistence:** SwiftData with a versioned schema — `Schema(versionedSchema: FlashCountSchemaV3.self)` plus `FlashCountMigrationPlan` (see `FlashCount/Core/FlashCountSchema.swift`). SchemaV3 has 13 models: Transaction, Category, Ledger, RecurringRule, RecurringOccurrence, Budget, PhysicalAsset, CashPoolItem, CashPoolState, SavingsGoal, InstallmentBill, TransactionTemplate, Reminder. The `Asset` account model was removed in July 2026 — the class survives only so SchemaV1/V2 and the V2→V3 conversion stage compile; never use it in new code. Reminders were migrated from a legacy JSON file into SwiftData; `FileReminderStore` (in `Services/DataServices/ReminderStore.swift`) is a read-only legacy codec kept for one-time import, alongside the live `ReminderDataService`.
 
 ## Build & Run
 
@@ -22,7 +22,7 @@ open FlashCount.xcodeproj  # Open in Xcode, then Cmd+R to run
 
 # Run tests on a simulator
 xcodebuild test -project FlashCount.xcodeproj -scheme FlashCount \
-  -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
 ```
 
 Targets: `FlashCount` (app), `FlashCountTests` (unit), `FlashCountUITests` (UI smoke). Configs: `Debug`, `Release`. The former `FlashCountWidget` extension was removed in July 2026 — it only offered deep-link shortcuts and never shipped in AltStore packages; quick entry lives in Siri/Back Tap/Shortcuts instead. GitHub Actions (`.github/workflows/ios-ci.yml`) regenerates the project and runs the full test suite on an iOS simulator for pushes and PRs to `main`.
@@ -81,7 +81,10 @@ Grouped under `FlashCount/Services/`:
 | `BudgetAnalyzer` | Pure calculation — daily allowance, projections, alert level |
 | `BudgetReminderService` | Wires budget + `PayCycleService` + `BudgetAnalyzer` into view models |
 | `PayCycleService` | Computes pay-cycle date ranges from a payday (day of month) |
-| `CashPoolService` | Manages `CashPoolState.transactionDelta` aggregation |
+| `CashPoolService` | Manages `CashPoolState.transactionDelta` aggregation; `calibrate` realigns it to a real-world balance |
+| `AssetPortfolioSnapshot` | The asset tab's whole aggregation, extracted from the view so net worth math is testable |
+| `InstallmentRepaymentService` | Advances an installment and writes its expense in one commit |
+| `SavingsGoalService` | Deposit / withdraw against a goal, without touching the ledger |
 | `LocalAnalyticsDataStore` → `ReportComputationWorker` → `ReportCalculator` | The only report pipeline: a `@ModelActor` reads value snapshots off the UI context, an actor computes, `ReportCalculator` (in `ReportAnalytics.swift`) aggregates. Report/insight types live in `ReportModels.swift`, period math in `ReportPeriodCalculator.swift`. Tests must exercise this path — a parallel `ReportService` once existed, went dead, and kept the tests pointed at code the app never ran. |
 | `ReportStreakCalculator` | Shared streak semantics. The data actor uses it to decide how far back to scan; the calculator uses it to count. Both sides must keep using it, or "how far we scan" and "how far we count" drift apart. Chunked scans are day-aligned — an unaligned boundary splits the seam day and reads as a false gap. |
 | `ReportPageCache` | LRU (12) for completed/scheduled reports, keyed by data digest. `.current` targets are deliberately excluded: their reference instant moves constantly and would only thrash the cache. |
@@ -100,6 +103,10 @@ Grouped under `FlashCount/Services/`:
 
 - The app is single-ledger by design. The `Ledger` model remains for schema stability; existing multi-ledger users had their data consolidated. See Model Relationships for the cascade-delete hazard.
 - `BudgetScope.includesInDailyBudget` controls which categories count toward daily budgets (餐饮/出行/购物 only, minus 数码配件/家具家电/大件消费).
+- Net worth has exactly one source of truth: the cash pool (`AssetPortfolioSnapshot`). The old `Asset` account list duplicated it and was summed alongside it, double-counting anything recorded twice. Physical assets and savings goals are deliberately excluded from net worth (illiquid / already sitting in cash) and the card says so on screen.
+- Paying an installment must write the matching expense (`InstallmentRepaymentService`). Available funds are `资金净额 + 交易增减 − 分期待还`, so releasing the liability without a ledger entry makes paying down debt look like gaining money. The opt-out exists only for users who already recorded the payment by hand.
+- Savings deposits deliberately create no transaction — the money moved from spendable to saved, it did not leave. Booking it would make budgets and reports count saving as spending.
+- `PhysicalAsset`'s time-dependent math takes an explicit `asOf:` date so depreciation can be tested. Multiply before dividing in money math; the reverse introduced a repeating-decimal artifact.
 - Report figures are drillable: tapping a category or chart bucket opens `ReportDrillDownView`, which filters by `LedgerFilter.categoryRootName` — the same root-category grouping the cards aggregate on, so the drill-down total always reconciles with the number tapped.
 - The report's income composition card and the shared image card both hide income entirely while the privacy lock is engaged — for income, the category names (工资, 奖金) are themselves the disclosure, not just the amounts.
 - `ReportShareCard` takes every value as a parameter. `ImageRenderer` draws outside the view hierarchy, so any `@EnvironmentObject` it reached for would render blank.
