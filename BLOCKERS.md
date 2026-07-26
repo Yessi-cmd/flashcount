@@ -30,7 +30,17 @@
    不是在改进项目。
 
 因此本轮采取的实际目标：**逻辑层（Models / Services / Core）覆盖率持续推高，视图层只为关键
-流程补 UI 冒烟测试**。总量数字会因此停在 45–55% 区间，这个数字反映的是代码构成，不是测试质量。
+流程补 UI 冒烟测试**。
+
+**结果（2026-07-27 收尾）：逻辑层 82.6% → 85.17%（8112/9524），达成 85% 目标。**
+本轮新增 122 个单元测试（113 → 273 全绿，另 22 个 UI 测试）。单文件提升：
+`Category` 84.1%→99.6%、`RecurringSuggestionService` 78.4%→95.5%、
+`RecurringOccurrenceService` 79.2%→92.3%、`CSVTransactionService` 68.2%→88.2%、
+`BackupImporter` 69.6%→87.2%、`CategoryManagementService` 61.2%→85.8%、
+`LedgerQueryService` 67.6%→85.5%、`QuickEntryAmountInput` 100%。
+
+全目标数字仍停在约 21–43%（取决于是否含 UI 测试），因为分母里 80% 是视图代码。
+这个数字反映的是代码构成，不是测试质量。
 
 如果确实需要一个可作为门禁的覆盖率数字，建议改为按 target/目录设阈值（例如逻辑层 ≥85%、
 视图层不设或设 30%），并把 `VisualExploration` 排除在统计外。这需要人来决定，不由 agent 单方面改。
