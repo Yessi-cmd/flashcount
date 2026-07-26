@@ -144,7 +144,6 @@ extension FinanceDomainTests {
                 Ledger.self,
                 RecurringRule.self,
                 Budget.self,
-                Asset.self,
                 PhysicalAsset.self,
                 CashPoolItem.self,
                 CashPoolState.self,
@@ -170,7 +169,6 @@ extension FinanceDomainTests {
             Ledger.self,
             RecurringRule.self,
             Budget.self,
-            Asset.self,
             PhysicalAsset.self,
             CashPoolItem.self,
             CashPoolState.self,
@@ -219,12 +217,12 @@ extension FinanceDomainTests {
 
         let upgradedConfiguration = ModelConfiguration(
             "FlashCount",
-            schema: Schema(versionedSchema: FlashCountSchemaV2.self),
+            schema: Schema(versionedSchema: FlashCountSchemaV3.self),
             url: storeURL,
             cloudKitDatabase: .none
         )
         let upgradedContainer = try ModelContainer(
-            for: Schema(versionedSchema: FlashCountSchemaV2.self),
+            for: Schema(versionedSchema: FlashCountSchemaV3.self),
             migrationPlan: FlashCountMigrationPlan.self,
             configurations: upgradedConfiguration
         )

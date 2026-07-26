@@ -11,7 +11,6 @@ extension Ledger: DataHealthIdentifiedModel {}
 extension RecurringRule: DataHealthIdentifiedModel {}
 extension RecurringOccurrence: DataHealthIdentifiedModel {}
 extension Budget: DataHealthIdentifiedModel {}
-extension Asset: DataHealthIdentifiedModel {}
 extension PhysicalAsset: DataHealthIdentifiedModel {}
 extension CashPoolItem: DataHealthIdentifiedModel {}
 extension CashPoolState: DataHealthIdentifiedModel {}
@@ -27,7 +26,6 @@ enum DataHealthRecordType: String, Hashable {
     case recurringRule = "周期规则"
     case recurringOccurrence = "周期发生项"
     case budget = "预算"
-    case asset = "资产账户"
     case physicalAsset = "实物资产"
     case cashPoolItem = "资金项"
     case savingsGoal = "储蓄目标"

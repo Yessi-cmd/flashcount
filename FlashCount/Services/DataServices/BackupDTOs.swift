@@ -356,7 +356,6 @@ extension DataBackupService {
         var categoriesImported = 0
         var ledgersImported = 0
         var transactionsImported = 0
-        var assetsImported = 0
         var physicalAssetsImported = 0
         var recurringRulesImported = 0
         var recurringOccurrencesImported = 0
@@ -373,7 +372,6 @@ extension DataBackupService {
             if categoriesImported > 0 { parts.append("分类 \(categoriesImported)") }
             if ledgersImported > 0 { parts.append("账本 \(ledgersImported)") }
             if transactionsImported > 0 { parts.append("账单 \(transactionsImported)") }
-            if assetsImported > 0 { parts.append("账户 \(assetsImported)") }
             if physicalAssetsImported > 0 { parts.append("实物资产 \(physicalAssetsImported)") }
             if recurringRulesImported > 0 { parts.append("周期规则 \(recurringRulesImported)") }
             if recurringOccurrencesImported > 0 { parts.append("周期发生项 \(recurringOccurrencesImported)") }

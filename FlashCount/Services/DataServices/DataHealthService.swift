@@ -39,7 +39,6 @@ final class DataHealthService {
         let recurringRules = try modelContext.fetch(FetchDescriptor<RecurringRule>())
         let recurringOccurrences = try modelContext.fetch(FetchDescriptor<RecurringOccurrence>())
         let budgets = try modelContext.fetch(FetchDescriptor<Budget>())
-        let assets = try modelContext.fetch(FetchDescriptor<Asset>())
         let physicalAssets = try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
         let cashPoolItems = try modelContext.fetch(FetchDescriptor<CashPoolItem>())
         let cashPoolStates = try modelContext.fetch(FetchDescriptor<CashPoolState>())
@@ -55,7 +54,6 @@ final class DataHealthService {
             recurringRules: recurringRules,
             recurringOccurrences: recurringOccurrences,
             budgets: budgets,
-            assets: assets,
             physicalAssets: physicalAssets,
             cashPoolItems: cashPoolItems,
             cashPoolStates: cashPoolStates,
@@ -83,7 +81,6 @@ final class DataHealthService {
             (.recurringRule, recurringRules),
             (.recurringOccurrence, recurringOccurrences),
             (.budget, budgets),
-            (.asset, assets),
             (.physicalAsset, physicalAssets),
             (.cashPoolItem, cashPoolItems),
             (.savingsGoal, savingsGoals),
@@ -448,7 +445,6 @@ final class DataHealthService {
         recurringRules: [RecurringRule],
         recurringOccurrences: [RecurringOccurrence],
         budgets: [Budget],
-        assets: [Asset],
         physicalAssets: [PhysicalAsset],
         cashPoolItems: [CashPoolItem],
         cashPoolStates: [CashPoolState],
@@ -476,9 +472,6 @@ final class DataHealthService {
         })
         lines.append(contentsOf: budgets.map { budget in
             "budget|\(budget.id)|\(decimal(budget.monthlyLimit))|\(budget.year)|\(budget.month)|\(budget.createdAt.timeIntervalSinceReferenceDate)|\(budget.ledger?.id.uuidString ?? "nil")|\(budget.categoryId?.uuidString ?? "nil")"
-        })
-        lines.append(contentsOf: assets.map { asset in
-            "asset|\(asset.id)|\(asset.name)|\(asset.type.rawValue)|\(decimal(asset.balance))|\(asset.icon)|\(asset.colorHex)|\(asset.note)|\(asset.isArchived)|\(asset.updatedAt.timeIntervalSinceReferenceDate)|\(asset.createdAt.timeIntervalSinceReferenceDate)"
         })
         lines.append(contentsOf: physicalAssets.map { asset in
             "physicalAsset|\(asset.id)|\(asset.name)|\(asset.category.rawValue)|\(decimal(asset.purchasePrice))|\(asset.purchaseDate.timeIntervalSinceReferenceDate)|\(decimal(asset.salvageValue))|\(decimal(asset.targetDailyCost))|\(asset.soldPrice.map(decimal) ?? "nil")|\(asset.soldDate?.timeIntervalSinceReferenceDate.description ?? "nil")|\(asset.note)|\(asset.isArchived)"

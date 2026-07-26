@@ -77,7 +77,6 @@ final class LedgerConsolidationTests: XCTestCase {
             RecurringRule.self,
             RecurringOccurrence.self,
             Budget.self,
-            Asset.self,
             PhysicalAsset.self,
             CashPoolItem.self,
             CashPoolState.self,

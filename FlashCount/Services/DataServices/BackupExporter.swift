@@ -8,7 +8,6 @@ extension DataBackupService {
         let categories = try modelContext.fetch(FetchDescriptor<Category>())
         let ledgers = try modelContext.fetch(FetchDescriptor<Ledger>())
         let transactions = try modelContext.fetch(FetchDescriptor<Transaction>())
-        let assets = try modelContext.fetch(FetchDescriptor<Asset>())
         let physicalAssets = try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
         let recurringRules = try modelContext.fetch(FetchDescriptor<RecurringRule>())
         let recurringOccurrences = try modelContext.fetch(FetchDescriptor<RecurringOccurrence>())
@@ -49,13 +48,7 @@ extension DataBackupService {
                               dailyBudgetOverride: t.dailyBudgetOverride,
                               recurringRuleId: t.recurringRule?.id.uuidString)
             },
-            assets: assets.map { a in
-                AssetDTO(id: a.id.uuidString, name: a.name, type: a.type.rawValue,
-                        balance: CodableMoney(a.balance),
-                        icon: a.icon, colorHex: a.colorHex, note: a.note,
-                        isArchived: a.isArchived, updatedAt: a.updatedAt,
-                        createdAt: a.createdAt)
-            },
+            assets: [], // 账户体系已移除；保留字段只为兼容旧版本读取
             physicalAssets: physicalAssets.map { a in
                 PhysicalAssetDTO(id: a.id.uuidString, name: a.name,
                                 category: a.category.rawValue,

@@ -111,8 +111,8 @@ final class DataHealthServiceTests: XCTestCase {
 
     func testApplyRekeysDuplicateUUIDWithoutRawReference() throws {
         let context = try makeContext()
-        let first = Asset(name: "现金账户", type: .cash, balance: 100)
-        let second = Asset(name: "备用现金", type: .cash, balance: 50)
+        let first = CashPoolItem(name: "现金账户", kind: .cash, amount: 100)
+        let second = CashPoolItem(name: "备用现金", kind: .cash, amount: 50)
         second.id = first.id
         context.insert(first)
         context.insert(second)
@@ -128,9 +128,9 @@ final class DataHealthServiceTests: XCTestCase {
 
         _ = try service.apply(report.plan)
 
-        let assets = try context.fetch(FetchDescriptor<Asset>())
-        XCTAssertEqual(assets.count, 2)
-        XCTAssertEqual(Set(assets.map(\.id)).count, 2)
+        let items = try context.fetch(FetchDescriptor<CashPoolItem>())
+        XCTAssertEqual(items.count, 2)
+        XCTAssertEqual(Set(items.map(\.id)).count, 2)
         XCTAssertEqual(finding(.duplicateUUID, in: try service.scan()).count, 0)
     }
 
@@ -174,7 +174,6 @@ final class DataHealthServiceTests: XCTestCase {
             Ledger.self,
             RecurringRule.self,
             Budget.self,
-            Asset.self,
             PhysicalAsset.self,
             CashPoolItem.self,
             CashPoolState.self,

@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import Charts
 
 /// 资产全景图
 struct AssetDashboardView: View {
@@ -9,29 +8,23 @@ struct AssetDashboardView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var privacyLock: PrivacyLockService
-    @Query(sort: \Asset.createdAt) private var assets: [Asset]
     @Query(sort: \PhysicalAsset.purchaseDate, order: .reverse) private var physicalAssets: [PhysicalAsset]
     @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
     @Query(sort: \CashPoolState.updatedAt, order: .reverse) private var cashPoolStates: [CashPoolState]
     @Query(sort: \SavingsGoal.createdAt, order: .reverse) private var savingsGoals: [SavingsGoal]
     @Query(sort: \InstallmentBill.createdAt, order: .reverse) private var installmentBills: [InstallmentBill]
     @State private var showAddCashPoolItem = false
-    @State private var editingAsset: Asset?
     @State private var showTutorial = false
-    @State private var confirmDeleteAsset: Asset?
-    @State private var deleteError: String?
 
     /// 单次遍历构建页面需要的资产快照，避免每个卡片再次 filter/reduce 同一批 SwiftData 结果。
     private struct DashboardSnapshot {
-        let assetItems: [Asset]
-        let liabilityItems: [Asset]
         let activePhysicalAssets: [PhysicalAsset]
         let activeCashPoolItems: [CashPoolItem]
         let activeSavingsGoals: [SavingsGoal]
         let activeInstallmentBills: [InstallmentBill]
         let physicalTotalValue: Decimal
         let physicalPurchaseTotal: Decimal
-        let physicalAverageDailyCost: Decimal
+        let physicalDailyCostTotal: Decimal
         let cashPoolManualTotal: Decimal
         let installmentRemainingTotal: Decimal
         let cashPoolAvailable: Decimal
@@ -42,27 +35,12 @@ struct AssetDashboardView: View {
         let savingsCurrentTotal: Decimal
 
         init(
-            assets: [Asset],
             physicalAssets: [PhysicalAsset],
             cashPoolItems: [CashPoolItem],
             cashPoolTransactionDelta: Decimal,
             savingsGoals: [SavingsGoal],
             installmentBills: [InstallmentBill]
         ) {
-            var assetItems: [Asset] = []
-            var liabilityItems: [Asset] = []
-            var legacyAssetTotal: Decimal = 0
-            var legacyLiabilityTotal: Decimal = 0
-            for asset in assets where !asset.isArchived {
-                if asset.type.isLiability {
-                    liabilityItems.append(asset)
-                    legacyLiabilityTotal += asset.balance
-                } else {
-                    assetItems.append(asset)
-                    legacyAssetTotal += asset.balance
-                }
-            }
-
             let activePhysicalAssets = physicalAssets.filter { !$0.isArchived }
             let physicalTotalValue = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.currentValue }
             let physicalPurchaseTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.purchasePrice }
@@ -91,35 +69,30 @@ struct AssetDashboardView: View {
             let savingsTargetTotal = activeSavingsGoals.reduce(Decimal(0)) { $0 + $1.targetAmount }
             let savingsCurrentTotal = activeSavingsGoals.reduce(Decimal(0)) { $0 + $1.currentAmount }
 
-            self.assetItems = assetItems
-            self.liabilityItems = liabilityItems
             self.activePhysicalAssets = activePhysicalAssets
             self.activeCashPoolItems = activeCashPoolItems
             self.activeSavingsGoals = activeSavingsGoals
             self.activeInstallmentBills = activeInstallmentBills
             self.physicalTotalValue = physicalTotalValue
             self.physicalPurchaseTotal = physicalPurchaseTotal
-            self.physicalAverageDailyCost = activePhysicalAssets.isEmpty ? 0 : physicalDailyCostTotal / Decimal(activePhysicalAssets.count)
+            self.physicalDailyCostTotal = physicalDailyCostTotal
             self.cashPoolManualTotal = cashPoolManualTotal
             self.installmentRemainingTotal = installmentRemainingTotal
             self.cashPoolAvailable = cashPoolManualTotal + cashPoolTransactionDelta - installmentRemainingTotal
-            self.totalAssets = liquidAssetTotal + legacyAssetTotal
-            self.totalLiabilities = liquidLiabilityTotal + legacyLiabilityTotal
+            self.totalAssets = liquidAssetTotal
+            self.totalLiabilities = liquidLiabilityTotal
             self.netWorth = self.totalAssets - self.totalLiabilities
             self.savingsTargetTotal = savingsTargetTotal
             self.savingsCurrentTotal = savingsCurrentTotal
         }
     }
 
-    /// 隐藏金额的占位符
-    private var maskedText: String { "****" }
     private var hidesAssetMoney: Bool {
         PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
     }
 
     var body: some View {
         let snapshot = DashboardSnapshot(
-            assets: assets,
             physicalAssets: physicalAssets,
             cashPoolItems: cashPoolItems,
             cashPoolTransactionDelta: cashPoolStates.first?.transactionDelta ?? 0,
@@ -136,10 +109,6 @@ struct AssetDashboardView: View {
                         cashPoolSummary(snapshot)
                         cashFlowForecastCard
                         if !snapshot.activeSavingsGoals.isEmpty { savingsGoalSummary(snapshot) }
-
-                        if !snapshot.assetItems.isEmpty || !snapshot.liabilityItems.isEmpty { assetBreakdown(snapshot) }
-                        if !snapshot.assetItems.isEmpty { assetSection(title: "资产", items: snapshot.assetItems, color: DesignSystem.incomeColor) }
-                        if !snapshot.liabilityItems.isEmpty { assetSection(title: "负债", items: snapshot.liabilityItems, color: DesignSystem.expenseColor) }
                         if !snapshot.activePhysicalAssets.isEmpty { physicalAssetSummary(snapshot) }
 
                         // 更多工具
@@ -168,7 +137,7 @@ struct AssetDashboardView: View {
                             }
                         }
 
-                        if snapshot.activeCashPoolItems.isEmpty && snapshot.activePhysicalAssets.isEmpty && snapshot.activeSavingsGoals.isEmpty && snapshot.activeInstallmentBills.isEmpty && assets.isEmpty {
+                        if snapshot.activeCashPoolItems.isEmpty && snapshot.activePhysicalAssets.isEmpty && snapshot.activeSavingsGoals.isEmpty && snapshot.activeInstallmentBills.isEmpty {
                             emptyState
                         }
                     }
@@ -204,30 +173,6 @@ struct AssetDashboardView: View {
                 AddCashPoolItemView(nextSortOrder: cashPoolItems.count)
             }
             .sheet(isPresented: $showTutorial) { TutorialView() }
-            .sheet(item: $editingAsset) { asset in
-                AddAssetView(editAsset: asset)
-            }
-            .saveErrorAlert($deleteError)
-            .alert("确认删除", isPresented: .init(
-                get: { confirmDeleteAsset != nil },
-                set: { if !$0 { confirmDeleteAsset = nil } }
-            )) {
-                Button("取消", role: .cancel) { confirmDeleteAsset = nil }
-                Button("删除", role: .destructive) {
-                    if let asset = confirmDeleteAsset {
-                        withAnimation(reduceMotion ? nil : DesignSystem.standardAnimation) {
-                            modelContext.delete(asset)
-                            // safeSave 失败会回滚删除；把错误告诉用户而不是静默吞掉
-                            if let error = safeSave(modelContext) {
-                                deleteError = error
-                            }
-                        }
-                    }
-                    confirmDeleteAsset = nil
-                }
-            } message: {
-                Text("删除后无法恢复，确定要删除「\(confirmDeleteAsset?.name ?? "")」吗？")
-            }
         }
     }
 
@@ -258,43 +203,16 @@ struct AssetDashboardView: View {
                         .foregroundStyle(DesignSystem.expenseColor)
                 }
             }
+
+            // 净资产只统计可动用资金与负债；实物资产和储蓄目标另算，
+            // 不写清楚的话，卡片上明明有估值却不进总数，看起来就像算错了。
+            Text("按资金池口径统计，不含实物资产估值与储蓄目标")
+                .font(.caption2)
+                .foregroundStyle(DesignSystem.textTertiary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
         .heroCard(accent: hidesAssetMoney ? DesignSystem.primaryColor : (snapshot.netWorth >= 0 ? DesignSystem.incomeColor : DesignSystem.expenseColor))
-    }
-
-    private func assetBreakdown(_ snapshot: DashboardSnapshot) -> some View {
-        VStack(spacing: 12) {
-            HStack {
-                Text("资产构成").font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
-                Spacer()
-            }
-            if hidesAssetMoney {
-                VStack(spacing: 8) {
-                    Image(systemName: "lock.fill")
-                        .font(.title2)
-                        .foregroundStyle(DesignSystem.textTertiary)
-                    Text("验证后显示资产构成")
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textTertiary)
-                }
-                .frame(maxWidth: .infinity)
-                .frame(height: 150)
-            } else if !snapshot.assetItems.isEmpty {
-                Chart(snapshot.assetItems, id: \.id) { asset in
-                    SectorMark(angle: .value(asset.name, NSDecimalNumber(decimal: asset.balance).doubleValue), innerRadius: .ratio(0.6))
-                        .foregroundStyle(Color(hex: asset.colorHex))
-                }
-                .frame(height: 180)
-                .chartBackground { _ in
-                    VStack {
-                        Text("\(snapshot.assetItems.count)").font(.title2.weight(.bold)).foregroundStyle(DesignSystem.textPrimary)
-                        Text("账户").font(.caption).foregroundStyle(DesignSystem.textSecondary)
-                    }
-                }
-            }
-        }
-        .glassCard()
     }
 
     private func physicalAssetSummary(_ snapshot: DashboardSnapshot) -> some View {
@@ -314,7 +232,8 @@ struct AssetDashboardView: View {
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
                 physicalMetric(title: "总折旧", value: hidesAssetMoney ? privacyLock.maskedText : (snapshot.physicalPurchaseTotal - snapshot.physicalTotalValue).formattedCurrency, color: DesignSystem.expenseColor)
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 32)
-                physicalMetric(title: "平均日成本", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalAverageDailyCost.formattedCurrency, color: DesignSystem.warningColor)
+                // 合计而非平均：用户想知道「这些东西每天一共花我多少」。
+                physicalMetric(title: "每日合计成本", value: hidesAssetMoney ? privacyLock.maskedText : snapshot.physicalDailyCostTotal.formattedCurrency, color: DesignSystem.warningColor)
             }
         }
         .glassCard()
@@ -423,50 +342,6 @@ struct AssetDashboardView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func assetSection(title: String, items: [Asset], color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(.subheadline.weight(.medium)).foregroundStyle(color)
-            ForEach(items, id: \.id) { asset in
-                Button {
-                    revealOrPerform { editingAsset = asset }
-                } label: {
-                    HStack(spacing: 12) {
-                        ZStack {
-                            Circle().fill(Color(hex: asset.colorHex).opacity(0.15)).frame(width: 40, height: 40)
-                            Image(systemName: asset.icon).font(.subheadline).foregroundStyle(Color(hex: asset.colorHex))
-                        }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(asset.name).font(.subheadline.weight(.medium)).foregroundStyle(DesignSystem.textPrimary)
-                            Text(asset.type.rawValue).font(.caption).foregroundStyle(DesignSystem.textTertiary)
-                        }
-                        Spacer()
-                        Text(hidesAssetMoney ? privacyLock.maskedText : asset.balance.formattedCurrency)
-                            .font(.subheadline.weight(.semibold).monospacedDigit())
-                            .foregroundStyle(color)
-                    }
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 5)
-                .accessibilityLabel(hidesAssetMoney ? "资产，验证后编辑" : "编辑资产\(asset.name)")
-                .accessibilityHint("双击编辑")
-                .contextMenu {
-                    Button {
-                        revealOrPerform { editingAsset = asset }
-                    } label: {
-                        Label(hidesAssetMoney ? "验证后编辑" : "编辑", systemImage: hidesAssetMoney ? "lock.open" : "pencil")
-                    }
-                    Button(role: .destructive) {
-                        confirmDeleteAsset = asset
-                    } label: {
-                        Label("删除", systemImage: "trash")
-                    }
-                }
-                if asset.id != items.last?.id { Divider().background(DesignSystem.softFill) }
-            }
-        }
-        .glassCard()
-    }
-
     private var emptyState: some View {
         VStack(spacing: 16) {
             Image(systemName: "chart.pie.fill").font(.system(size: 50)).foregroundStyle(DesignSystem.textTertiary)
@@ -501,29 +376,5 @@ struct AssetDashboardView: View {
                 .foregroundStyle(DesignSystem.textTertiary)
         }
         .padding(.vertical, 4)
-    }
-
-    private func revealOrPerform(_ action: () -> Void) {
-        guard privacyLock.isUnlocked else {
-            privacyLock.requestReveal()
-            return
-        }
-        action()
-    }
-}
-
-// MARK: - 虚拟资产（占位）
-struct VirtualAssetListView: View {
-    var body: some View {
-        ZStack {
-            DesignSystem.surfaceBackground.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "sparkles").font(.system(size: 50)).foregroundStyle(DesignSystem.primaryColor.opacity(0.45))
-                Text("虚拟资产").font(.headline).foregroundStyle(DesignSystem.textSecondary)
-                Text("即将上线，敬请期待").font(.subheadline).foregroundStyle(DesignSystem.textTertiary)
-            }
-        }
-        .navigationTitle("虚拟资产")
-        .navigationBarTitleDisplayMode(.large)
     }
 }

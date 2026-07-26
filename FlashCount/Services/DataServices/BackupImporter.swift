@@ -182,28 +182,7 @@ extension DataBackupService {
             result.transactionsImported += 1
         }
 
-        // 3. 导入资产账户
-        let existingAssets = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Asset>())
-        let existingAssetIDs = Set(existingAssets.map(\.id))
-
-        for dto in backup.assets {
-            let dtoID = UUID(uuidString: dto.id)!
-            if existingAssetIDs.contains(dtoID) {
-                result.skipped += 1
-                continue
-            }
-            guard let assetType = AssetType(rawValue: dto.type) else {
-                result.skipped += 1; continue
-            }
-            let asset = Asset(name: dto.name, type: assetType, balance: dto.balance.decimalValue,
-                             icon: dto.icon, colorHex: dto.colorHex, note: dto.note)
-            asset.id = dtoID
-            asset.isArchived = dto.isArchived
-            asset.createdAt = dto.createdAt
-            asset.updatedAt = dto.updatedAt
-            modelContext.insert(asset)
-            result.assetsImported += 1
-        }
+        // 3. 旧备份里的「账户」在第 7 步随资金项一起折算导入（账户体系已移除）。
 
         // 4. 导入实物资产
         let existingPhysical = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
@@ -333,7 +312,8 @@ extension DataBackupService {
 
         // 7. 导入资金池
         let existingCashItems = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<CashPoolItem>())
-        let existingCashItemIDs = Set(existingCashItems.map(\.id))
+        var existingCashItemIDs = Set(existingCashItems.map(\.id))
+        var nextCashItemSortOrder = (existingCashItems.map(\.sortOrder).max() ?? -1) + 1
 
         for dto in backup.cashPoolItems {
             let dtoID = UUID(uuidString: dto.id)!
@@ -355,6 +335,32 @@ extension DataBackupService {
             item.createdAt = dto.createdAt
             item.updatedAt = dto.updatedAt
             modelContext.insert(item)
+            existingCashItemIDs.insert(dtoID)
+            nextCashItemSortOrder = max(nextCashItemSortOrder, dto.sortOrder + 1)
+            result.cashPoolItemsImported += 1
+        }
+
+        // 旧版备份里的「账户」折算成资金项，与数据库迁移走同一套规则。
+        // 沿用账户原 UUID，这样同一份旧备份重复合并导入不会产生重复条目。
+        for dto in backup.assets {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingCashItemIDs.contains(dtoID) {
+                result.skipped += 1; continue
+            }
+            let item = LegacyAssetConversion.makeCashPoolItem(
+                name: dto.name,
+                rawType: dto.type,
+                balance: dto.balance.decimalValue,
+                existingNote: dto.note,
+                isArchived: dto.isArchived,
+                createdAt: dto.createdAt,
+                updatedAt: dto.updatedAt,
+                sortOrder: nextCashItemSortOrder
+            )
+            item.id = dtoID
+            modelContext.insert(item)
+            existingCashItemIDs.insert(dtoID)
+            nextCashItemSortOrder += 1
             result.cashPoolItemsImported += 1
         }
 
@@ -565,7 +571,7 @@ extension DataBackupService {
 
     private func deleteAllPersistedModels() throws {
         try deleteAll(Transaction.self); try deleteAll(Category.self); try deleteAll(Ledger.self)
-        try deleteAll(RecurringRule.self); try deleteAll(Budget.self); try deleteAll(Asset.self)
+        try deleteAll(RecurringRule.self); try deleteAll(Budget.self)
         try deleteAll(PhysicalAsset.self); try deleteAll(CashPoolItem.self); try deleteAll(CashPoolState.self)
         try deleteAll(SavingsGoal.self); try deleteAll(InstallmentBill.self); try deleteAll(TransactionTemplate.self)
         try deleteAll(Reminder.self); try deleteAll(RecurringOccurrence.self)

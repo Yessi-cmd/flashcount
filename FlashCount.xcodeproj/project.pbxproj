@@ -34,7 +34,6 @@
 		1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82942383FFAC85D692A7031 /* MainInterfaceExplorationView.swift */; };
 		1F3FD337430E5786ADA03F40 /* TemplateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */; };
 		237E258B499B368D81DD8965 /* FinanceDomainTests+Recurring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2138D1C9174D58A85735FE89 /* FinanceDomainTests+Recurring.swift */; };
-		24353780EBC756092F19094F /* AddAssetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 232747DAEE35358568E032BA /* AddAssetView.swift */; };
 		25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */; };
 		286BB7B72143C23C8F2195E2 /* DataHealthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F2DFBA767ED9FC8AFB2BFB3 /* DataHealthService.swift */; };
 		297C84DD5A6E76893D6656F8 /* FlashCountSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010DCAEA1FA46115992DA27F /* FlashCountSmokeTests.swift */; };
@@ -110,6 +109,7 @@
 		A437C73FD9A2A6A8BA0B9816 /* CategoryPickerComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E27D09CD08C8BE96114E84E /* CategoryPickerComponents.swift */; };
 		A83F1C6562794AB34A06D77D /* DataHealthReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46587B0FD88BF215D27EEE1 /* DataHealthReport.swift */; };
 		A8463ADEDD3C2C41BF65699E /* NotificationScheduleCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EFD1230AE17F67A1659B34 /* NotificationScheduleCoordinator.swift */; };
+		AAF24BDAA8FF15A103F1C1A5 /* LegacyAssetRemovalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6034BD6BC484918A111E209E /* LegacyAssetRemovalTests.swift */; };
 		AB314B983A9FA9676E868A9F /* Reminder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8466A7DFE220F43816D4D85 /* Reminder.swift */; };
 		ABFFFD627940DC5832F15319 /* PhysicalAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 495651D53C44DD6B14725323 /* PhysicalAsset.swift */; };
 		AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */; };
@@ -193,7 +193,6 @@
 		2138D1C9174D58A85735FE89 /* FinanceDomainTests+Recurring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FinanceDomainTests+Recurring.swift"; sourceTree = "<group>"; };
 		214FECFB8A46540B23411B24 /* FlashCountSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountSchema.swift; sourceTree = "<group>"; };
 		21F4FF17AAAB8B289855E97A /* ActionCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterView.swift; sourceTree = "<group>"; };
-		232747DAEE35358568E032BA /* AddAssetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAssetView.swift; sourceTree = "<group>"; };
 		25E3F6BCDD308CC403615B0C /* ReportReminderNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderNotificationService.swift; sourceTree = "<group>"; };
 		26A56643F838FD8572D2C332 /* SavingsGoal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavingsGoal.swift; sourceTree = "<group>"; };
 		28E6DA89B6319DACF056D151 /* CashPoolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashPoolView.swift; sourceTree = "<group>"; };
@@ -237,6 +236,7 @@
 		5C96AA21D9387521CB6A9D64 /* FlashCountUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FlashCountUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DDE23A26293092F1392788D /* AppRoutingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoutingTests.swift; sourceTree = "<group>"; };
 		5F98BE18E753D1A05C5ABEEB /* ReportDrillDownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDrillDownView.swift; sourceTree = "<group>"; };
+		6034BD6BC484918A111E209E /* LegacyAssetRemovalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyAssetRemovalTests.swift; sourceTree = "<group>"; };
 		60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionServiceTests.swift; sourceTree = "<group>"; };
 		61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerQueryServiceTests.swift; sourceTree = "<group>"; };
 		62F04AD8E1487702754644DD /* InstallmentBillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBillView.swift; sourceTree = "<group>"; };
@@ -474,6 +474,7 @@
 				2138D1C9174D58A85735FE89 /* FinanceDomainTests+Recurring.swift */,
 				C0AFD575D6F4AE32DA7320F0 /* LedgerConsolidationTests.swift */,
 				61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */,
+				6034BD6BC484918A111E209E /* LegacyAssetRemovalTests.swift */,
 				B5FEB9024E51A499AAC08A77 /* LocalActionCenterServiceTests.swift */,
 				2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */,
 				6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */,
@@ -635,7 +636,6 @@
 		A63D79DB3ED665B56E73A881 /* Asset */ = {
 			isa = PBXGroup;
 			children = (
-				232747DAEE35358568E032BA /* AddAssetView.swift */,
 				419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */,
 				3D151BB6EE2B34C65A55127D /* CashFlowForecastView.swift */,
 				28E6DA89B6319DACF056D151 /* CashPoolView.swift */,
@@ -818,6 +818,7 @@
 				32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */,
 				AE768A256295BDEF75B75208 /* LedgerConsolidationTests.swift in Sources */,
 				1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */,
+				AAF24BDAA8FF15A103F1C1A5 /* LegacyAssetRemovalTests.swift in Sources */,
 				E7DF1CD725953C8F75956F96 /* LocalActionCenterServiceTests.swift in Sources */,
 				EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */,
 				0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */,
@@ -836,7 +837,6 @@
 				477FE6D911C1CB5CF2BD14AE /* ActionCenterSectionView.swift in Sources */,
 				CA590ACC5FD95332D299F726 /* ActionCenterSummaryView.swift in Sources */,
 				47F7CAA99413B5D4CAF92EA7 /* ActionCenterView.swift in Sources */,
-				24353780EBC756092F19094F /* AddAssetView.swift in Sources */,
 				7B2E32BCD75D603E808F3DF5 /* AddRecurringRuleView.swift in Sources */,
 				0D6CC3568E879C501B77EE1C /* AddReminderView.swift in Sources */,
 				9A1B7990A72D765C519C66E1 /* AppDeepLink.swift in Sources */,

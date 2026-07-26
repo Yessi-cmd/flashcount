@@ -77,9 +77,10 @@ extension FinanceDomainTests {
         let timestamp = Date(timeIntervalSince1970: 1_700_000_000)
         let ledger = Ledger.defaultLedgers()[0]
         ledger.createdAt = timestamp
-        let asset = Asset(name: "账户", type: .cash, balance: 12)
-        asset.createdAt = timestamp
-        asset.updatedAt = timestamp.addingTimeInterval(10)
+        // 账户体系已移除，这里改用资金项验证时间戳的往返保真。
+        let cashItem = CashPoolItem(name: "现金合计", kind: .cash, amount: 12)
+        cashItem.createdAt = timestamp
+        cashItem.updatedAt = timestamp.addingTimeInterval(10)
         let rule = RecurringRule(title: "订阅", amount: 8, nextDueDate: timestamp, ledger: ledger)
         rule.createdAt = timestamp.addingTimeInterval(20)
         let transaction = Transaction(amount: 8, note: "关联", date: timestamp, cashPoolDelta: -8, ledger: ledger, recurringRule: rule)
@@ -102,13 +103,13 @@ extension FinanceDomainTests {
         let budget = Budget(monthlyLimit: 300, year: 2026, month: 7, ledger: ledger)
         budget.createdAt = timestamp.addingTimeInterval(40)
         let expectedLedgerCreatedAt = ledger.createdAt
-        let expectedAssetCreatedAt = asset.createdAt
-        let expectedAssetUpdatedAt = asset.updatedAt
+        let expectedCashItemCreatedAt = cashItem.createdAt
+        let expectedCashItemUpdatedAt = cashItem.updatedAt
         let expectedRuleCreatedAt = rule.createdAt
         let expectedTransactionCreatedAt = transaction.createdAt
         let expectedBudgetCreatedAt = budget.createdAt
         context.insert(ledger)
-        context.insert(asset)
+        context.insert(cashItem)
         context.insert(rule)
         context.insert(transaction)
         context.insert(occurrence)
@@ -120,14 +121,14 @@ extension FinanceDomainTests {
         _ = try DataBackupService(modelContext: context).importJSON(data: snapshot, mode: .replace)
 
         let restoredLedger = try XCTUnwrap(context.fetch(FetchDescriptor<Ledger>()).first { $0.name == ledger.name })
-        let restoredAsset = try XCTUnwrap(context.fetch(FetchDescriptor<Asset>()).first { $0.name == asset.name })
+        let restoredCashItem = try XCTUnwrap(context.fetch(FetchDescriptor<CashPoolItem>()).first { $0.name == cashItem.name })
         let restoredRule = try XCTUnwrap(context.fetch(FetchDescriptor<RecurringRule>()).first { $0.title == rule.title })
         let restoredTransaction = try XCTUnwrap(context.fetch(FetchDescriptor<Transaction>()).first { $0.note == transaction.note })
         let restoredOccurrence = try XCTUnwrap(context.fetch(FetchDescriptor<RecurringOccurrence>()).first)
         let restoredBudget = try XCTUnwrap(context.fetch(FetchDescriptor<Budget>()).first { $0.monthlyLimit == 300 })
         XCTAssertEqual(restoredLedger.createdAt, expectedLedgerCreatedAt)
-        XCTAssertEqual(restoredAsset.createdAt, expectedAssetCreatedAt)
-        XCTAssertEqual(restoredAsset.updatedAt, expectedAssetUpdatedAt)
+        XCTAssertEqual(restoredCashItem.createdAt, expectedCashItemCreatedAt)
+        XCTAssertEqual(restoredCashItem.updatedAt, expectedCashItemUpdatedAt)
         XCTAssertEqual(restoredRule.createdAt, expectedRuleCreatedAt)
         XCTAssertEqual(restoredTransaction.createdAt, expectedTransactionCreatedAt)
         XCTAssertEqual(restoredTransaction.recurringRule?.id, restoredRule.id)

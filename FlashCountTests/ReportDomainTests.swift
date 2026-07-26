@@ -692,7 +692,6 @@ final class ReportDomainTests: XCTestCase {
             Ledger.self,
             RecurringRule.self,
             Budget.self,
-            Asset.self,
             PhysicalAsset.self,
             CashPoolItem.self,
             CashPoolState.self,
