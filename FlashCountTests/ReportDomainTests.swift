@@ -104,7 +104,7 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(payCycle.period.bucketGranularity, .day)
     }
 
-    func testReportServiceUsesHalfOpenTargetAndAlignedComparison() throws {
+    func testReportPipelineUsesHalfOpenTargetAndAlignedComparison() async throws {
         let context = try makeContext()
         let reference = try date(2026, 7, 12, 12)
         insertExpense(100, at: try date(2026, 7, 2), into: context)
@@ -113,9 +113,10 @@ final class ReportDomainTests: XCTestCase {
         insertExpense(1_000, at: try date(2026, 6, 20), into: context)
         try context.save()
 
-        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+        let report = try await generateReport(
             period: .monthly,
-            target: .current(referenceDate: reference)
+            target: .current(referenceDate: reference),
+            context: context
         )
 
         XCTAssertEqual(report.totalExpense, 100)
@@ -170,16 +171,17 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.categoryBreakdown.first?.categoryName, "餐饮")
     }
 
-    func testSmartAnalysisAdaptsMetricsAndPeakInsightToDailyReport() throws {
+    func testSmartAnalysisAdaptsMetricsAndPeakInsightToDailyReport() async throws {
         let context = try makeContext()
         let reference = try date(2026, 7, 12, 20)
         insertExpense(20, at: try date(2026, 7, 12, 9), into: context)
         insertExpense(80, at: try date(2026, 7, 12, 18), into: context)
         try context.save()
 
-        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+        let report = try await generateReport(
             period: .daily,
-            target: .current(referenceDate: reference)
+            target: .current(referenceDate: reference),
+            context: context
         )
 
         XCTAssertEqual(report.smartAnalysis.averageLabel, "笔均支出")
@@ -190,16 +192,17 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.smartAnalysis.insights.first?.title, "今日高峰时段")
     }
 
-    func testSmartAnalysisDetectsWeekendConcentrationAndSensitiveSavingsRate() throws {
+    func testSmartAnalysisDetectsWeekendConcentrationAndSensitiveSavingsRate() async throws {
         let context = try makeContext()
         insertExpense(90, at: try date(2026, 7, 11, 12), into: context)
         insertExpense(10, at: try date(2026, 7, 8, 12), into: context)
         context.insert(Transaction(amount: 200, isExpense: false, date: try date(2026, 7, 7, 12)))
         try context.save()
 
-        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+        let report = try await generateReport(
             period: .weekly,
-            target: .completed(containing: try date(2026, 7, 8))
+            target: .completed(containing: try date(2026, 7, 8)),
+            context: context
         )
 
         XCTAssertEqual(report.smartAnalysis.savingsRate, 0.5)
@@ -208,7 +211,7 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertNil(report.smartAnalysis.projectedExpense)
     }
 
-    func testScheduledWeeklyReportAggregatesDaysAndComparesCompletePriorWeek() throws {
+    func testScheduledWeeklyReportAggregatesDaysAndComparesCompletePriorWeek() async throws {
         let context = try makeContext()
         let trigger = try date(2026, 7, 15, 9)
         insertExpense(10, at: try date(2026, 7, 6), into: context)
@@ -217,9 +220,10 @@ final class ReportDomainTests: XCTestCase {
         insertExpense(15, at: try date(2026, 6, 30), into: context)
         try context.save()
 
-        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+        let report = try await generateReport(
             period: .weekly,
-            target: .scheduled(period: .weekly, triggerDate: trigger)
+            target: .scheduled(period: .weekly, triggerDate: trigger),
+            context: context
         )
 
         XCTAssertEqual(report.totalExpense, 30)
@@ -229,7 +233,7 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(report.timeBuckets.map(\.expense), [10, 0, 0, 0, 0, 0, 20])
     }
 
-    func testScheduledPayCycleReportAggregatesConfiguredCycleAndComparison() throws {
+    func testScheduledPayCycleReportAggregatesConfiguredCycleAndComparison() async throws {
         let context = try makeContext()
         insertExpense(100, at: try date(2026, 6, 25), into: context)
         insertExpense(50, at: try date(2026, 7, 24, 23, 59), into: context)
@@ -237,9 +241,11 @@ final class ReportDomainTests: XCTestCase {
         insertExpense(75, at: try date(2026, 5, 25), into: context)
         try context.save()
 
-        let report = try ReportService(modelContext: context, calendar: calendar, payday: 25).generateReport(
+        let report = try await generateReport(
             period: .payCycle,
-            target: .scheduled(period: .payCycle, triggerDate: try date(2026, 7, 25, 9))
+            target: .scheduled(period: .payCycle, triggerDate: try date(2026, 7, 25, 9)),
+            context: context,
+            payday: 25
         )
 
         XCTAssertEqual(report.reportRange, ReportDateRange(start: try date(2026, 6, 25), end: try date(2026, 7, 25)))
@@ -386,7 +392,7 @@ final class ReportDomainTests: XCTestCase {
         XCTAssertEqual(ReportChangePresentation.make(change: 0.5, metric: .expense).isFavorable, false)
     }
 
-    func testScheduledStreakStopsAtReportExclusiveEnd() throws {
+    func testScheduledStreakStopsAtReportExclusiveEnd() async throws {
         let context = try makeContext()
         let trigger = try date(2026, 7, 15, 9)
         insertExpense(10, at: try date(2026, 7, 11, 10), into: context)
@@ -394,9 +400,10 @@ final class ReportDomainTests: XCTestCase {
         insertExpense(10, at: try date(2026, 7, 13, 10), into: context)
         try context.save()
 
-        let report = try ReportService(modelContext: context, calendar: calendar).generateReport(
+        let report = try await generateReport(
             period: .weekly,
-            target: .scheduled(period: .weekly, triggerDate: trigger)
+            target: .scheduled(period: .weekly, triggerDate: trigger),
+            context: context
         )
 
         XCTAssertEqual(report.streakDays, 2)
@@ -471,6 +478,23 @@ final class ReportDomainTests: XCTestCase {
 
     private func insertExpense(_ amount: Decimal, at date: Date, into context: ModelContext) {
         context.insert(Transaction(amount: amount, date: date))
+    }
+
+    /// 走 App 真实报表链路：后台数据 actor 取值快照 → 纯计算器聚合。
+    /// 测试必须覆盖这条路径，界面用的就是它。
+    private func generateReport(
+        period: ReportPeriod,
+        target: ReportTarget,
+        context: ModelContext,
+        payday: Int = 1
+    ) async throws -> ReportData {
+        let snapshot = try await LocalAnalyticsDataStore(modelContainer: context.container)
+            .makeSnapshot(period: period, target: target, payday: payday, calendar: calendar)
+        return ReportCalculator(calendar: calendar, payday: payday).generateReport(
+            period: period,
+            target: target,
+            snapshot: snapshot
+        )
     }
 
     private func makeContext() throws -> ModelContext {

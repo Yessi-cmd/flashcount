@@ -82,7 +82,7 @@ Grouped under `FlashCount/Services/`:
 | `BudgetReminderService` | Wires budget + `PayCycleService` + `BudgetAnalyzer` into view models |
 | `PayCycleService` | Computes pay-cycle date ranges from a payday (day of month) |
 | `CashPoolService` | Manages `CashPoolState.transactionDelta` aggregation |
-| `ReportService` / `ReportAnalytics` / `ReportPeriodCalculator` | Report data, insights, streaks, period windows |
+| `LocalAnalyticsDataStore` → `ReportComputationWorker` → `ReportCalculator` | The only report pipeline: a `@ModelActor` reads value snapshots off the UI context, an actor computes, `ReportCalculator` (in `ReportAnalytics.swift`) aggregates. Report/insight types live in `ReportModels.swift`, period math in `ReportPeriodCalculator.swift`. Tests must exercise this path — a parallel `ReportService` once existed, went dead, and kept the tests pointed at code the app never ran. |
 | `DataBackupService` | Full JSON export/import with DTOs; `CodableMoney` amounts |
 | `CSVTransactionService` | CSV import/export of transactions |
 | `DataHealthService` | Local data health checks and repair plans |
