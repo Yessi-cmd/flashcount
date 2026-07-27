@@ -16,12 +16,30 @@ permissions:
 jobs:
   build-and-test:
     name: Build and test
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
 
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      # project.yml 声明 xcodeVersion 26.0，代码里有 `#if compiler(>=6.2)` 与
+      # `#available(iOS 26.0, *)` 两层分支。此前 CI 用默认的 Xcode 16.4 构建、却把
+      # 模拟器创建成最新的 iOS 26 运行时：液态玻璃代码被编译掉，而运行时分支又生效，
+      # 于是出现只在 CI 复现的 UI 测试失败。这里显式选最新 Xcode，并在低于 26 时
+      # 直接失败——宁可让配置问题显形，也不要再退回那个不一致的组合。
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          newest="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          echo "Available: $(ls -d /Applications/Xcode*.app | tr '\n' ' ')"
+          sudo xcode-select -s "$newest/Contents/Developer"
+          xcodebuild -version
+          major="$(xcodebuild -version | sed -n '1s/Xcode \([0-9]*\).*/\1/p')"
+          if [ "$major" -lt 26 ]; then
+            echo "::error::需要 Xcode 26 或更高（project.yml 声明 xcodeVersion 26.0），实际为 $major" >&2
+            exit 1
+          fi
 
       - name: Install XcodeGen
         run: |

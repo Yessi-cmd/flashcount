@@ -4,6 +4,7 @@
 
 ## 2026-07-27
 
+- **修复 CI 第二层故障：工具链与运行时错配** — 生成工程修好后 CI 跑到了测试阶段，暴露出 4 个只在 CI 复现的 UI 测试失败（自 7-26 起被生成失败掩盖）。根因不是测试：workflow 用 `macos-15`（默认 Xcode 16.4）构建，却把模拟器创建成**最新**的 iOS 26.2 运行时——`#if compiler(>=6.2)` 的液态玻璃代码被编译掉，而 `#available(iOS 26.0, *)` 的运行时分支又生效，这是不被支持的组合。改为 `macos-26` 并显式选最新 Xcode，低于 26 直接失败（宁可让配置问题显形）。另把 `openLedgerMoreItem` 改成按坐标点击，绕开 XCUITest 对工具栏元素的 `kAXScrollToVisibleAction`（它在部分 Xcode/运行时组合上返回 `kAXErrorCannotComplete`，与被测行为无关）。
 - **修复 CI 自 2026-07-26 起的连续失败：`xcodegen generate` 缺 `project.local.yml` 即中止** — 根因不是测试问题：失败运行只跑 13–16 秒（成功要 8–12 分钟），挂在生成工程这一步。`project.yml` 用 `include` 引入本机私有的 `project.local.yml`（Release 签名 team id，gitignored），而 **XcodeGen 的 include 不支持可选**——`optional: true` 被静默忽略，缺文件直接报错且仍以退出码 0 结束。这个 include 是 `9217668` 引入的，之后每次推送都失败；同样也会让任何新克隆在 README 第一步就卡住（本地一直没暴露，因为我机器上有那个文件）。改为统一走 `scripts/generate-project.sh`：缺失时补一个只有注释的占位文件再交给 XcodeGen。CI、打包脚本、README、CONTRIBUTING、AGENTS.md、PR 模板一并指向它，`project.yml` 里那句「缺失时照常生成」的错误注释也改成了真实契约。
 - **账本后台查询补 4 个测试（273 全绿），逻辑层覆盖率达 85.17% —— 覆盖率目标（按可达口径）完成** — `LedgerQueryDataStore` 与主线程 `LedgerQueryService` 是同一套筛选逻辑的两个出口：账本页顶部合计走后台、列表走主线程，两边不一致就会出现「合计和列表对不上」。因此逐一对比后台与主线程的 summary 与 matchingIDs；另覆盖后置筛选时仍只返回当前页（不把全部匹配项带回主线程）、相邻页无重复、越界 offset/limit 被夹到安全值。
 - **周期补账的 link 与旧数据回填补 4 个测试（269 全绿），`RecurringOccurrenceService` 79.2% → 92.3%，逻辑层 84.4% → 84.8%** — `link` 是「用户已经手工记过那笔房租」时的出路，必须只登记发生项：不新增交易、不动资金池，但要落成 `linked` 并推进规则游标；关联到不存在的交易 ID 时整条跳过而不留悬空发生项；补账可改写金额与备注（实际扣款常与规则不一致），资金池按实际金额变动且补出的交易要挂回规则；旧版只写交易没写发生项，`reconcileLegacyOccurrences` 要为它们补上且重复执行不产生第二条。

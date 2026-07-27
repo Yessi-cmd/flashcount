@@ -357,10 +357,19 @@ final class FlashCountSmokeTests: XCTestCase {
     private func openLedgerMoreItem(_ app: XCUIApplication, identifier: String) {
         let more = app.buttons["ledger.more"]
         XCTAssertTrue(more.waitForExistence(timeout: 5))
-        more.tap()
+        tapDirectly(more)
 
         let item = app.buttons[identifier]
         XCTAssertTrue(item.waitForExistence(timeout: 5))
         item.tap()
+    }
+
+    /// 按坐标点，绕开 XCUITest 的 scroll-to-visible。
+    ///
+    /// 导航栏按钮本来就完整可见，但 `tap()` 会先尝试 AX 的
+    /// `kAXScrollToVisibleAction`，在部分 Xcode/运行时组合上它对工具栏元素返回
+    /// `kAXErrorCannotComplete`，于是点击整个失败——这与被测行为无关。
+    private func tapDirectly(_ element: XCUIElement) {
+        element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
     }
 }
