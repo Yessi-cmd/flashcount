@@ -16,8 +16,6 @@ struct InstallmentRepaymentSheet: View {
 
     let bill: InstallmentBill
 
-    @State private var amountText: String
-    @State private var amountError: MoneyValidationError?
     @State private var date = Date()
     @State private var selectedCategoryID: UUID?
     @State private var recordsTransaction = true
@@ -25,9 +23,6 @@ struct InstallmentRepaymentSheet: View {
 
     init(bill: InstallmentBill) {
         self.bill = bill
-        _amountText = State(initialValue: NSDecimalNumber(
-            decimal: InstallmentRepaymentService.suggestedAmount(for: bill)
-        ).stringValue)
     }
 
     private var installmentNumber: Int {
@@ -58,16 +53,10 @@ struct InstallmentRepaymentSheet: View {
 
                 if recordsTransaction {
                     Section("还款") {
-                        HStack {
-                            Text("金额")
-                            Spacer()
-                            TextField("金额", text: $amountText)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .onChange(of: amountText) { _, _ in amountError = nil }
-                                .accessibilityIdentifier("installment.amount")
-                        }
-                        ValidationMessage(message: amountError?.errorDescription)
+                        LabeledContent(
+                            "金额",
+                            value: InstallmentRepaymentService.suggestedAmount(for: bill).formattedCurrency
+                        )
 
                         DatePicker("日期", selection: $date, displayedComponents: .date)
 
@@ -96,18 +85,9 @@ struct InstallmentRepaymentSheet: View {
     }
 
     private func repay() {
-        var amount: Decimal = 0
-        if recordsTransaction {
-            switch MoneyValidation.parse(amountText, requirement: .positive) {
-            case .success(let value):
-                amount = value
-                amountError = nil
-            case .failure(let error):
-                amountError = error
-                HapticManager.error()
-                return
-            }
-        }
+        let amount = recordsTransaction
+            ? InstallmentRepaymentService.suggestedAmount(for: bill)
+            : 0
 
         let category = selectedCategoryID.flatMap { id in expenseCategories.first { $0.id == id } }
         do {

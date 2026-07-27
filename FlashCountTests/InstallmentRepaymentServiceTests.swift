@@ -68,6 +68,30 @@ final class InstallmentRepaymentServiceTests: XCTestCase {
         XCTAssertTrue(bill.isCompleted)
     }
 
+    func testCustomRepaymentAmountIsRejectedBeforeAdvancingSchedule() throws {
+        let context = try makeContext()
+        context.insert(CashPoolItem(name: "现金", kind: .cash, amount: 1_000))
+        let bill = makeBill(total: 600, count: 3)
+        context.insert(bill)
+        try context.save()
+
+        let before = try availableAmount(in: context, bill: bill)
+        XCTAssertThrowsError(
+            try InstallmentRepaymentService(modelContext: context)
+                .repayOneInstallment(bill, draft: .init(amount: 100))
+        ) { error in
+            guard case let InstallmentRepaymentService.RepaymentError.amountMismatch(expected) = error else {
+                return XCTFail("应拒绝与本期应还额不一致的金额，实际错误：\(error)")
+            }
+            XCTAssertEqual(expected, 200)
+        }
+
+        XCTAssertEqual(bill.normalizedPaidInstallments, 0)
+        XCTAssertEqual(bill.remainingAmount, 600)
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<Transaction>()), 0)
+        XCTAssertEqual(try availableAmount(in: context, bill: bill), before)
+    }
+
     func testRepayingACompletedBillIsRejected() throws {
         let context = try makeContext()
         let bill = makeBill(total: 100, count: 1)

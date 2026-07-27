@@ -26,11 +26,13 @@ struct InstallmentRepaymentService {
     enum RepaymentError: LocalizedError {
         case alreadyCompleted
         case invalidAmount
+        case amountMismatch(expected: Decimal)
 
         var errorDescription: String? {
             switch self {
             case .alreadyCompleted: return "这笔分期已经还完了"
             case .invalidAmount: return "还款金额必须大于零"
+            case .amountMismatch(let expected): return "本期还款金额必须为 \(expected.formattedCurrency)"
             }
         }
     }
@@ -51,7 +53,13 @@ struct InstallmentRepaymentService {
     @discardableResult
     func repayOneInstallment(_ bill: InstallmentBill, draft: Draft) throws -> Transaction? {
         guard !bill.isCompleted else { throw RepaymentError.alreadyCompleted }
-        if draft.recordsTransaction, draft.amount <= 0 { throw RepaymentError.invalidAmount }
+        if draft.recordsTransaction {
+            guard draft.amount > 0 else { throw RepaymentError.invalidAmount }
+            let expectedAmount = Self.suggestedAmount(for: bill)
+            guard draft.amount == expectedAmount else {
+                throw RepaymentError.amountMismatch(expected: expectedAmount)
+            }
+        }
 
         let installmentIndex = bill.normalizedPaidInstallments
 

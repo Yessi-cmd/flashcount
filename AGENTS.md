@@ -36,7 +36,7 @@ Regenerate via `scripts/generate-project.sh`, not bare `xcodegen generate`. `pro
 - Amounts are ALWAYS stored positive as `Decimal`. Sign is derived from `Transaction.isExpense`; `Transaction.signedAmount` returns negative for expenses.
 - Use `Decimal` for all money math — never `Double` or `Float`. Make changes to related persisted data atomically where possible.
 - `Decimal.formattedCurrency` for display (`¥1,234.56`), `Decimal.formattedAmount` for raw numbers.
-- Backups encode money as strings via `CodableMoney` (exact round-trip), while still decoding legacy `Double` values from old backups. Current backup schema version: `1.9.0` (minimum supported `1.0.0`), defined in `DataBackupService`.
+- Backups encode money as strings via `CodableMoney` (exact round-trip), while still decoding legacy `Double` values from old backups. Current backup schema version: `1.10.0` (minimum supported `1.0.0`), defined in `DataBackupService`.
 
 ## Key Patterns
 

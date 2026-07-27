@@ -191,7 +191,7 @@ struct InstallmentBillView: View {
             HStack {
                 Spacer()
                 Button {
-                    repayingBill = bill
+                    revealOrPerform { repayingBill = bill }
                 } label: {
                     Label("还一期", systemImage: "checkmark.circle.fill")
                         .font(.caption.weight(.medium))
@@ -208,7 +208,7 @@ struct InstallmentBillView: View {
                 Label(hidesMoney ? "验证后编辑" : "编辑", systemImage: hidesMoney ? "lock.open" : "pencil")
             }
             Button {
-                repayingBill = bill
+                revealOrPerform { repayingBill = bill }
             } label: {
                 Label("还一期", systemImage: "checkmark.circle")
             }
