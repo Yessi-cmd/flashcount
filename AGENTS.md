@@ -17,7 +17,7 @@ FlashCountApp.swift          → @main entry, WindowGroup, versioned ModelContai
 ## Build & Run
 
 ```bash
-xcodegen generate          # Generate .xcodeproj from project.yml
+./scripts/generate-project.sh   # Generate .xcodeproj from project.yml
 open FlashCount.xcodeproj  # Open in Xcode, then Cmd+R to run
 
 # Run tests on a simulator
@@ -28,6 +28,8 @@ xcodebuild test -project FlashCount.xcodeproj -scheme FlashCount \
 Targets: `FlashCount` (app), `FlashCountTests` (unit), `FlashCountUITests` (UI smoke). Configs: `Debug`, `Release`. The former `FlashCountWidget` extension was removed in July 2026 — it only offered deep-link shortcuts and never shipped in AltStore packages; quick entry lives in Siri/Back Tap/Shortcuts instead. GitHub Actions (`.github/workflows/ios-ci.yml`) regenerates the project and runs the full test suite on an iOS simulator for pushes and PRs to `main`.
 
 Never hand-edit `FlashCount.xcodeproj/` — edit `project.yml`, then regenerate with XcodeGen.
+
+Regenerate via `scripts/generate-project.sh`, not bare `xcodegen generate`. `project.yml` includes `project.local.yml` (machine-private Release signing, gitignored), and **XcodeGen's `include` cannot be optional** — `optional: true` is silently ignored and a missing file aborts generation while still exiting 0. That broke every CI run from 2026-07-26 until it was fixed, and it breaks every fresh clone. The script writes a comment-only placeholder when the file is absent.
 
 ## Critical Money Conventions
 

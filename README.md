@@ -39,7 +39,7 @@ cd flashcount
 
 # 安装并使用 XcodeGen 生成工程
 brew install xcodegen
-xcodegen generate
+./scripts/generate-project.sh
 
 # 用 Xcode 打开，选择模拟器或你的签名团队后运行
 open FlashCount.xcodeproj
@@ -48,8 +48,9 @@ open FlashCount.xcodeproj
 ## 开发
 
 ```bash
-# 生成工程
-xcodegen generate
+# 生成工程（脚本会补上本机私有的 project.local.yml；直接跑 xcodegen generate
+# 在没有该文件的机器上会失败，XcodeGen 的 include 不支持可选）
+./scripts/generate-project.sh
 
 # 在已安装的 iOS Simulator 上运行测试
 xcodebuild test \

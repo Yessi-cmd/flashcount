@@ -5,7 +5,7 @@
 ## 验证
 
 - [ ] 已运行相关单元测试 / UI 测试（请在下方列出命令和结果）
-- [ ] 已运行 `xcodegen generate`（改动工程配置时）
+- [ ] 已运行 `./scripts/generate-project.sh`（改动工程配置时）
 - [ ] 已检查 `git diff --check`
 
 ## 数据与隐私影响

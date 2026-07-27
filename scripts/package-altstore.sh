@@ -24,7 +24,7 @@ mkdir -p "$OUTPUT_DIR"
 
 (
     cd "$PROJECT_ROOT"
-    xcodegen generate
+    ./scripts/generate-project.sh
 )
 
 xcodebuild \
