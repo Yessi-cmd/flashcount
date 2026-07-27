@@ -12,11 +12,11 @@
 
 | 功能 | 说明 |
 | --- | --- |
-| ⚡ 快速记账 | 支出、收入、分类、备注和模板，支持 Siri、Back Tap 与快捷指令入口。 |
+| ⚡ 快速记账 | 支出、收入、分类、备注和模板，金额可用「+」累加拆账，保存后可撤销；支持 Siri、Back Tap 与快捷指令入口。 |
 | 📒 单账本 | 将收支、预算、资产、分期和提醒集中到一个个人生活账本。 |
 | 🔄 周期账单 | 自动处理房租、订阅等周期规则，并提示补记与即将发生的项目。 |
-| 📊 预算与报表 | 追踪日常及分类预算，按日、周、月、年查看收支和趋势。 |
-| 💰 资产全景 | 汇总现金、储蓄目标、实物资产、分期与负债，查看净资产。 |
+| 📊 预算与报表 | 追踪日常及分类预算，按日、周、月、年和发薪周期查看收支和趋势，数字可下钻到对应交易。 |
+| 💰 资产全景 | 资金池、储蓄目标、实物资产与分期负债各自成账。净资产只按资金池口径统计（实物估值与储蓄目标不计入，前者不易变现、后者本就在资金里）。 |
 | 🛡️ 本地隐私 | 所有账本数据留在设备本地；不含广告、分析 SDK 或网络请求。 |
 
 ## 系统要求
@@ -39,7 +39,7 @@ cd flashcount
 
 # 安装并使用 XcodeGen 生成工程
 brew install xcodegen
-xcodegen generate
+./scripts/generate-project.sh
 
 # 用 Xcode 打开，选择模拟器或你的签名团队后运行
 open FlashCount.xcodeproj
@@ -48,14 +48,15 @@ open FlashCount.xcodeproj
 ## 开发
 
 ```bash
-# 生成工程
-xcodegen generate
+# 生成工程（脚本会补上本机私有的 project.local.yml；直接跑 xcodegen generate
+# 在没有该文件的机器上会失败，XcodeGen 的 include 不支持可选）
+./scripts/generate-project.sh
 
-# 在已安装的 iOS Simulator 上运行测试（示例）
+# 在已安装的 iOS Simulator 上运行测试
 xcodebuild test \
   -project FlashCount.xcodeproj \
   -scheme FlashCount \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   CODE_SIGNING_ALLOWED=NO
 ```
 

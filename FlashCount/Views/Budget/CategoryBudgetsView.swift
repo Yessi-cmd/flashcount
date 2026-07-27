@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+/// 分类预算的设置。一级分类预算会统计其下全部子分类，并按发薪周期重新设置。
 struct CategoryBudgetsView: View {
     @Environment(\.modelContext) private var modelContext
     @AppStorage("payday") private var payday = 1

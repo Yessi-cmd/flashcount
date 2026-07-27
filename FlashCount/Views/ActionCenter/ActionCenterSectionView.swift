@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 行动中心里同类待办的一组。
 struct ActionCenterSectionView: View {
     let section: LocalActionSection
     let hidesSensitiveAmounts: Bool

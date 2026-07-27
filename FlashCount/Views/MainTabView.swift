@@ -3,13 +3,11 @@ import SwiftData
 
 private enum MainSheetDestination: Identifiable, Equatable {
     case quickEntry
-    case addCashPoolItem
     case deliveredReport(ReportRoute.Request)
 
     var id: String {
         switch self {
         case .quickEntry: return "quickEntry"
-        case .addCashPoolItem: return "addCashPoolItem"
         case .deliveredReport(let request): return "deliveredReport.\(request.id.uuidString)"
         }
     }
@@ -17,16 +15,15 @@ private enum MainSheetDestination: Identifiable, Equatable {
 
 /// 主标签栏视图
 struct MainTabView: View {
-    @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var privacyLock: PrivacyLockService
+    @EnvironmentObject private var quickEntryFeedback: QuickEntryFeedbackCenter
     @State private var selectedTab: Int
     @State private var animatedSelectedTab: Int
     @State private var presentedSheet: MainSheetDestination?
     @State private var pendingForegroundReport: ReportRoute.Request?
     @State private var tabReportRequest: ReportRoute.Request?
-    @State private var showPlusActions = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage(QuickEntryRoute.requestKey) private var shouldShowQuickEntry = false
     @AppStorage(ReportRoute.requestKey) private var shouldShowReport = false
@@ -71,6 +68,18 @@ struct MainTabView: View {
             }
             .tint(DesignSystem.primaryColor)
             .toolbar(.hidden, for: .tabBar)
+            // 记完一笔的确认与撤销浮在页面之上：不改变布局，也不挡住底栏。
+            .overlay(alignment: .bottom) {
+                if let entry = quickEntryFeedback.lastSaved {
+                    QuickEntrySavedToast(entry: entry)
+                        .padding(.bottom, 8)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(
+                reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.86),
+                value: quickEntryFeedback.lastSaved?.id
+            )
 
             // 与页面并列布局，从结构上杜绝所有 Tab 内容进入底栏区域。
             customTabBar
@@ -80,8 +89,6 @@ struct MainTabView: View {
             switch destination {
             case .quickEntry:
                 QuickEntryView()
-            case .addCashPoolItem:
-                AddCashPoolItemView(nextSortOrder: cashPoolItems.count)
             case .deliveredReport(let request):
                 ReportView(
                     requestedReport: request,
@@ -93,17 +100,6 @@ struct MainTabView: View {
             OnboardingView(isPresented: $showOnboarding) {
                 hasCompletedOnboarding = true
             }
-        }
-        .confirmationDialog("快捷操作", isPresented: $showPlusActions) {
-            Button("记一笔") {
-                presentedSheet = .quickEntry
-            }
-            Button("添加资金项") {
-                presentedSheet = .addCashPoolItem
-            }
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("选择要添加的内容")
         }
         .onAppear {
             if !hasCompletedOnboarding {
@@ -126,12 +122,6 @@ struct MainTabView: View {
         .onChange(of: presentedSheet) { _, destination in
             handleOverlayStateChange(isPresented: destination != nil)
             if destination == nil {
-                presentPendingForegroundReportIfPossible()
-            }
-        }
-        .onChange(of: showPlusActions) { _, isPresented in
-            handleOverlayStateChange(isPresented: isPresented)
-            if !isPresented {
                 presentPendingForegroundReportIfPossible()
             }
         }
@@ -172,7 +162,7 @@ struct MainTabView: View {
                     } else {
                         Image(systemName: "plus")
                             .font(.title3.weight(.semibold))
-                            .symbolEffect(.bounce, value: isQuickEntryPresented || showPlusActions)
+                            .symbolEffect(.bounce, value: isQuickEntryPresented)
                     }
                     Text("记一笔")
                         .font(.caption2.weight(.semibold))
@@ -283,7 +273,6 @@ struct MainTabView: View {
         guard let request = pendingForegroundReport,
               hasCompletedOnboarding,
               !showOnboarding,
-              !showPlusActions,
               presentedSheet == nil else { return }
         pendingForegroundReport = nil
         presentedSheet = .deliveredReport(request)
@@ -301,14 +290,13 @@ struct MainTabView: View {
         }
     }
 
+    /// 底栏中央按钮在每个 tab 上都只做一件事：记一笔。
+    /// 它过去在资产页会改成弹菜单，同一颗按钮两种行为；而「添加资金项」
+    /// 本来就在资产页右上角，重复一遍只是把主操作变得不可预期。
     private func performPrimaryAction() {
         showTabBarAndResetIdleTimer()
         HapticManager.impact(.medium)
-        if selectedTab == 4 {
-            showPlusActions = true
-        } else {
-            presentedSheet = .quickEntry
-        }
+        presentedSheet = .quickEntry
     }
 
     private var isQuickEntryPresented: Bool {
@@ -362,10 +350,8 @@ struct MainTabView: View {
         if providesHaptic {
             HapticManager.selection()
         }
-        if tag == 4 {
-            // 资产页每次从标签栏进入都从隐藏态开始，避免之前的会话解锁状态造成误展示。
-            privacyLock.lock()
-        }
+        // 进资产页不再强制重新上锁：进后台时已经锁了（见 AppRootView），
+        // 前台来回切 tab 还要求重新过一次 Face ID，只是把解锁成本乘上切换次数。
 
         // 页面和状态立即切换；图标自身的局部 animation 负责缩放，
         // 避免把玻璃材质或整页重排放进全局动画事务。

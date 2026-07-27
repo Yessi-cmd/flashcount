@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 一条体检结论。可自动修复与需人工处理的数量分开显示。
 struct DataHealthFindingRow: View {
     let finding: DataHealthFinding
 

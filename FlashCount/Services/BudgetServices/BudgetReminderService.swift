@@ -1,5 +1,9 @@
 import Foundation
 
+/// 一条待展示的预算提醒：分析结果加上给用户看的三档文案。
+///
+/// `shouldSurfaceAfterSave` 决定记完一笔后要不要跟着提示条一起冒出来——
+/// 健康状态不打扰，否则每笔账都弹一次预算提醒等于没有提醒。
 struct BudgetReminder {
     let analysis: BudgetAnalysis
     let title: String
@@ -12,6 +16,11 @@ struct BudgetReminder {
     var isWeekendAllowanceAdjusted: Bool { analysis.isWeekendAllowanceAdjusted }
 }
 
+/// 把预算、发薪周期与 `BudgetAnalyzer` 接成视图能直接用的提醒。
+///
+/// 「当前预算」按发薪周期定位（`budget.year`/`month` 存的是周期归属，
+/// 不是自然月），因此改发薪日会改变哪条预算生效——这也是引导页必须问
+/// 发薪日的原因。
 enum BudgetReminderService {
     static func currentBudget(
         in budgets: [Budget],
@@ -155,6 +164,12 @@ enum BudgetReminderService {
     }
 }
 
+/// 判断一笔支出是否计入「日常预算」。
+///
+/// 日常预算只覆盖高频、可控的小额消费，所以服饰、聚餐、长途出行和大件
+/// 消费默认排除——把它们算进去会让每日可花额度随机跳动，失去参考价值。
+/// 归属按分类的 `defaultKey` 判断而非名称，用户改名不会改变预算口径；
+/// 单笔仍可用 `Transaction.dailyBudgetOverride` 覆盖。
 enum BudgetScope {
     /// 日常预算只覆盖高频、可控的小额消费。服饰、聚餐、长途出行和耐用品默认排除。
     private static let legacyIncludedCategoryNames: Set<String> = [

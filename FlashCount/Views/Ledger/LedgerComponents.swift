@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 账本的时间范围筛选。`payCycle` 跟着设置里的发薪日走，`custom` 使用用户自选区间。
 enum LedgerPeriodFilter: String, CaseIterable {
     case today = "今天"
     case thisWeek = "本周"
@@ -40,6 +41,7 @@ enum LedgerPeriodFilter: String, CaseIterable {
     }
 }
 
+/// 账本列表里的一行交易。隐私锁生效时收入金额与受保护收入的元数据都要遮挡。
 struct TransactionRow: View {
     let transaction: Transaction
     var revealsPrivateIncome = true
@@ -76,6 +78,7 @@ struct TransactionRow: View {
     }
 }
 
+/// 一枚可一键清除的生效筛选条件标签。
 struct FilterChip: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let label: String

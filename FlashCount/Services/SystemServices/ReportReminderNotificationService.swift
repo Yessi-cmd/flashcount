@@ -1,6 +1,7 @@
 import Foundation
 import UserNotifications
 
+/// 报表提醒通知调度的抽象，便于测试替换。
 protocol ReportReminderNotificationScheduling {
     func authorizationStatus() async -> UNAuthorizationStatus
     func requestAuthorization() async -> Bool
@@ -8,6 +9,7 @@ protocol ReportReminderNotificationScheduling {
     func cancelAll(reminders: [ReminderItem]) async
 }
 
+/// 一条报表提醒要安排成什么样的通知请求（触发时间、文案、是否重复）。
 struct ReportReminderRequestPlan: Equatable {
     let identifier: String
     let period: ReportPeriod
@@ -243,6 +245,8 @@ enum ReportReminderSchedulePlanner {
     }
 }
 
+/// 把报表提醒偏好翻译成通知请求。日报/周报/月报/年报/周期报各有自己的
+/// 触发时机，周期报还要跟着发薪日走。
 enum ReportReminderNotificationService {
     static func authorizationStatus() async -> UNAuthorizationStatus {
         await withCheckedContinuation { continuation in
@@ -285,6 +289,7 @@ enum ReportReminderNotificationService {
     }
 }
 
+/// 走真实通知中心的报表提醒调度实现。
 struct SystemReportReminderNotificationScheduler: ReportReminderNotificationScheduling {
     func authorizationStatus() async -> UNAuthorizationStatus {
         await ReportReminderNotificationService.authorizationStatus()

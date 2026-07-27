@@ -1,5 +1,7 @@
 import Foundation
 
+/// 报表用的预算快照（持有 `Budget` 模型，仅限主线程使用）。
+/// 跨 actor 传递请用 `ReportBudgetSnapshotValue`。
 struct ReportBudgetSnapshot {
     let cycle: PayCycle
     let cutoff: Date
@@ -15,6 +17,10 @@ struct ReportBudgetSnapshotValue: Sendable {
     let analysis: BudgetAnalysis?
 }
 
+/// 为报表计算预算进度。
+///
+/// 截止时刻取决于报表是否「进行中」：当前周期算到此刻，已结束的周期算到
+/// 周期最后一天，否则历史报表会显示成「还剩很多天没花完」。
 enum ReportBudgetSnapshotService {
     static func snapshotValue(
         budgets: [ReportBudgetInputSnapshot],

@@ -13,7 +13,8 @@
 
 1. Fork 后克隆仓库：`git clone https://github.com/<your-account>/flashcount.git`
 2. 安装 Xcode 15+ 与 XcodeGen：`brew install xcodegen`
-3. 运行 `xcodegen generate`；请编辑 `project.yml`，不要直接编辑生成的 `FlashCount.xcodeproj/project.pbxproj`。
+3. 运行 `./scripts/generate-project.sh` 生成工程；请编辑 `project.yml`，不要直接编辑生成的 `FlashCount.xcodeproj/project.pbxproj`。
+   （不要直接跑 `xcodegen generate`：`project.yml` include 的 `project.local.yml` 是本机私有文件，缺失时 XcodeGen 会失败——它的 include 不支持可选。脚本会补一个占位文件。）
 4. 使用模拟器运行应用和测试；涉及财务金额时使用 `Decimal`，并保持数据本地优先。
 
 ## Pull Request

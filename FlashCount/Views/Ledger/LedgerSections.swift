@@ -4,6 +4,144 @@ import SwiftData
 // MARK: - 账本页各区块视图
 
 extension LedgerView {
+    /// 吸顶区：搜索、生效中的筛选标签、日期条、自定义区间。
+    /// 需要不透明底色，否则吸顶时下方列表会从字缝里透出来。
+    var stickyFilterHeader: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.subheadline)
+                    .foregroundStyle(DesignSystem.textTertiary)
+                TextField("搜索备注、分类、金额...", text: $filterState.searchText)
+                    .font(.subheadline)
+                    .foregroundStyle(DesignSystem.textPrimary)
+                if !filterState.searchText.isEmpty {
+                    Button {
+                        filterState.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundStyle(DesignSystem.textTertiary)
+                            .frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("清除搜索")
+                    .accessibilityIdentifier("ledger.clearSearch")
+                }
+            }
+            .padding(10)
+            .background(DesignSystem.softFill)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+
+            if filterState.hasActiveFilters {
+                activeFilterChips
+            }
+
+            dateFilterStrip
+
+            if filterState.dateFilter == .custom {
+                customDateRangeControls
+            }
+        }
+        .padding(.vertical, 8)
+        .background {
+            // 吸顶时要盖住滚过去的内容；两侧撑出页面 padding，避免露出一条缝。
+            DesignSystem.surfaceBackground
+                .padding(.horizontal, -DesignSystem.space16)
+                .ignoresSafeArea(edges: .horizontal)
+        }
+        .accessibilityIdentifier("ledger.filterHeader")
+    }
+
+    private var activeFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                if filterState.typeFilter != .all {
+                    FilterChip(
+                        label: filterState.typeFilter.rawValue,
+                        color: filterState.typeFilter == .expense ? DesignSystem.expenseColor : DesignSystem.incomeColor
+                    ) { filterState.typeFilter = .all }
+                }
+                if let id = filterState.categoryFilterId,
+                   let cat = allCategories.first(where: { $0.id == id }) {
+                    FilterChip(
+                        label: cat.name,
+                        color: Color(hex: cat.colorHex)
+                    ) { filterState.categoryFilterId = nil }
+                }
+                if let minVal = Decimal(string: filterState.minAmountText), minVal > 0 {
+                    FilterChip(
+                        label: "¥\(minVal.formattedAmount)以上",
+                        color: DesignSystem.primaryColor
+                    ) { filterState.minAmountText = "" }
+                }
+                if let maxVal = Decimal(string: filterState.maxAmountText), maxVal > 0 {
+                    FilterChip(
+                        label: "¥\(maxVal.formattedAmount)以下",
+                        color: DesignSystem.primaryColor
+                    ) { filterState.maxAmountText = "" }
+                }
+                Button {
+                    withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
+                        filterState.clearAdvancedFilters()
+                    }
+                    HapticManager.selection()
+                } label: {
+                    Text("清除全部")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(DesignSystem.textTertiary)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var customDateRangeControls: some View {
+        Button {
+            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
+                showCustomDatePicker.toggle()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: showCustomDatePicker ? "chevron.up" : "chevron.down")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(DesignSystem.primaryColor)
+                Text("\(filterState.customStartDate.shortDateString) → \(filterState.customEndDate.shortDateString)")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(DesignSystem.textPrimary)
+                Spacer()
+                Image(systemName: "calendar")
+                    .font(.caption)
+                    .foregroundStyle(DesignSystem.textTertiary)
+            }
+            .padding(10)
+            .background(DesignSystem.softFill)
+            .clipShape(RoundedRectangle(cornerRadius: DesignSystem.smallCornerRadius))
+        }
+        .buttonStyle(.plain)
+
+        if showCustomDatePicker {
+            HStack(spacing: 12) {
+                DatePicker("开始", selection: $filterState.customStartDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                Text("→")
+                    .foregroundStyle(DesignSystem.textTertiary)
+                DatePicker("结束", selection: $filterState.customEndDate, displayedComponents: .date)
+                    .datePickerStyle(.compact)
+            }
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    /// 列表主体：日历或交易列表。
+    @ViewBuilder
+    func ledgerBody(_ presentation: LedgerPresentation) -> some View {
+        if showCalendar {
+            CalendarView()
+        } else {
+            transactionList(presentation)
+        }
+    }
+
     @ViewBuilder
     var dateFilterStrip: some View {
         if #available(iOS 26.0, *) {

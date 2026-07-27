@@ -70,6 +70,45 @@ extension LedgerView {
         }
     }
 
+    /// 行动中心 badge 的数量。
+    ///
+    /// 输入刻意和 `ActionCenterView` 保持一致（同一份支出交易、同一批已忽略建议），
+    /// 否则会出现 badge 说 3 项、打开却是 4 项——一个比不显示数量更糟的结果。
+    /// 这里包含 `pendingOccurrences` 的推演，所以只在 digest 变化时跑一次。
+    func refreshPendingActionCount() {
+        let expenseTransactions: [Transaction]
+        do {
+            expenseTransactions = try modelContext.fetch(
+                FetchDescriptor<Transaction>(
+                    predicate: #Predicate<Transaction> { $0.isExpense == true },
+                    sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
+                )
+            )
+        } catch {
+            pendingActionCount = 0
+            return
+        }
+
+        let pendingBackfill = RecurringOccurrenceService(modelContext: modelContext).pendingOccurrences(
+            rules: recurringRules,
+            occurrences: recurringOccurrences,
+            maxOccurrences: 120
+        )
+
+        pendingActionCount = LocalActionCenterService.snapshot(
+            budgets: allBudgets,
+            transactions: expenseTransactions,
+            recurringRules: recurringRules,
+            occurrences: recurringOccurrences,
+            pendingBackfill: pendingBackfill,
+            installmentBills: installmentBills,
+            reminders: reminderModels.map(\.item),
+            dismissedSuggestionFingerprints: UserDefaultsRecurringSuggestionDismissalStore().load(),
+            payday: payday,
+            weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
+        ).totalCount
+    }
+
     func selectAllMatchingTransactions() {
         let queryID = ledgerQueryID
         let filter = currentLedgerFilter

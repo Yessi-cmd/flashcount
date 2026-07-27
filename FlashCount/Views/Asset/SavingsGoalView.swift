@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+/// 储蓄目标列表与存取。存入刻意不产生交易——钱从可花变成存起来，并没有离开。
 struct SavingsGoalView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService

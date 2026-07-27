@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 表单校验提示。消息为空时不占位——校验信息出现和消失都不该让布局跳动。
 struct ValidationMessage: View {
     let message: String?
 

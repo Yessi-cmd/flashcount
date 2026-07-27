@@ -1,9 +1,12 @@
 name: FlashCount
 # 本机私有覆盖（如 Release 签名的 DEVELOPMENT_TEAM）放在 project.local.yml，
-# 该文件已被 gitignore；缺失时照常生成（CI / 新克隆无需它）。
+# 该文件已被 gitignore。
+#
+# 注意：XcodeGen 的 include 无法声明为可选（`optional: true` 会被静默忽略），
+# 文件缺失时 `xcodegen generate` 会直接失败。请用 scripts/generate-project.sh
+# 生成工程——它会在缺失时补一个只有注释的占位文件。
 include:
   - path: project.local.yml
-    optional: true
 options:
   bundleIdPrefix: com.flashcount
   deploymentTarget:

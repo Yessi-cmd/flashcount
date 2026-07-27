@@ -1,10 +1,12 @@
 import Foundation
 
+/// 报表区间的显示文案与对应的无障碍朗读文案（后者需要完整日期，不能用缩写）。
 struct ReportRangePresentation: Equatable {
     let title: String
     let accessibilityLabel: String
 }
 
+/// 报表区间的文案格式化。区间以 `[start, end)` 存储，展示时需换算成含尾日。
 struct ReportDateRangeFormatter {
     let calendar: Calendar
     let locale: Locale
@@ -75,17 +77,21 @@ struct ReportDateRangeFormatter {
     }
 }
 
+/// 报表里的指标种类，决定同比变化该往哪个方向解读。
 enum ReportMetricKind: Equatable {
     case expense
     case income
 }
 
+/// 同比变化的方向。
 enum ReportChangeDirection: Equatable {
     case increase
     case decrease
     case unchanged
 }
 
+/// 一处同比变化的呈现。支出增加是坏消息、收入增加是好消息，
+/// 所以「涨」与「好坏」必须分开表达，不能只按符号配色。
 struct ReportChangePresentation: Equatable {
     let text: String
     let direction: ReportChangeDirection
@@ -117,6 +123,7 @@ struct ReportChangePresentation: Equatable {
     }
 }
 
+/// 报表百分比格式化，含极端值的封顶显示。
 enum ReportPercentageFormatter {
     static func categoryShare(_ value: Double) -> String {
         let finite = value.isFinite ? value : 0

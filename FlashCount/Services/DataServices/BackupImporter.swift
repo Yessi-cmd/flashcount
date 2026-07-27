@@ -185,30 +185,7 @@ extension DataBackupService {
         // 3. 旧备份里的「账户」在第 7 步随资金项一起折算导入（账户体系已移除）。
 
         // 4. 导入实物资产
-        let existingPhysical = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
-        let existingPhysicalIDs = Set(existingPhysical.map(\.id))
-
-        for dto in backup.physicalAssets {
-            let dtoID = UUID(uuidString: dto.id)!
-            if existingPhysicalIDs.contains(dtoID) {
-                result.skipped += 1; continue
-            }
-            guard let cat = PhysicalAssetCategory(rawValue: dto.category) else {
-                result.skipped += 1; continue
-            }
-            let asset = PhysicalAsset(name: dto.name, category: cat,
-                                     purchasePrice: dto.purchasePrice.decimalValue,
-                                     purchaseDate: dto.purchaseDate,
-                                     salvageValue: dto.salvageValue.decimalValue,
-                                     targetDailyCost: dto.targetDailyCost.decimalValue,
-                                     note: dto.note)
-            asset.id = dtoID
-            asset.isArchived = dto.isArchived
-            asset.soldPrice = dto.soldPrice?.decimalValue
-            asset.soldDate = dto.soldDate
-            modelContext.insert(asset)
-            result.physicalAssetsImported += 1
-        }
+        try importPhysicalAssets(backup, mode: mode, result: &result)
 
         // 5. 导入周期规则
         let existingRules = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<RecurringRule>())
@@ -381,87 +358,17 @@ extension DataBackupService {
         }
 
         // 8. 导入分期账单
-        let existingInstallmentBills = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<InstallmentBill>())
-        let existingInstallmentBillIDs = Set(existingInstallmentBills.map(\.id))
-
-        for dto in backup.installmentBills {
-            let dtoID = UUID(uuidString: dto.id)!
-            if existingInstallmentBillIDs.contains(dtoID) {
-                result.skipped += 1; continue
-            }
-            let bill = InstallmentBill(
-                name: dto.name,
-                totalAmount: dto.totalAmount.decimalValue,
-                installmentCount: dto.installmentCount,
-                paidInstallments: dto.paidInstallments,
-                repaymentDay: dto.repaymentDay,
-                firstRepaymentDate: dto.firstRepaymentDate,
-                note: dto.note
-            )
-            bill.id = dtoID
-            bill.isArchived = dto.isArchived
-            bill.createdAt = dto.createdAt
-            bill.updatedAt = dto.updatedAt
-            modelContext.insert(bill)
-            result.installmentBillsImported += 1
-        }
+        try importInstallmentBills(backup, mode: mode, result: &result)
 
         // 9. 导入储蓄目标
-        let existingSavingsGoals = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<SavingsGoal>())
-        let existingSavingsGoalIDs = Set(existingSavingsGoals.map(\.id))
-
-        for dto in backup.savingsGoals {
-            let dtoID = UUID(uuidString: dto.id)!
-            if existingSavingsGoalIDs.contains(dtoID) {
-                result.skipped += 1; continue
-            }
-            let goal = SavingsGoal(
-                name: dto.name,
-                targetAmount: dto.targetAmount.decimalValue,
-                currentAmount: dto.currentAmount.decimalValue,
-                targetDate: dto.targetDate,
-                note: dto.note
-            )
-            goal.id = dtoID
-            goal.isCompleted = dto.isCompleted
-            goal.isArchived = dto.isArchived
-            goal.createdAt = dto.createdAt
-            goal.updatedAt = dto.updatedAt
-            modelContext.insert(goal)
-            result.savingsGoalsImported += 1
-        }
+        try importSavingsGoals(backup, mode: mode, result: &result)
 
         // 10. 导入记账模板
-        let existingTemplates = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<TransactionTemplate>())
-        let existingTemplateIDs = Set(existingTemplates.map(\.id))
-
-        for dto in backup.templates {
-            let dtoID = UUID(uuidString: dto.id)!
-            if existingTemplateIDs.contains(dtoID) {
-                result.skipped += 1; continue
-            }
-            let template = TransactionTemplate(
-                name: dto.name,
-                amount: dto.amount.decimalValue,
-                isExpense: dto.isExpense,
-                note: dto.note,
-                categoryName: dto.categoryName,
-                sortOrder: dto.sortOrder
-            )
-            template.id = dtoID
-            modelContext.insert(template)
-            result.templatesImported += 1
-        }
+        try importTemplates(backup, mode: mode, result: &result)
 
         // 11. 导入提醒。提醒与财务模型处于同一个 SwiftData 提交中，
         // 不再依赖独立 JSON 文件的第二次写入。
-        let existingReminders = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Reminder>())
-        let existingReminderIDs = Set(existingReminders.map(\.id))
-        for reminder in backup.reminders where !existingReminderIDs.contains(reminder.id) {
-            modelContext.insert(Reminder(item: reminder))
-            result.remindersImported += 1
-        }
-        result.skipped += backup.reminders.count - result.remindersImported
+        try importReminders(backup, mode: mode, result: &result)
 
         // 默认数据、单账本整理与本次恢复共用一次数据库事务。
         try DefaultDataService(modelContext: modelContext).stageDefaultData()
@@ -579,6 +486,155 @@ extension DataBackupService {
 
     private func deleteAll<T: PersistentModel>(_ type: T.Type) throws {
         for item in try modelContext.fetch(FetchDescriptor<T>()) { modelContext.delete(item) }
+    }
+
+    // MARK: - 按模型分组的导入步骤
+    //
+    // 这几组数据互不引用，也不参与 category/ledger/rule 之间的映射传递，
+    // 所以能整段搬出来而不改变任何顺序或状态依赖。
+
+    private func importPhysicalAssets(
+        _ backup: BackupData,
+        mode: ImportMode,
+        result: inout ImportResult
+    ) throws {
+        let existing = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<PhysicalAsset>())
+        let existingIDs = Set(existing.map(\.id))
+
+        for dto in backup.physicalAssets {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingIDs.contains(dtoID) {
+                result.skipped += 1
+                continue
+            }
+            // 未来版本新增的资产类别在旧版本上读不出来，只跳过这一条，
+            // 不能让整份备份导不进来。
+            guard let category = PhysicalAssetCategory(rawValue: dto.category) else {
+                result.skipped += 1
+                continue
+            }
+            let asset = PhysicalAsset(
+                name: dto.name,
+                category: category,
+                purchasePrice: dto.purchasePrice.decimalValue,
+                purchaseDate: dto.purchaseDate,
+                salvageValue: dto.salvageValue.decimalValue,
+                targetDailyCost: dto.targetDailyCost.decimalValue,
+                note: dto.note
+            )
+            asset.id = dtoID
+            asset.isArchived = dto.isArchived
+            asset.soldPrice = dto.soldPrice?.decimalValue
+            asset.soldDate = dto.soldDate
+            modelContext.insert(asset)
+            result.physicalAssetsImported += 1
+        }
+    }
+
+    private func importReminders(
+        _ backup: BackupData,
+        mode: ImportMode,
+        result: inout ImportResult
+    ) throws {
+        let existing = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Reminder>())
+        let existingIDs = Set(existing.map(\.id))
+
+        for reminder in backup.reminders where !existingIDs.contains(reminder.id) {
+            modelContext.insert(Reminder(item: reminder))
+            result.remindersImported += 1
+        }
+        result.skipped += backup.reminders.count - result.remindersImported
+    }
+
+    private func importInstallmentBills(
+        _ backup: BackupData,
+        mode: ImportMode,
+        result: inout ImportResult
+    ) throws {
+        let existing = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<InstallmentBill>())
+        let existingIDs = Set(existing.map(\.id))
+
+        for dto in backup.installmentBills {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingIDs.contains(dtoID) {
+                result.skipped += 1
+                continue
+            }
+            let bill = InstallmentBill(
+                name: dto.name,
+                totalAmount: dto.totalAmount.decimalValue,
+                installmentCount: dto.installmentCount,
+                paidInstallments: dto.paidInstallments,
+                repaymentDay: dto.repaymentDay,
+                firstRepaymentDate: dto.firstRepaymentDate,
+                note: dto.note
+            )
+            bill.id = dtoID
+            bill.isArchived = dto.isArchived
+            bill.createdAt = dto.createdAt
+            bill.updatedAt = dto.updatedAt
+            modelContext.insert(bill)
+            result.installmentBillsImported += 1
+        }
+    }
+
+    private func importSavingsGoals(
+        _ backup: BackupData,
+        mode: ImportMode,
+        result: inout ImportResult
+    ) throws {
+        let existing = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<SavingsGoal>())
+        let existingIDs = Set(existing.map(\.id))
+
+        for dto in backup.savingsGoals {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingIDs.contains(dtoID) {
+                result.skipped += 1
+                continue
+            }
+            let goal = SavingsGoal(
+                name: dto.name,
+                targetAmount: dto.targetAmount.decimalValue,
+                currentAmount: dto.currentAmount.decimalValue,
+                targetDate: dto.targetDate,
+                note: dto.note
+            )
+            goal.id = dtoID
+            goal.isCompleted = dto.isCompleted
+            goal.isArchived = dto.isArchived
+            goal.createdAt = dto.createdAt
+            goal.updatedAt = dto.updatedAt
+            modelContext.insert(goal)
+            result.savingsGoalsImported += 1
+        }
+    }
+
+    private func importTemplates(
+        _ backup: BackupData,
+        mode: ImportMode,
+        result: inout ImportResult
+    ) throws {
+        let existing = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<TransactionTemplate>())
+        let existingIDs = Set(existing.map(\.id))
+
+        for dto in backup.templates {
+            let dtoID = UUID(uuidString: dto.id)!
+            if existingIDs.contains(dtoID) {
+                result.skipped += 1
+                continue
+            }
+            let template = TransactionTemplate(
+                name: dto.name,
+                amount: dto.amount.decimalValue,
+                isExpense: dto.isExpense,
+                note: dto.note,
+                categoryName: dto.categoryName,
+                sortOrder: dto.sortOrder
+            )
+            template.id = dtoID
+            modelContext.insert(template)
+            result.templatesImported += 1
+        }
     }
 
     @discardableResult

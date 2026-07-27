@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 行动中心里的一条待办。
 struct ActionCenterItemRow: View {
     let item: LocalActionItem
     let hidesSensitiveAmounts: Bool

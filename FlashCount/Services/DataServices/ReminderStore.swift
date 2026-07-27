@@ -64,6 +64,9 @@ private enum ReminderStorageMigration {
     static let legacyMigrationKey = "reminder-storage-swiftdata-migration-v1"
 }
 
+/// 提醒的 SwiftData 读写（当前的存储方式）。
+///
+/// 旧版本把提醒存在独立 JSON 文件里，`FileReminderStore` 仅作一次性导入用。
 @MainActor
 final class ReminderDataService {
 

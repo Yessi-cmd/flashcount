@@ -122,6 +122,7 @@ struct ReportShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
+/// 渲染好的报表分享图，用于交给系统分享面板。
 struct ReportShareImage: Identifiable {
     let id = UUID()
     let image: UIImage

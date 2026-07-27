@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 单件实物资产的卡片：估值、折旧与日均成本。
 struct PhysicalAssetCard: View {
     let asset: PhysicalAsset
     let hidesMoney: Bool

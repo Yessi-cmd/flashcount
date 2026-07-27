@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// 外观偏好，存在 `@AppStorage("appearance")`。`.system` 映射为 nil，
+/// 即交回系统决定；本 App 默认浅色。
 enum AppearancePreference: String, CaseIterable {
     case system
     case light

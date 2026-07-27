@@ -20,6 +20,8 @@ struct LedgerFilter: Equatable, Hashable, Sendable {
     }
 }
 
+/// 一页交易查询结果（主线程用，持有模型对象）。
+/// 跨 actor 传递请用 `LedgerPageReference`。
 struct LedgerPage {
     let transactions: [Transaction]
     let offset: Int
@@ -30,6 +32,8 @@ struct LedgerPage {
     }
 }
 
+/// 账本页顶部的收支合计。`hasHiddenIncome` 为真时收入与结余要显示为遮挡态——
+/// 隐私锁生效时，露出合计等于露出收入。
 struct LedgerSummary: Sendable {
     let expense: Decimal
     let income: Decimal

@@ -117,12 +117,12 @@ extension QuickEntryView {
     }
 
     var amountDisplay: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text("¥")
                     .font(.title3.weight(.medium))
                     .foregroundStyle(DesignSystem.textSecondary)
-                Text(amountText.isEmpty ? "0.00" : amountText)
+                Text(amountInput.text.isEmpty ? "0.00" : amountInput.text)
                     .font(DesignSystem.Typography.amount)
                     .monospacedDigit()
                     .foregroundStyle(DesignSystem.textPrimary)
@@ -130,27 +130,89 @@ extension QuickEntryView {
                     .accessibilityIdentifier("quickEntry.amount")
             }
 
+            if amountInput.hasPendingSum {
+                pendingSumChip
+            }
+
             ValidationMessage(message: amountError?.errorDescription)
 
-            // 日期选择器 - 始终可见，方便补录历史账单
-            HStack(spacing: 4) {
-                Image(systemName: "calendar")
-                    .font(.caption2)
-                    .foregroundStyle(DesignSystem.textSecondary)
-                DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                    .datePickerStyle(.compact)
-                    .labelsHidden()
-                    .scaleEffect(0.8)
-                    .environment(\.locale, Locale(identifier: "zh_CN"))
-            }
+            dateControls
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 2)
     }
 
+    /// 累加中的提示：不显示出来，用户按了「+」之后只会看到金额被清空。
+    private var pendingSumChip: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "plus.forwardslash.minus")
+                .font(.caption2.weight(.semibold))
+            Text("已累加 \(amountInput.pendingSum.formattedCurrency)，保存时合计 \(amountInput.accumulatedPreview.formattedCurrency)")
+                .font(DesignSystem.Typography.supportingLabel)
+                .monospacedDigit()
+            Button {
+                clearPendingSum()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("清除已累加金额")
+        }
+        .foregroundStyle(DesignSystem.primaryColor)
+        .padding(.leading, 10)
+        .background(DesignSystem.primaryColor.opacity(0.1))
+        .clipShape(Capsule())
+        .accessibilityIdentifier("quickEntry.pendingSum")
+    }
+
+    /// 日期区：以前只有一个被 `scaleEffect(0.8)` 缩到 44pt 以下的选择器，
+    /// 既难点又太安静——补录时最需要的是一眼看出「这不是今天」。
+    private var dateControls: some View {
+        HStack(spacing: 8) {
+            dateChip(title: "今天", date: Calendar.current.startOfDay(for: Date()))
+            dateChip(
+                title: "昨天",
+                date: Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date())) ?? Date()
+            )
+
+            DatePicker("记账日期", selection: $selectedDate, displayedComponents: .date)
+                .datePickerStyle(.compact)
+                .labelsHidden()
+                .environment(\.locale, Locale(identifier: "zh_CN"))
+                .accessibilityIdentifier("quickEntry.datePicker")
+        }
+        .frame(minHeight: 44)
+    }
+
+    private func dateChip(title: String, date: Date) -> some View {
+        let isSelected = Calendar.current.isDate(selectedDate, inSameDayAs: date)
+        return Button {
+            withAnimation(reduceMotion ? nil : DesignSystem.quickAnimation) {
+                selectedDate = date
+            }
+            HapticManager.selection()
+        } label: {
+            Text(title)
+                .font(DesignSystem.Typography.compactLabel)
+                .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+                .padding(.horizontal, 12)
+                .frame(minHeight: 34)
+                .background(isSelected ? DesignSystem.primaryColor.opacity(0.14) : DesignSystem.softFill)
+                .clipShape(Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("quickEntry.date.\(title)")
+    }
+
     var categoryGrid: some View {
         VStack(alignment: .leading, spacing: 6) {
             categorySection(title: "常用", categories: recentCategories)
+            selectedCategoryRow
             allCategoriesToggle
 
             if showAllCategories {
@@ -159,6 +221,61 @@ extension QuickEntryView {
             }
         }
         .glassCard()
+    }
+
+    /// 当前选中的分类，以及一颗明确的「换小类」按钮。
+    ///
+    /// 点格子现在直接选中（落到上次用过的小类），小类因此需要一个看得见的入口——
+    /// 只靠长按会让不知道长按的人丢掉选择具体小类的能力。
+    @ViewBuilder
+    private var selectedCategoryRow: some View {
+        if let selectedCategory {
+            let children = Category.childCategories(
+                for: selectedCategory.rootCategoryName,
+                in: currentCategories,
+                isExpense: isExpense
+            )
+            HStack(spacing: 8) {
+                Image(systemName: selectedCategory.icon)
+                    .font(.caption2)
+                    .foregroundStyle(Color(hex: selectedCategory.colorHex))
+                Text("已选 \(selectedCategory.entryDisplayName)")
+                    .font(DesignSystem.Typography.compactLabel)
+                    .foregroundStyle(DesignSystem.textSecondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                if !children.isEmpty {
+                    Button {
+                        showWheel(
+                            for: rootCategory(for: selectedCategory.rootCategoryName, in: currentCategories) ?? selectedCategory,
+                            sourceFrame: nil
+                        )
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text("换小类")
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 8, weight: .bold))
+                        }
+                        .font(DesignSystem.Typography.compactLabel.weight(.semibold))
+                        .foregroundStyle(DesignSystem.primaryColor)
+                        .padding(.horizontal, 10)
+                        .frame(minHeight: 34)
+                        .background(DesignSystem.primaryColor.opacity(0.12))
+                        .clipShape(Capsule())
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("换小类，当前 \(selectedCategory.entryDisplayName)")
+                    .accessibilityIdentifier("quickEntry.changeSubcategory")
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(DesignSystem.softFill)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
     }
 
     private var allCategoriesToggle: some View {
@@ -318,88 +435,40 @@ extension QuickEntryView {
 
     private var bottomControlsContent: some View {
         VStack(spacing: DesignSystem.space8) {
+            if isBackdated {
+                backdatedNotice
+            }
             numberPad
             submitButton
         }
     }
 
-    var successOverlay: some View {
-        VStack(spacing: 16) {
-            if reduceMotion {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(DesignSystem.Typography.amount)
-                    .foregroundStyle(DesignSystem.incomeColor)
-            } else {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(DesignSystem.Typography.amount)
-                    .foregroundStyle(DesignSystem.incomeColor)
-                    .symbolEffect(.bounce, value: showSuccess)
-            }
-
-            Text("记账成功！")
-                .font(.headline)
-                .foregroundStyle(DesignSystem.textPrimary)
-                .accessibilityFocused($successOverlayFocused)
-
-            if let budgetReminderText {
-                HStack(spacing: 6) {
-                    Image(systemName: budgetReminderIcon)
-                    Text(budgetReminderText)
-                }
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(budgetReminderColor)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(budgetReminderColor.opacity(0.12))
-                .clipShape(Capsule())
-            }
-
-            Divider()
-                .frame(width: 160)
-
+    /// 补录状态挨着保存按钮，而不是只体现在上方那个小日期控件里。
+    private var backdatedNotice: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.caption2.weight(.semibold))
+            Text("补录到 \(selectedDate.fullDateString)，不是今天")
+                .font(DesignSystem.Typography.supportingLabel)
+            Spacer(minLength: 4)
             Button {
-                resetForm()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "plus.circle.fill")
-                    Text("再记一笔")
+                withAnimation(reduceMotion ? nil : DesignSystem.quickAnimation) {
+                    selectedDate = Calendar.current.startOfDay(for: Date())
                 }
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(DesignSystem.primaryColor)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(DesignSystem.primaryColor.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
-            .padding(.horizontal, 40)
-
-            Button {
-                dismiss()
+                HapticManager.selection()
             } label: {
-                Text("完成")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(DesignSystem.textSecondary)
-                    .underline()
+                Text("改回今天")
+                    .font(DesignSystem.Typography.supportingLabel.weight(.semibold))
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 32)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(DesignSystem.surfaceBackground.opacity(0.98))
-        .transition(.scale(scale: 0.96).combined(with: .opacity))
-    }
-
-    var budgetReminderIcon: String {
-        switch budgetReminderLevel {
-        case .warning: return "exclamationmark.triangle.fill"
-        case .danger: return "flame.fill"
-        default: return "checkmark.circle.fill"
-        }
-    }
-
-    var budgetReminderColor: Color {
-        switch budgetReminderLevel {
-        case .warning: return DesignSystem.warningColor
-        case .danger: return DesignSystem.dangerColor
-        default: return DesignSystem.incomeColor
-        }
+        .foregroundStyle(DesignSystem.warningColor)
+        .padding(.horizontal, 10)
+        .background(DesignSystem.warningColor.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .accessibilityIdentifier("quickEntry.backdatedNotice")
     }
 }

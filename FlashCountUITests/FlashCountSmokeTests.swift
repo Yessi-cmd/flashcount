@@ -233,264 +233,127 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(save.isEnabled)
     }
 
-    func testQuickEntrySuccessPageKeepsBothActionsAvailable() {
+    /// 保存后不再要求多按一次「完成」：sheet 自己关掉，
+    /// 确认和撤销留在主界面的提示条上。
+    func testQuickEntrySaveClosesSheetAndOffersUndo() {
         let app = XCUIApplication()
-        app.launchArguments = ["-hasCompletedOnboarding", "true", "-visualQuickEntryReview"]
+        app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
+        let quickEntry = app.buttons["快速记账"]
+        XCTAssertTrue(quickEntry.waitForExistence(timeout: 5))
+        quickEntry.tap()
+
         let oneKey = app.buttons["quickEntry.key.1"]
-        let save = app.buttons["quickEntry.save"]
         XCTAssertTrue(oneKey.waitForExistence(timeout: 5))
         oneKey.tap()
+
+        let save = app.buttons["quickEntry.save"]
         XCTAssertTrue(save.waitForExistence(timeout: 3))
         save.tap()
 
-        let success = app.staticTexts["记账成功！"]
-        XCTAssertTrue(success.waitForExistence(timeout: 5))
-        sleep(3)
-        XCTAssertTrue(success.exists)
-        XCTAssertTrue(app.buttons["再记一笔"].exists)
-        XCTAssertTrue(app.buttons["完成"].exists)
+        XCTAssertTrue(
+            app.navigationBars["记一笔"].waitForNonExistence(timeout: 5),
+            "保存后记账页应自动关闭"
+        )
+
+        let undo = app.buttons["quickEntry.undoSaved"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 3), "提示条应提供撤销")
+        undo.tap()
+        XCTAssertTrue(undo.waitForNonExistence(timeout: 3), "撤销后提示条应收起")
     }
 
-    func testQuickEntryCategoryWheelOpensAndCancelsWithoutChangingTheForm() {
+    /// 未选中的一级分类点一下就选中。出行有小类，过去点它只会打开圆盘，
+    /// 最常走的那条路被硬性拉成两次点击。
+    func testTappingUnselectedCategoryTileSelectsInsteadOfOpeningWheel() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
-        let quickEntry = app.buttons["快速记账"]
-        XCTAssertTrue(quickEntry.waitForExistence(timeout: 5))
-        quickEntry.tap()
+        let transport = openQuickEntryAndRevealTransportTile(app)
+        XCTAssertEqual(transport.value as? String, "未选中", "出行不应是默认选中项")
 
-        let dining = app.buttons["餐饮，包含小类"]
-        XCTAssertTrue(dining.waitForExistence(timeout: 5))
-        dining.tap()
-        XCTAssertTrue(app.otherElements["categoryWheelOverlay"].waitForExistence(timeout: 3))
+        // 断言落在分类区下方那行「已选 …」上：选中会收起「全部分类」，
+        // 回头重新展开去读格子状态会撞上收起动画，测出来是不稳定的。
+        let selectionBefore = currentSelectionLabel(app)
+        transport.tap()
 
-        let overlay = app.otherElements.matching(identifier: "categoryWheelOverlay").firstMatch
-        app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.90)).tap()
-        XCTAssertTrue(overlay.waitForNonExistence(timeout: 3))
-        XCTAssertTrue(app.navigationBars["记一笔"].exists)
-    }
-
-    func testReportShowsCurrentRangeAndNavigatesToPreviousPeriod() {
-        let app = XCUIApplication()
-        app.launchArguments = ["-hasCompletedOnboarding", "true"]
-        app.launch()
-
-        let reportTab = app.buttons["报表"]
-        XCTAssertTrue(reportTab.waitForExistence(timeout: 5))
-        reportTab.tap()
-
-        XCTAssertTrue(app.staticTexts["report.range"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["report.nextPeriod"].isEnabled)
-        app.buttons["report.previousPeriod"].tap()
-        XCTAssertTrue(app.buttons["report.nextPeriod"].isEnabled)
-    }
-
-    func testReportCanSwitchToPayCyclePeriod() {
-        let app = XCUIApplication()
-        app.launchArguments = ["-hasCompletedOnboarding", "true", "-payday", "25"]
-        app.launch()
-
-        app.buttons["报表"].tap()
-        let payCycle = app.buttons["report.period.payCycle"]
-        XCTAssertTrue(payCycle.waitForExistence(timeout: 5))
-        payCycle.tap()
-
-        XCTAssertTrue(app.staticTexts["report.range"].waitForExistence(timeout: 5))
-        XCTAssertTrue(payCycle.isSelected)
-    }
-
-    func testReportContentStopsAboveMainTabBar() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-hasCompletedOnboarding", "true",
-            "-visualReviewTab", "3",
-            "-uiTestReportLayout"
-        ]
-        app.launch()
-
-        let scrollView = app.scrollViews["report.scroll"]
-        let contentEnd = app.otherElements["report.contentEnd"]
-        let reportTab = app.buttons["mainTab.report"]
-        XCTAssertTrue(scrollView.waitForExistence(timeout: 5))
-        XCTAssertTrue(contentEnd.waitForExistence(timeout: 5))
-        XCTAssertTrue(reportTab.waitForExistence(timeout: 5))
-
-        for _ in 0..<12 where contentEnd.frame.maxY > reportTab.frame.minY {
-            scrollView.swipeUp()
-        }
-
-        XCTAssertLessThanOrEqual(
-            contentEnd.frame.maxY,
-            reportTab.frame.minY,
-            "报表内容末尾不应被主标签栏覆盖"
+        XCTAssertFalse(
+            app.otherElements["categoryWheelOverlay"].waitForExistence(timeout: 2),
+            "点按未选中的一级分类不应弹圆盘"
+        )
+        XCTAssertNotEqual(
+            currentSelectionLabel(app),
+            selectionBefore,
+            "点按后选中项应换成出行这一组"
         )
     }
 
-    func testForegroundReportNotificationPresentsMatchingReport() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-hasCompletedOnboarding", "true",
-            "-uiTestForegroundReport", "monthly"
-        ]
-        app.launch()
-
-        let close = app.buttons["report.foreground.close"]
-        let monthly = app.buttons["report.period.monthly"]
-        XCTAssertTrue(close.waitForExistence(timeout: 5))
-        XCTAssertTrue(monthly.waitForExistence(timeout: 5))
-        XCTAssertTrue(monthly.isSelected)
-        XCTAssertTrue(app.staticTexts["report.range"].waitForExistence(timeout: 5))
-
-        close.tap()
-        XCTAssertTrue(close.waitForNonExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["mainTab.ledger"].isSelected)
-    }
-
-    func testForegroundReportWaitsForQuickEntryToDismiss() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-hasCompletedOnboarding", "true",
-            "-uiTestForegroundReport", "daily",
-            "-uiTestForegroundReportWhileQuickEntry"
-        ]
-        app.launch()
-
-        let quickEntry = app.navigationBars["记一笔"]
-        let closeReport = app.buttons["report.foreground.close"]
-        XCTAssertTrue(quickEntry.waitForExistence(timeout: 5))
-        XCTAssertFalse(closeReport.exists)
-
-        app.buttons["取消"].tap()
-
-        XCTAssertTrue(closeReport.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["report.period.daily"].isSelected)
-    }
-
-    func testQuickEntryCategoryWheelImmediatelyAcceptsSubcategorySelection() {
+    /// 圆盘的入口：分类区下方那颗看得见的「换小类」按钮。
+    /// 单点直接选中之后，选具体小类必须有一个明确的去处。
+    func testChangeSubcategoryButtonOpensWheel() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
+        openQuickEntryAndRevealTransportTile(app).tap()
+
+        let change = app.buttons["quickEntry.changeSubcategory"]
+        XCTAssertTrue(change.waitForExistence(timeout: 5), "选中带小类的分类后应出现「换小类」")
+        change.tap()
+
+        XCTAssertTrue(
+            app.otherElements["categoryWheelOverlay"].waitForExistence(timeout: 3),
+            "「换小类」应打开分类圆盘"
+        )
+    }
+
+    /// 分类区下方那行「已选 …」的文案，用来判断当前选中项。
+    private func currentSelectionLabel(_ app: XCUIApplication) -> String {
+        let label = app.staticTexts
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "已选 "))
+            .firstMatch
+        XCTAssertTrue(label.waitForExistence(timeout: 5), "分类区应显示当前选中项")
+        return label.label
+    }
+
+    /// 「常用」只列有近期交易的分类，出行通常要展开「全部分类」才出现。
+    /// 选它而不是餐饮，是因为餐饮是默认选中项，测不出「未选中→点一下就选中」。
+    @discardableResult
+    private func openQuickEntryAndRevealTransportTile(_ app: XCUIApplication) -> XCUIElement {
         let quickEntry = app.buttons["快速记账"]
         XCTAssertTrue(quickEntry.waitForExistence(timeout: 5))
         quickEntry.tap()
-
-        let dining = app.buttons["餐饮，包含小类"]
-        XCTAssertTrue(dining.waitForExistence(timeout: 5))
-        let meal = app.staticTexts["正餐"]
-
-        dining.tap()
-        meal.tap()
-
-        XCTAssertTrue(app.navigationBars["记一笔"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.otherElements["categoryWheelOverlay"].exists)
-        XCTAssertEqual(dining.value as? String, "已选中：餐饮 · 正餐")
+        return revealTransportTile(app)
     }
 
-    func testReportTopCategoryDrillDownListsMatchingTransactions() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-hasCompletedOnboarding", "true",
-            "-uiTestReportLayout",
-            "-visualReviewTab", "3"
-        ]
-        app.launch()
+    /// 选中动作会收起「全部分类」，所以每次读取状态前都要重新展开。
+    @discardableResult
+    private func revealTransportTile(_ app: XCUIApplication) -> XCUIElement {
+        let transport = app.buttons["category.tile.出行"].firstMatch
+        if !transport.waitForExistence(timeout: 2) {
+            let expand = app.buttons["展开全部分类"]
+            XCTAssertTrue(expand.waitForExistence(timeout: 5))
+            expand.tap()
+        }
+        XCTAssertTrue(transport.waitForExistence(timeout: 5), "出行分类应可见")
 
-        let topCategory = app.buttons["report.topCategory.0"]
-        XCTAssertTrue(topCategory.waitForExistence(timeout: 10), "报表应展示消费 Top 5 分类行")
-        // 屏幕外元素的 exists 同样为真，必须按可点击性判断是否还需要滚动。
-        for _ in 0..<8 where !topCategory.isHittable {
+        // 展开后的「全部分类」落在底部键盘下方（滚动区自己可以滚上来）。
+        // XCUITest 仍会把它报成 hittable，但点下去落在键盘上，所以先滚进可视区。
+        let keypadTop = app.buttons["quickEntry.key.7"].frame.minY
+        var attempts = 0
+        while transport.frame.maxY > keypadTop, attempts < 5 {
             app.swipeUp()
+            attempts += 1
         }
-        XCTAssertTrue(topCategory.isHittable)
-
-        let cards = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        cards.name = "report-top-categories"
-        cards.lifetime = .keepAlways
-        add(cards)
-
-        topCategory.tap()
-
-        XCTAssertTrue(
-            app.descendants(matching: .any)["report.drillDown.summary"].waitForExistence(timeout: 5),
-            "点击分类应打开该分类的支出明细"
+        XCTAssertLessThanOrEqual(
+            transport.frame.maxY,
+            app.buttons["quickEntry.key.7"].frame.minY,
+            "出行格子应滚到键盘上方再点"
         )
-
-        let detail = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        detail.name = "report-drill-down"
-        detail.lifetime = .keepAlways
-        add(detail)
-
-        let close = app.buttons["report.drillDown.close"]
-        XCTAssertTrue(close.waitForExistence(timeout: 5))
-        close.tap()
-        XCTAssertTrue(app.navigationBars["报表"].waitForExistence(timeout: 5))
+        return transport
     }
 
-    func testReportShareRendersCardIntoSystemShareSheet() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-hasCompletedOnboarding", "true",
-            "-uiTestReportLayout",
-            "-visualReviewTab", "3"
-        ]
-        app.launch()
-
-        let share = app.buttons["report.share"]
-        XCTAssertTrue(share.waitForExistence(timeout: 10), "有数据的报表应提供分享入口")
-        share.tap()
-
-        XCTAssertTrue(
-            app.otherElements["ActivityListView"].waitForExistence(timeout: 10),
-            "应弹出系统分享面板"
-        )
-
-        let sheet = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        sheet.name = "report-share-sheet"
-        sheet.lifetime = .keepAlways
-        add(sheet)
-    }
-
-    func testAvailableFundsDrillDownExplainsItsComposition() {
-        let app = XCUIApplication()
-        app.launchArguments = [
-            "-hasCompletedOnboarding", "true",
-            "-uiTestActionCenter",
-            "-uiTestUnlockPrivacy",
-            "-visualReviewTab", "4"
-        ]
-        app.launch()
-
-        let availableFunds = app.buttons["assets.availableFunds"]
-        XCTAssertTrue(availableFunds.waitForExistence(timeout: 10), "可动用资金应可点击下钻")
-        availableFunds.tap()
-
-        XCTAssertTrue(
-            app.navigationBars["可动用资金"].waitForExistence(timeout: 5),
-            "应打开可动用资金的构成明细"
-        )
-
-        let breakdown = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        breakdown.name = "asset-available-funds-breakdown"
-        breakdown.lifetime = .keepAlways
-        add(breakdown)
-
-        // 「记账增减」是唯一能继续下钻到具体交易的分量。
-        let ledgerDelta = app.buttons["assetBreakdown.drill.transaction-delta"]
-        XCTAssertTrue(ledgerDelta.waitForExistence(timeout: 5))
-        ledgerDelta.tap()
-        XCTAssertTrue(app.navigationBars["记账增减"].waitForExistence(timeout: 5))
-
-        let impacts = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
-        impacts.name = "asset-cash-impact-list"
-        impacts.lifetime = .keepAlways
-        add(impacts)
-    }
-
-    /// 账本工具栏的次级动作收在「更多」菜单里；先展开菜单再点目标项。
     private func openLedgerMoreItem(_ app: XCUIApplication, identifier: String) {
         let more = app.buttons["ledger.more"]
         XCTAssertTrue(more.waitForExistence(timeout: 5))

@@ -90,6 +90,7 @@ struct ReportDateRange: Equatable, Sendable {
     }
 }
 
+/// 一次报表定位的结果：报告期区间与用于同比的对照期区间。
 struct ReportPeriodSelection: Equatable, Sendable {
     let period: ReportPeriod
     let target: ReportTarget
@@ -97,6 +98,7 @@ struct ReportPeriodSelection: Equatable, Sendable {
     let comparisonRange: ReportDateRange
 }
 
+/// 报表图表上的一个时间桶（日报按小时、月报按天等），可点开下钻。
 struct ReportTimeBucket: Identifiable, Equatable, Sendable {
     enum Granularity: String, Codable, Hashable, Sendable {
         case hour

@@ -31,6 +31,22 @@ final class AssetBreakdownTests: XCTestCase {
         XCTAssertEqual(lines.last?.amount, 11_600)
     }
 
+    /// 「资金净额」有自己的下钻口径：只是手工登记的资金项正负相抵。
+    /// 它以前借用「可动用资金」的明细，于是点开看到的标题和数字都不是自己那一格。
+    func testNetFundsBreakdownExplainsOnlyTheManualItems() {
+        let lines = healthySnapshot().breakdown(.netFunds)
+
+        XCTAssertEqual(lines.map(\.label), ["现金", "可赎回理财", "朋友借款", "资金净额"])
+        XCTAssertEqual(lines.last?.amount, 13_000)
+        XCTAssertEqual(AssetBreakdownKind.netFunds.title, "资金净额")
+        XCTAssertNil(
+            lines.first { $0.id == "transaction-delta" },
+            "资金净额不含记账增减——那是可动用资金才要解释的部分"
+        )
+        XCTAssertNil(lines.first { $0.id == "installment-remaining" }, "资金净额不含分期待还")
+        XCTAssertTrue(lines.allSatisfy { !$0.drillsIntoCashImpact })
+    }
+
     /// 「记账增减」是唯一一个用户无从查证的分量，必须能继续下钻。
     func testOnlyTheLedgerDeltaOffersASecondLevelDrill() {
         let lines = healthySnapshot().breakdown(.availableFunds)

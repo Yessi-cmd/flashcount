@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// 分期账单列表与还款。还款默认同时写一条支出——否则「还钱」会表现为凭空多出钱；
+/// 仅当用户已手工记过时才应关闭该选项。
 struct InstallmentBillView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService

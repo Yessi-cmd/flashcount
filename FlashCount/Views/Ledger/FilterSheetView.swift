@@ -3,17 +3,20 @@ import SwiftData
 
 // MARK: - 筛选类型
 
+/// 账本按收支类型筛选。`rawValue` 直接作为筛选标签文案。
 enum TransactionTypeFilter: String, CaseIterable, Hashable, Sendable {
     case all = "全部"
     case expense = "支出"
     case income = "收入"
 }
 
+/// 账本排序字段。
 enum TransactionSortField: String, CaseIterable, Hashable, Sendable {
     case date = "时间"
     case amount = "金额"
 }
 
+/// 账本排序方向。
 enum TransactionSortDirection: String, CaseIterable, Hashable, Sendable {
     case descending = "倒序"
     case ascending = "正序"
@@ -30,6 +33,7 @@ enum TransactionSortDirection: String, CaseIterable, Hashable, Sendable {
 
 // MARK: - 筛选面板
 
+/// 账本的筛选与排序面板。
 struct FilterSheetView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(

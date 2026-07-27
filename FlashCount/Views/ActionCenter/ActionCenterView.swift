@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 
+/// 本地行动中心：把预算风险、待扣款、分期、周期建议与未完成提醒集中到一处。
+/// 数据全部来自 `LocalActionCenterService`，账本页图标上的 badge 必须与这里同口径。
 struct ActionCenterView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext

@@ -17,7 +17,7 @@ FlashCountApp.swift          → @main entry, WindowGroup, versioned ModelContai
 ## Build & Run
 
 ```bash
-xcodegen generate          # Generate .xcodeproj from project.yml
+./scripts/generate-project.sh   # Generate .xcodeproj from project.yml
 open FlashCount.xcodeproj  # Open in Xcode, then Cmd+R to run
 
 # Run tests on a simulator
@@ -28,6 +28,8 @@ xcodebuild test -project FlashCount.xcodeproj -scheme FlashCount \
 Targets: `FlashCount` (app), `FlashCountTests` (unit), `FlashCountUITests` (UI smoke). Configs: `Debug`, `Release`. The former `FlashCountWidget` extension was removed in July 2026 — it only offered deep-link shortcuts and never shipped in AltStore packages; quick entry lives in Siri/Back Tap/Shortcuts instead. GitHub Actions (`.github/workflows/ios-ci.yml`) regenerates the project and runs the full test suite on an iOS simulator for pushes and PRs to `main`.
 
 Never hand-edit `FlashCount.xcodeproj/` — edit `project.yml`, then regenerate with XcodeGen.
+
+Regenerate via `scripts/generate-project.sh`, not bare `xcodegen generate`. `project.yml` includes `project.local.yml` (machine-private Release signing, gitignored), and **XcodeGen's `include` cannot be optional** — `optional: true` is silently ignored and a missing file aborts generation while still exiting 0. That broke every CI run from 2026-07-26 until it was fixed, and it breaks every fresh clone. The script writes a comment-only placeholder when the file is absent.
 
 ## Critical Money Conventions
 
@@ -64,6 +66,8 @@ Light mode is the default; appearance preference lives in `@AppStorage("appearan
 ### Privacy Lock
 `PrivacyLockService` is an `ObservableObject` injected via `.environmentObject()` at `AppRootView`. Views that display sensitive amounts (salary income, cash pool, savings goals, installment bills) must guard with `privacyLock.isUnlocked`. The lock engages when `scenePhase != .active`.
 
+`requestReveal()` goes straight to biometrics. There used to be a confirmation dialog in front of it; it was removed because the user tapped the masked value on purpose — the system auth sheet is the confirmation, and its reason string carries the "visible for this session, hidden again on background" explanation. Do not re-add a pre-auth confirmation step. Switching to the asset tab does **not** re-lock either: backgrounding already locks, so re-locking per tab switch only multiplied the unlock cost by the number of switches. `isUnlocked` must still never be set true without a successful evaluation — `FinanceDomainTests` guards that.
+
 ## Model Relationships
 
 - `Transaction` → optional `Category`, `Ledger`, `RecurringRule`
@@ -99,6 +103,7 @@ Grouped under `FlashCount/Services/`:
 | `NotificationScheduleCoordinator` / `ReminderNotificationService` | Local notification scheduling |
 | `PrivacyLockService` | Face ID / device passcode gate for sensitive amounts |
 | `TransactionMutationService` / `LedgerQueryService` | Transaction writes with undo snapshots; ledger queries |
+| `QuickEntryFeedbackCenter` | Post-save feedback channel for quick entry. Injected at `AppRootView` (not `MainTabView` — the DEBUG quick-entry review path bypasses the tab view and would crash without it). Holds the saved transaction by `PersistentIdentifier`, not by object, so undo cannot act on a stale reference; expires itself after `visibleSeconds`. |
 
 ## Caveats
 
@@ -113,6 +118,13 @@ Grouped under `FlashCount/Services/`:
 - The report's income composition card and the shared image card both hide income entirely while the privacy lock is engaged — for income, the category names (工资, 奖金) are themselves the disclosure, not just the amounts.
 - `ReportShareCard` takes every value as a parameter. `ImageRenderer` draws outside the view hierarchy, so any `@EnvironmentObject` it reached for would render blank.
 - The report tab only generates while `isActive`. TabView keeps the page alive, so without that guard every ledger save rebuilds the report offscreen.
+- Saving a quick entry closes the sheet immediately; confirmation, the post-save budget reminder and **undo** all live in the toast that `MainTabView` overlays (`QuickEntrySavedToast`). There is deliberately no blocking success page and no "再记一笔" button in the toast — the toast floats directly above the tab bar's own 记一笔 button. Do not reintroduce a modal success state: it charged every entry one extra tap at the exact moment the task was already done.
+- A category tile has exactly one tap behaviour: select (falling back to the last-used child of that root). The wheel opens from the visible 换小类 button under the grid, or VoiceOver's "选择小类" action. Two cleverer designs were tried and measured as broken — a corner chevron badge (the tile's tappable box is only ~38pt wide, so a 32pt badge sat on its centre and "tapping the middle" opened the wheel) and `simultaneousGesture(LongPressGesture)` (it swallowed plain taps and the tile stopped responding). The comment in `CategorySelectionTile` says so; don't walk back into either.
+- The keypad's `收入`/`支出` keys sit next to 6 and 3, so a mis-tap is cheap to make. Switching type remembers each side's own selection (`rememberedExpenseCategory` / `rememberedIncomeCategory`) so a round trip is lossless, and the keypad path gives haptic feedback. The `+` key accumulates into `pendingSum`; `resolvedAmount()` is the only place that decides what gets saved.
+- The middle tab-bar button always opens quick entry, on every tab. It used to become an action menu on the asset tab — one button, two behaviours — while 添加资金项 was already in that tab's toolbar.
+- `AdaptiveMetricRow` switches on `dynamicTypeSize.isAccessibilitySize`, deliberately **not** `ViewThatFits`. The metric cells carry `maxWidth: .infinity` for equal-width columns, and a flexible candidate answers "fits" for any proposed width, so `ViewThatFits` would always pick the horizontal branch and the adaptation would silently do nothing.
+- The ledger's search field and date strip are a pinned section header, so they stay reachable while scrolling the list without moving above the summary card. The action-center badge count is computed in a `.task(id:)` off the render path (it runs `pendingOccurrences`, which replays recurring rules) and feeds on the same inputs as `ActionCenterView` — a badge that says 3 while the sheet lists 4 is worse than no number.
+- The report's logging heatmap uses fixed 30pt square cells rather than `.flexible()` columns: filling the card width stretched each day into a ~44×16 bar, which reads as a barcode instead of a calendar. `loggingDays` is Monday-aligned and 35–41 days long, so the grid is 5–6 rows with a possibly short last row.
 - `Views/VisualExploration/` is a DEBUG-only design lab reached via launch arguments; it never runs in Release.
 - `-uiTestUnlockPrivacy` (DEBUG only) starts `PrivacyLockService` unlocked so UI tests and visual reviews can see privacy-gated screens; biometrics cannot be satisfied in the simulator.
 

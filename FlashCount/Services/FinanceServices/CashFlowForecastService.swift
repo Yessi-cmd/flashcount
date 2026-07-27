@@ -1,5 +1,6 @@
 import Foundation
 
+/// 现金流预测的时间跨度选项。
 enum CashFlowForecastHorizon: String, CaseIterable, Identifiable {
     case currentCycle
     case thirtyDays
@@ -18,6 +19,7 @@ enum CashFlowForecastHorizon: String, CaseIterable, Identifiable {
     }
 }
 
+/// 预测口径：只算已确定的固定支出，还是把日常消费的估算也计入。
 enum CashFlowForecastMode: String, CaseIterable, Identifiable {
     case fixedOnly
     case fixedAndRoutine
@@ -32,6 +34,7 @@ enum CashFlowForecastMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// 预测事件的来源（周期规则、分期还款等），用于在时间线上说明这笔钱从哪来。
 enum CashFlowEventSource: String, Codable, CaseIterable {
     case recurring
     case installment
@@ -46,6 +49,7 @@ enum CashFlowEventSource: String, Codable, CaseIterable {
     }
 }
 
+/// 预测时间线上的一笔已知收支。
 struct CashFlowEvent: Identifiable, Equatable {
     let id: String
     let date: Date
@@ -58,6 +62,7 @@ struct CashFlowEvent: Identifiable, Equatable {
     var isExpense: Bool { signedAmount < 0 }
 }
 
+/// 预测曲线上的一天：当天余额与当天发生的事件。
 struct CashFlowForecastPoint: Identifiable, Equatable {
     var id: Date { date }
     let date: Date
@@ -69,6 +74,7 @@ struct CashFlowForecastPoint: Identifiable, Equatable {
     let events: [CashFlowEvent]
 }
 
+/// 一次现金流预测的完整结果，含最低点——用户真正要问的是「哪天会不够」。
 struct CashFlowForecast: Equatable {
     let referenceDate: Date
     let endDate: Date

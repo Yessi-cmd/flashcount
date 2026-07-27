@@ -31,7 +31,10 @@ jobs:
           xcodegen --version
 
       - name: Regenerate Xcode project
-        run: xcodegen generate
+        # 用脚本而不是直接 xcodegen generate：project.yml include 的
+        # project.local.yml 是本机私有文件，CI 上不存在，而 XcodeGen 的 include
+        # 不支持可选，缺文件会直接失败。脚本会补占位文件。
+        run: ./scripts/generate-project.sh
 
       - name: Install iOS Simulator runtime
         run: |

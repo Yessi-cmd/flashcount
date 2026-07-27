@@ -1,16 +1,20 @@
 import Foundation
 import UserNotifications
 
+/// 一条待安排通知的来源：某个提醒的第几次触发，或某种周期的报表提醒。
 enum NotificationCandidateKind: Equatable {
     case reminder(id: UUID, offsetIndex: Int)
     case report(period: ReportPeriod)
 }
 
+/// 通知的打扰级别。强提醒用 `.timeSensitive` 以穿透专注模式。
 enum NotificationInterruptionKind: Equatable {
     case active
     case timeSensitive
 }
 
+/// 一条候选通知。`sortPriority` 保证名额不足时先保住提醒的首次触发，
+/// 再考虑后续触发和报表提醒。
 struct NotificationScheduleCandidate: Equatable {
     let identifier: String
     let kind: NotificationCandidateKind
@@ -29,6 +33,10 @@ struct NotificationScheduleCandidate: Equatable {
     }
 }
 
+/// 在系统名额上限内的取舍结果：`selected` 已安排，`dropped` 被放弃。
+///
+/// 排序按触发时间优先、再按 `sortPriority`、最后按标识符——最后一项是为了
+/// 让结果稳定可测，避免同时刻候选的取舍随机。
 struct NotificationScheduleSelection: Equatable {
     let selected: [NotificationScheduleCandidate]
     let dropped: [NotificationScheduleCandidate]
@@ -56,6 +64,11 @@ struct NotificationScheduleSelection: Equatable {
     }
 }
 
+/// 把提醒与报表偏好推演成候选通知，并在系统名额内做取舍。
+///
+/// iOS 每个 App 最多 64 条待处理本地通知，超出的会被系统静默丢弃。
+/// 因此这里必须显式取舍并把被放弃的部分记录下来告知用户，
+/// 否则「设置了提醒但没响」将无从解释。
 enum NotificationSchedulePlanner {
     static let maximumPendingRequests = 64
     static let reminderIdentifierPrefix = "flashcount.reminder."
@@ -160,6 +173,10 @@ enum NotificationSchedulePlanner {
     }
 }
 
+/// 上一次通知安排的结果，持久化后供设置页说明情况。
+///
+/// `summary` 是给用户看的一句话：安排失败或有远期通知被放弃时必须说清，
+/// 静默失败会让用户以为提醒已经生效。
 struct NotificationScheduleStatus: Codable, Equatable {
     let scheduledCount: Int
     let capacity: Int
@@ -194,6 +211,7 @@ struct NotificationScheduleStatus: Codable, Equatable {
     }
 }
 
+/// `NotificationScheduleStatus` 的 `UserDefaults` 读写。
 struct NotificationScheduleStatusStore {
     static let key = "notificationScheduleStatus.v1"
 
@@ -229,6 +247,8 @@ struct NotificationScheduleStatusStore {
     }
 }
 
+/// 对 `UNUserNotificationCenter` 的最小抽象，让排期逻辑可以在测试里
+/// 用假实现验证——真实通知中心在单元测试环境下不可用。
 protocol NotificationCenterScheduling: Sendable {
     func pendingRequests() async -> [UNNotificationRequest]
     func supportsTimeSensitiveNotifications() async -> Bool
@@ -236,6 +256,7 @@ protocol NotificationCenterScheduling: Sendable {
     func removePendingRequests(withIdentifiers identifiers: [String]) async
 }
 
+/// 走真实 `UNUserNotificationCenter` 的实现。
 struct SystemNotificationCenterScheduler: NotificationCenterScheduling {
     func pendingRequests() async -> [UNNotificationRequest] {
         await withCheckedContinuation { continuation in
@@ -262,6 +283,11 @@ struct SystemNotificationCenterScheduler: NotificationCenterScheduling {
     }
 }
 
+/// 本地通知安排的唯一出口。
+///
+/// 做成 actor 是因为重排会被启动、设置变更、导入完成等多处并发触发，
+/// 而「先清空再写入」这个过程若交错执行会留下重复或缺失的通知。
+/// 各数据来源以闭包注入，便于测试替换。
 actor NotificationScheduleCoordinator {
     static let shared = NotificationScheduleCoordinator()
 

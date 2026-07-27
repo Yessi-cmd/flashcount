@@ -111,6 +111,8 @@ struct DeletedTransactionSnapshot {
     }
 }
 
+/// 交易写入被拒绝的原因。金额一律正数存储，符号由 `isExpense` 决定，
+/// 因此 0 与负数在这里就被挡住。
 enum TransactionMutationError: LocalizedError {
     case invalidAmount
 

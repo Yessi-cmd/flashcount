@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 行动中心顶部的总览。
 struct ActionCenterSummaryView: View {
     let snapshot: LocalActionCenterSnapshot
 

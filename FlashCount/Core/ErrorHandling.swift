@@ -42,6 +42,11 @@ extension View {
 
 // MARK: - 触觉反馈
 
+/// 触觉反馈的统一入口。
+///
+/// 生成器按类型复用并在触发后 `prepare()`，避免每次新建带来的首次延迟。
+/// 记账页的每个「结果」都应给反馈：保存成功、金额非法、切换收支类型——
+/// 尤其是键盘上紧邻数字的收支键，没有回执时误触会被当成输错了数字。
 enum HapticManager {
     private static let lightImpactGenerator = UIImpactFeedbackGenerator(style: .light)
     private static let mediumImpactGenerator = UIImpactFeedbackGenerator(style: .medium)

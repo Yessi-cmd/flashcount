@@ -1,10 +1,24 @@
 import SwiftUI
+import SwiftData
 
 /// 首次启动引导页
+///
+/// 这里过去只是四条功能介绍加一个「开始使用」，然后把人丢进空账本。
+/// 问题在于：预算和报表整套口径都建立在发薪周期上，默认每月 1 日；
+/// 15 号发薪的用户在自己翻到设置之前，看到的每一个周期数字都是错的，
+/// 而界面不会有任何提示。所以引导必须问一次发薪日——这是个静默错误，
+/// 比少介绍一个功能严重得多。预算是顺带的第二个输入，可以跳过。
 struct OnboardingView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Binding var isPresented: Bool
     var onComplete: () -> Void = {}
+
+    @AppStorage("payday") private var payday = 1
+
+    @State private var draftPayday = 1
+    @State private var budgetText = ""
+    @State private var saveError: String?
 
     private let features: [(icon: String, title: String, desc: String, color: Color)] = [
         ("bolt.fill", "极速记账", "打开即记，3 秒搞定", DesignSystem.primaryColor),
@@ -31,6 +45,10 @@ struct OnboardingView: View {
                             .foregroundStyle(DesignSystem.textSecondary)
                     }
                     .padding(.top, 36)
+
+                    paydaySetup
+
+                    budgetSetup
 
                     VStack(spacing: 16) {
                         ForEach(features, id: \.title) { feature in
@@ -75,8 +93,7 @@ struct OnboardingView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 Button {
-                    onComplete()
-                    withAnimation(reduceMotion ? nil : .spring(response: 0.4)) { isPresented = false }
+                    complete()
                 } label: {
                     Text("开始使用")
                         .font(.headline)
@@ -91,6 +108,128 @@ struct OnboardingView: View {
                 .background(.regularMaterial)
             }
         }
+        .onAppear {
+            draftPayday = payday
+        }
+        .alert("预算未能保存", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("好的", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
+    }
+
+    private var paydaySetup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("你每月几号发薪？", systemImage: "calendar.badge.clock")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(DesignSystem.textPrimary)
+
+            Stepper(value: $draftPayday, in: 1...31) {
+                Text("每月 \(draftPayday) 日")
+                    .font(.subheadline.weight(.medium))
+                    .monospacedDigit()
+                    .foregroundStyle(DesignSystem.primaryColor)
+            }
+            .accessibilityIdentifier("onboarding.payday")
+
+            Text("预算、报表和「本周期」都按这一天切分。某个月没有这一天时自动用当月最后一天。以后可在设置里改。")
+                .font(.caption)
+                .foregroundStyle(DesignSystem.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .background(DesignSystem.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(DesignSystem.primaryColor.opacity(0.24), lineWidth: 1)
+        )
+    }
+
+    private var budgetSetup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("本周期日常预算（可跳过）", systemImage: "chart.pie.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(DesignSystem.textPrimary)
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("¥")
+                    .font(.title3)
+                    .foregroundStyle(DesignSystem.textSecondary)
+                TextField("留空则先不设预算", text: $budgetText)
+                    .keyboardType(.decimalPad)
+                    .font(.title3.monospacedDigit())
+                    .foregroundStyle(DesignSystem.textPrimary)
+                    .accessibilityIdentifier("onboarding.budget")
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(DesignSystem.softFill)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            HStack(spacing: 8) {
+                ForEach(["3000", "5000", "8000"], id: \.self) { amount in
+                    Button {
+                        budgetText = amount
+                        HapticManager.selection()
+                    } label: {
+                        Text("¥\(amount)")
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 34)
+                            .background(DesignSystem.softFill)
+                            .foregroundStyle(DesignSystem.textSecondary)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text("填了就能立刻看到每天可花多少；之后在预算页随时调整。")
+                .font(.caption)
+                .foregroundStyle(DesignSystem.textSecondary)
+        }
+        .padding()
+        .background(DesignSystem.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(DesignSystem.borderColor, lineWidth: 1)
+        )
+    }
+
+    /// 发薪日先落盘，预算按它所在的周期建立——顺序颠倒会把预算挂到错误的周期上。
+    private func complete() {
+        payday = draftPayday
+
+        let trimmed = budgetText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            switch MoneyValidation.parse(trimmed, requirement: .positive) {
+            case .success(let amount):
+                let cycle = PayCycleService.cycle(payday: draftPayday)
+                modelContext.insert(
+                    Budget(
+                        monthlyLimit: amount,
+                        year: cycle.budgetYear,
+                        month: cycle.budgetMonth
+                    )
+                )
+                if let error = safeSave(modelContext) {
+                    // 预算没存上不该拦住用户进入 App：发薪日已经生效，预算稍后可补。
+                    saveError = error
+                    return
+                }
+            case .failure(let error):
+                saveError = error.errorDescription ?? "预算金额无效"
+                return
+            }
+        }
+
+        onComplete()
+        withAnimation(reduceMotion ? nil : .spring(response: 0.4)) { isPresented = false }
     }
 }
 

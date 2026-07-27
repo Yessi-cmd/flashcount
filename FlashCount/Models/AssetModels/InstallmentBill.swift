@@ -1,6 +1,11 @@
 import Foundation
 import SwiftData
 
+/// 一笔分期账单。
+///
+/// 未还部分计入总负债，并从可动用资金里扣除（可动用资金 = 资金净额 +
+/// 记账增减 − 分期待还）。因此还款必须同时写一条支出，否则「还钱」会
+/// 表现为凭空多出钱——见 `InstallmentRepaymentService`。
 @Model
 final class InstallmentBill {
     var id: UUID

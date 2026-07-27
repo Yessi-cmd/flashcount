@@ -194,6 +194,7 @@ struct TemplateManagementView: View {
 
 // MARK: - 模板编辑 / 新建
 
+/// 新增或编辑一个记账模板。
 struct TemplateEditView: View {
     @Environment(\.dismiss) private var dismiss
 

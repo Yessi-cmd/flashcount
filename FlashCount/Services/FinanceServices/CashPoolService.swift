@@ -1,6 +1,13 @@
 import Foundation
 import SwiftData
 
+/// 资金池的读写。
+///
+/// 核心公式：可动用资金 = 资金净额 + 记账增减 − 分期待还。其中「记账增减」
+/// 是自安装起累加的 `CashPoolState.transactionDelta`，用户无从自行核对，
+/// 所以资产页要能下钻到它背后的交易。`state()` 顺带把历史导入可能留下的
+/// 多条状态合并成一条——多条会让余额来源不确定。
+/// `calibrate` 是最后手段：它把差异抹平，而不是解释差异。
 @MainActor
 final class CashPoolService {
     private let modelContext: ModelContext

@@ -1,6 +1,7 @@
 import SwiftUI
 import SwiftData
 
+/// 本地数据健康中心：扫描、预览、执行修复。预览后数据若有变化必须重新扫描。
 struct DataHealthCenterView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss

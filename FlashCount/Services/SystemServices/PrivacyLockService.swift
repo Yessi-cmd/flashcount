@@ -3,6 +3,10 @@ import Foundation
 import LocalAuthentication
 import SwiftUI
 
+/// 什么该被隐私锁遮挡的唯一判定处。
+///
+/// 集中在这里是为了让「收入、资产、受保护收入的元数据」三条规则在所有页面
+/// 一致——散落在各视图里迟早会漏掉一处，而漏掉一处就等于隐私锁没生效。
 enum PrivacyVisibilityPolicy {
     static func hidesIncome(isExpense: Bool, isUnlocked: Bool) -> Bool {
         !isExpense && !isUnlocked
@@ -17,11 +21,16 @@ enum PrivacyVisibilityPolicy {
     }
 }
 
+/// 隐私金额的解锁状态。
+///
+/// 注入在 `AppRootView`，全 App 共享一个实例。`isUnlocked` 只能由一次成功的
+/// 生物识别或设备密码验证置真——任何「先显示再验证」的写法都是安全缺陷。
+/// 进入后台时上锁（见 `AppRootView`）；切换 tab 不上锁，那只会把解锁成本
+/// 乘上切换次数。
 @MainActor
 final class PrivacyLockService: ObservableObject {
     @Published private(set) var isUnlocked = false
     @Published var lastError: String?
-    @Published var isRevealConfirmationPresented = false
 
     var maskedText: String { "****" }
     var hidesSensitiveAmounts: Bool { !isUnlocked }
@@ -36,20 +45,20 @@ final class PrivacyLockService: ObservableObject {
 #endif
     }
 
+    /// 用户点眼睛按钮或点一个被遮挡的数字时直接进生物识别。
+    ///
+    /// 这里以前先弹一次「显示隐私金额？」确认，再走 Face ID——两步里第一步没有
+    /// 提供任何新信息：用户主动点的就是那个数字，意图已经明确，而系统验证弹窗
+    /// 本身就是确认环节。原先那句说明并入了下面的验证原因文案。
     func requestReveal() {
         guard !isUnlocked else { return }
         lastError = nil
-        isRevealConfirmationPresented = true
-    }
-
-    func confirmReveal() async -> Bool {
-        isRevealConfirmationPresented = false
-        return await unlock()
+        Task { _ = await unlock() }
     }
 
     private func unlock() async -> Bool {
         lastError = nil
-        let reason = "显示收入、资产和其他隐私金额"
+        let reason = "显示收入、资产和其他隐私金额；本次使用期间保持可见，进入后台后自动隐藏"
 
         switch await evaluateBiometrics(reason: reason) {
         case .unlocked:
@@ -123,11 +132,11 @@ final class PrivacyLockService: ObservableObject {
     }
 
     func lock() {
-        isRevealConfirmationPresented = false
         isUnlocked = false
     }
 }
 
+/// 眼睛按钮：已解锁时立即上锁，未解锁时直接发起生物识别。
 struct PrivacyVisibilityButton: View {
     @EnvironmentObject private var privacyLock: PrivacyLockService
 
@@ -145,6 +154,6 @@ struct PrivacyVisibilityButton: View {
                 .frame(width: 44, height: 44)
         }
         .accessibilityLabel(privacyLock.isUnlocked ? "隐藏隐私金额" : "验证并显示隐私金额")
-        .accessibilityHint(privacyLock.isUnlocked ? "立即隐藏所有收入和资产金额" : "先确认，再验证设备所有者身份")
+        .accessibilityHint(privacyLock.isUnlocked ? "立即隐藏所有收入和资产金额" : "验证设备所有者身份后显示，进入后台会自动隐藏")
     }
 }

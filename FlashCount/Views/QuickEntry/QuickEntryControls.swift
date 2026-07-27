@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// 记账页的自定义数字键盘。键位含义与「+」累加见 `QuickEntryAmountInput`。
 struct QuickEntryNumberPad: View {
     let onKeyPress: (String) -> Void
 
@@ -8,11 +9,13 @@ struct QuickEntryNumberPad: View {
     // 压缩键盘高度，把屏幕比例还给上方表单区。
     private let liquidGlassLabelHeight: CGFloat = 38
 
+    // 右下角原本是个空键位，白占 1/16 的键盘面积。
+    // 「+」把拆账、凑总额这个记账里最常见的算术补上了。
     private let buttons = [
         ["7", "8", "9", "⌫"],
         ["4", "5", "6", "收入"],
         ["1", "2", "3", "支出"],
-        [".", "0", "00", ""]
+        [".", "0", "00", "+"]
     ]
 
     var body: some View {
@@ -20,11 +23,7 @@ struct QuickEntryNumberPad: View {
             ForEach(buttons, id: \.self) { row in
                 HStack(spacing: 5) {
                     ForEach(row, id: \.self) { button in
-                        if button.isEmpty {
-                            Color.clear.frame(height: legacyKeyHeight)
-                        } else {
-                            keyButton(for: button)
-                        }
+                        keyButton(for: button)
                     }
                 }
             }
@@ -53,7 +52,7 @@ struct QuickEntryNumberPad: View {
         .buttonStyle(.glass)
         .buttonBorderShape(.roundedRectangle(radius: 10))
         .tint(glassButtonTint(for: button))
-        .accessibilityLabel(button == "⌫" ? "删除最后一位" : button)
+        .accessibilityLabel(Self.accessibilityLabel(for: button))
         .accessibilityIdentifier("quickEntry.key.\(button)")
     }
 #endif
@@ -75,8 +74,16 @@ struct QuickEntryNumberPad: View {
                 }
         }
         .buttonStyle(PressableButtonStyle())
-        .accessibilityLabel(button == "⌫" ? "删除最后一位" : button)
+        .accessibilityLabel(Self.accessibilityLabel(for: button))
         .accessibilityIdentifier("quickEntry.key.\(button)")
+    }
+
+    private static func accessibilityLabel(for button: String) -> String {
+        switch button {
+        case "⌫": return "删除最后一位"
+        case "+": return "累加当前金额，继续输入下一笔"
+        default: return button
+        }
     }
 
     private func baseKeyLabel(for button: String, height: CGFloat) -> some View {
@@ -94,12 +101,14 @@ struct QuickEntryNumberPad: View {
     private func glassButtonTint(for button: String) -> Color {
         if button == "收入" { return DesignSystem.incomeColor.opacity(0.20) }
         if button == "支出" { return DesignSystem.expenseColor.opacity(0.20) }
+        if button == "+" { return DesignSystem.primaryColor.opacity(0.18) }
         return DesignSystem.cardBackground.opacity(0.16)
     }
 
     private func background(for button: String) -> Color {
         if button == "收入" { return DesignSystem.incomeColor.opacity(0.12) }
         if button == "支出" { return DesignSystem.expenseColor.opacity(0.12) }
+        if button == "+" { return DesignSystem.primaryColor.opacity(0.10) }
         return DesignSystem.softFill
     }
 
@@ -107,10 +116,12 @@ struct QuickEntryNumberPad: View {
         if button == "⌫" { return DesignSystem.textSecondary }
         if button == "收入" { return DesignSystem.incomeColor }
         if button == "支出" { return DesignSystem.expenseColor }
+        if button == "+" { return DesignSystem.primaryColor }
         return DesignSystem.textPrimary
     }
 }
 
+/// 记账页的保存按钮，颜色跟随收支类型。
 struct QuickEntrySubmitButton: View {
     let isEnabled: Bool
     let isExpense: Bool
