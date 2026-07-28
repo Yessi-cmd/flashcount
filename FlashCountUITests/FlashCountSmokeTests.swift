@@ -263,43 +263,34 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(undo.waitForNonExistence(timeout: 3), "撤销后提示条应收起")
     }
 
-    /// 未选中的一级分类点一下就选中。出行有小类，过去点它只会打开圆盘，
-    /// 最常走的那条路被硬性拉成两次点击。
-    func testTappingUnselectedCategoryTileSelectsInsteadOfOpeningWheel() {
+    /// 带小类的一级分类点一下直接打开圆盘。
+    func testTappingCategoryTileWithChildrenOpensWheel() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
         let transport = openQuickEntryAndRevealTransportTile(app)
         XCTAssertEqual(transport.value as? String, "未选中", "出行不应是默认选中项")
-
-        // 断言落在分类区下方那行「已选 …」上：选中会收起「全部分类」，
-        // 回头重新展开去读格子状态会撞上收起动画，测出来是不稳定的。
-        let selectionBefore = currentSelectionLabel(app)
         transport.tap()
 
-        XCTAssertFalse(
-            app.otherElements["categoryWheelOverlay"].waitForExistence(timeout: 2),
-            "点按未选中的一级分类不应弹圆盘"
-        )
-        XCTAssertNotEqual(
-            currentSelectionLabel(app),
-            selectionBefore,
-            "点按后选中项应换成出行这一组"
+        XCTAssertTrue(
+            app.otherElements["categoryWheelOverlay"].waitForExistence(timeout: 3),
+            "点按带小类的一级分类应打开分类圆盘"
         )
     }
 
     /// 圆盘的入口：分类区下方那颗看得见的「换小类」按钮。
-    /// 单点直接选中之后，选具体小类必须有一个明确的去处。
     func testChangeSubcategoryButtonOpensWheel() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]
         app.launch()
 
-        openQuickEntryAndRevealTransportTile(app).tap()
+        let quickEntry = app.buttons["快速记账"]
+        XCTAssertTrue(quickEntry.waitForExistence(timeout: 5))
+        quickEntry.tap()
 
         let change = app.buttons["quickEntry.changeSubcategory"]
-        XCTAssertTrue(change.waitForExistence(timeout: 5), "选中带小类的分类后应出现「换小类」")
+        XCTAssertTrue(change.waitForExistence(timeout: 5), "默认选中的分类应出现「换小类」")
         change.tap()
 
         XCTAssertTrue(
@@ -308,17 +299,8 @@ final class FlashCountSmokeTests: XCTestCase {
         )
     }
 
-    /// 分类区下方那行「已选 …」的文案，用来判断当前选中项。
-    private func currentSelectionLabel(_ app: XCUIApplication) -> String {
-        let label = app.staticTexts
-            .matching(NSPredicate(format: "label BEGINSWITH %@", "已选 "))
-            .firstMatch
-        XCTAssertTrue(label.waitForExistence(timeout: 5), "分类区应显示当前选中项")
-        return label.label
-    }
-
     /// 「常用」只列有近期交易的分类，出行通常要展开「全部分类」才出现。
-    /// 选它而不是餐饮，是因为餐饮是默认选中项，测不出「未选中→点一下就选中」。
+    /// 选它而不是餐饮，是因为餐饮是默认选中项，能覆盖未选中大类的点按路径。
     @discardableResult
     private func openQuickEntryAndRevealTransportTile(_ app: XCUIApplication) -> XCUIElement {
         let quickEntry = app.buttons["快速记账"]
@@ -327,7 +309,7 @@ final class FlashCountSmokeTests: XCTestCase {
         return revealTransportTile(app)
     }
 
-    /// 选中动作会收起「全部分类」，所以每次读取状态前都要重新展开。
+    /// 展开后的「全部分类」落在键盘下方，需要先滚进可视区。
     @discardableResult
     private func revealTransportTile(_ app: XCUIApplication) -> XCUIElement {
         let transport = app.buttons["category.tile.出行"].firstMatch
