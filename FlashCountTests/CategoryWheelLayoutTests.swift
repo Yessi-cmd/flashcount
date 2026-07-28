@@ -51,6 +51,7 @@ final class CategoryWheelLayoutTests: XCTestCase {
         XCTAssertEqual(CategoryWheelLayout.preferredSize(itemCount: 6, availableWidth: 400, availableHeight: 700), 326)
         XCTAssertEqual(CategoryWheelLayout.preferredSize(itemCount: 9, availableWidth: 400, availableHeight: 700), 348)
         XCTAssertEqual(CategoryWheelLayout.preferredSize(itemCount: 9, availableWidth: 290, availableHeight: 700), 290)
+        XCTAssertEqual(CategoryWheelLayout.preferredSize(itemCount: 9, availableWidth: 220, availableHeight: 180), 180)
     }
 
     func testLabelFramesStayInsideWheelRimAcrossSupportedCounts() {

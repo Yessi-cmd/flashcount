@@ -98,6 +98,7 @@ final class RecurringRule {
         category: Category? = nil,
         ledger: Ledger? = nil
     ) {
+        precondition(MoneyValidation.positive(amount), "Recurring rule amount must be greater than zero")
         self.id = UUID()
         self.title = title
         self.amount = amount

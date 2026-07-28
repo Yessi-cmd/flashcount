@@ -37,6 +37,7 @@ final class Transaction {
         ledger: Ledger? = nil,
         recurringRule: RecurringRule? = nil
     ) {
+        precondition(MoneyValidation.positive(amount), "Transaction amount must be greater than zero")
         self.id = UUID()
         self.amount = amount
         self.isExpense = isExpense

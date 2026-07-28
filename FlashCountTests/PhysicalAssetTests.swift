@@ -65,6 +65,20 @@ final class PhysicalAssetTests: XCTestCase {
         XCTAssertEqual(asset.daysToTarget(asOf: day600), 0, "已达目标时不应再报剩余天数")
     }
 
+    func testDaysToTargetRoundsFractionalTargetDaysUp() throws {
+        let asset = PhysicalAsset(
+            name: "相机",
+            category: .camera,
+            purchasePrice: 6_000,
+            purchaseDate: purchaseDate,
+            salvageValue: 1_000,
+            targetDailyCost: 300 // 5000 ÷ 300 = 16.666...，需要完整的第 17 天
+        )
+        let dayOne = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 1, to: purchaseDate))
+
+        XCTAssertEqual(asset.daysToTarget(asOf: dayOne), 16)
+    }
+
     /// 出售后持有天数冻结在售出日，估值也不再随时间下滑。
     func testSoldAssetFreezesItsHoldingPeriod() throws {
         let asset = PhysicalAsset(

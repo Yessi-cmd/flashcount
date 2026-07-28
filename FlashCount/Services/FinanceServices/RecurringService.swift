@@ -16,6 +16,17 @@ final class RecurringService {
         let hasRemainingDueRules: Bool
     }
 
+    enum ProcessingError: LocalizedError {
+        case invalidRuleAmount(UUID)
+
+        var errorDescription: String? {
+            switch self {
+            case .invalidRuleAmount(let ruleID):
+                return "周期规则 \(ruleID.uuidString) 的金额无效，未生成交易"
+            }
+        }
+    }
+
     /// 处理一个有限批次的到期规则。每一笔交易、资金池变动和规则游标都
     /// 在同一次保存中提交；读取或保存失败会传递给调用方，绝不静默跳过。
     func processDueRules(
@@ -25,6 +36,15 @@ final class RecurringService {
     ) throws -> ProcessingResult {
         precondition(maxOccurrences > 0, "周期规则批次上限必须大于零")
         var generatedCount = 0
+        var completed = false
+        defer {
+            if !completed {
+                // Reconciliation and cursor changes are in-memory until the
+                // transaction reaches a save boundary. Never leave them
+                // behind when a later fetch or save fails.
+                modelContext.rollback()
+            }
+        }
 
         // Existing transactions are registered before either automatic or
         // review-mode processing so a schema upgrade cannot create duplicates.
@@ -33,7 +53,8 @@ final class RecurringService {
         // Review mode leaves due rules untouched. The recurring-rules screen
         // presents the pure preview and resolves it in one atomic batch.
         guard mode == .automatic else {
-            try modelContext.save()
+            try saveChanges()
+            completed = true
             return ProcessingResult(generatedCount: 0, hasRemainingDueRules: false)
         }
 
@@ -51,6 +72,9 @@ final class RecurringService {
         let cashPoolService = CashPoolService(modelContext: modelContext)
 
         for rule in rules {
+            guard MoneyValidation.positive(rule.amount) else {
+                throw ProcessingError.invalidRuleAmount(rule.id)
+            }
             if rule.anchorDay == nil,
                rule.frequency == .monthly || rule.frequency == .yearly {
                 rule.anchorDay = Calendar.current.component(.day, from: rule.nextDueDate)
@@ -147,7 +171,7 @@ final class RecurringService {
                     occurrencesByKey[occurrenceKey] = occurrence
                     try cashPoolService.apply(delta: cashDelta)
                     rule.nextDueDate = nextDate
-                    try modelContext.save()
+                    try saveChanges()
                     generatedCount += 1
                 } catch {
                     modelContext.rollback()
@@ -157,16 +181,13 @@ final class RecurringService {
 
             if generatedCount == maxOccurrences { break }
 
-            if modelContext.hasChanges {
-                do {
-                    try modelContext.save()
-                } catch {
-                    modelContext.rollback()
-                    throw error
-                }
-            }
+            try saveChanges()
         }
 
+        // This also persists legacy occurrence reconciliation when there were
+        // no active rules or no due transactions to generate.
+        try saveChanges()
+        completed = true
         return ProcessingResult(
             generatedCount: generatedCount,
             hasRemainingDueRules: rules.contains { $0.isActive && $0.nextDueDate <= now }
@@ -178,5 +199,15 @@ final class RecurringService {
     @discardableResult
     func processAllDueRules() throws -> Int {
         try processDueRules(mode: .automatic).generatedCount
+    }
+
+    private func saveChanges() throws {
+        guard modelContext.hasChanges else { return }
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            throw error
+        }
     }
 }

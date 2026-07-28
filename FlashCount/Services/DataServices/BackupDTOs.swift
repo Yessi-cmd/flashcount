@@ -366,6 +366,7 @@ extension DataBackupService {
         var templatesImported = 0
         var remindersImported = 0
         var skipped = 0
+        var notificationWarning: String?
 
         var summary: String {
             var parts: [String] = []
@@ -384,7 +385,8 @@ extension DataBackupService {
 
             let importedStr = parts.isEmpty ? "无新数据" : "导入：" + parts.joined(separator: "、")
             let skippedStr = skipped > 0 ? "\n跳过 \(skipped) 项已有数据" : ""
-            return importedStr + skippedStr
+            let notificationStr = notificationWarning.map { "\n通知安排失败：\($0)" } ?? ""
+            return importedStr + skippedStr + notificationStr
         }
     }
 }

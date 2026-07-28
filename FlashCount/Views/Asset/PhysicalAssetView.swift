@@ -368,7 +368,7 @@ struct AddPhysicalAssetView: View {
                             HStack {
                                 Text("预估残值（转手价）").font(.caption.weight(.medium)).foregroundStyle(DesignSystem.textSecondary)
                                 Spacer()
-                                Text("默认 \(Int(category.defaultSalvageRatio * 100))%")
+                                Text("默认 \(NSDecimalNumber(decimal: category.defaultSalvageRatio * 100).intValue)%")
                                     .font(.caption2).foregroundStyle(DesignSystem.textTertiary)
                             }
                             HStack {
@@ -441,7 +441,7 @@ struct AddPhysicalAssetView: View {
 
     private func updateDefaults() {
         guard case .success(let price) = MoneyValidation.parse(purchasePriceText, requirement: .positive) else { return }
-        let salvage = price * Decimal(category.defaultSalvageRatio)
+        let salvage = price * category.defaultSalvageRatio
         if salvageValueText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             salvageValueText = "\(salvage)"
         }
@@ -475,7 +475,7 @@ struct AddPhysicalAssetView: View {
             return
         }
 
-        let defaultSalvage = price * Decimal(category.defaultSalvageRatio)
+        let defaultSalvage = price * category.defaultSalvageRatio
         let salvage: Decimal
         if salvageValueText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             salvage = defaultSalvage

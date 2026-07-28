@@ -26,10 +26,46 @@ extension DataBackupService {
     }
 
     func importJSON(data: Data, mode: ImportMode = .merge) throws -> ImportResult {
-        try importJSON(data: data, mode: mode, recovering: false)
+        try importJSON(data: data, mode: mode, recovering: false, scheduleNotifications: true)
     }
 
-    private func importJSON(data: Data, mode: ImportMode, recovering: Bool) throws -> ImportResult {
+    /// Import from the user-facing settings flow and wait for notification
+    /// rebuilding, so a successful database import cannot hide a failed
+    /// schedule replacement.
+    func importJSONAndRebuildNotifications(
+        from url: URL,
+        mode: ImportMode = .merge
+    ) async throws -> ImportResult {
+        let data = try Data(contentsOf: url)
+        return try await importJSONAndRebuildNotifications(data: data, mode: mode)
+    }
+
+    func importJSONAndRebuildNotifications(
+        data: Data,
+        mode: ImportMode = .merge
+    ) async throws -> ImportResult {
+        var result = try importJSON(
+            data: data,
+            mode: mode,
+            recovering: false,
+            scheduleNotifications: false
+        )
+        do {
+            try await rebuildNotificationSchedule()
+        } catch {
+            // The coordinator persists the detailed failure status as well;
+            // include it in the import result so the caller can show it now.
+            result.notificationWarning = error.localizedDescription
+        }
+        return result
+    }
+
+    private func importJSON(
+        data: Data,
+        mode: ImportMode,
+        recovering: Bool,
+        scheduleNotifications: Bool
+    ) throws -> ImportResult {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let backup = try decoder.decode(BackupData.self, from: data)
@@ -58,7 +94,7 @@ extension DataBackupService {
         for category in existingCategories { categoryMap[category.id] = category }
 
         for dto in backup.categories {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "分类")
             // 按 UUID 去重
             if existingCategoryIDs.contains(dtoID) {
                 categoryMap[dtoID] = existingCategories.first { $0.id == dtoID }
@@ -92,7 +128,8 @@ extension DataBackupService {
         // 同名分类在合并导入时可能会映射到本地 UUID；所有合并关系都必须
         // 指向实际持久化分类，而非备份中的原始 UUID。
         for dto in backup.categories {
-            guard let category = categoryMap[UUID(uuidString: dto.id)!] else { continue }
+            let dtoID = try Self.validatedUUID(dto.id, label: "分类")
+            guard let category = categoryMap[dtoID] else { continue }
             category.mergedIntoCategoryID = dto.mergedIntoCategoryId
                 .flatMap(UUID.init(uuidString:))
                 .flatMap { categoryMap[$0]?.id }
@@ -109,7 +146,7 @@ extension DataBackupService {
         for ledger in existingLedgers { ledgerMap[ledger.id] = ledger }
 
         for dto in backup.ledgers {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "账本")
             // 按 UUID 去重
             if existingLedgerIDs.contains(dtoID) {
                 ledgerMap[dtoID] = existingLedgers.first { $0.id == dtoID }
@@ -151,7 +188,7 @@ extension DataBackupService {
         }
 
         for dto in backup.transactions {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "账单")
             if existingTransIDs.contains(dtoID) {
                 result.skipped += 1
                 continue
@@ -193,7 +230,7 @@ extension DataBackupService {
         var ruleMap = Dictionary(uniqueKeysWithValues: existingRules.map { ($0.id, $0) })
 
         for dto in backup.recurringRules {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "周期规则")
             if existingRuleIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
@@ -228,7 +265,7 @@ extension DataBackupService {
         let existingOccurrenceIDs = Set(existingOccurrences.map(\.id))
         var existingOccurrenceKeys = Set(existingOccurrences.map(\.occurrenceKey))
         for dto in backup.recurringOccurrences {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "周期发生项")
             if existingOccurrenceIDs.contains(dtoID) || existingOccurrenceKeys.contains(dto.occurrenceKey) {
                 result.skipped += 1
                 continue
@@ -269,7 +306,7 @@ extension DataBackupService {
         let existingBudgetIDs = Set(existingBudgets.map(\.id))
 
         for dto in backup.budgets {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "预算")
             if existingBudgetIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
@@ -293,11 +330,11 @@ extension DataBackupService {
         var nextCashItemSortOrder = (existingCashItems.map(\.sortOrder).max() ?? -1) + 1
 
         for dto in backup.cashPoolItems {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "资金项")
             if existingCashItemIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
-            guard let kind = CashPoolItemKind(rawValue: dto.kind) else {
+            guard let kind = CashPoolItemKind.fromBackupKey(dto.kind) else {
                 result.skipped += 1; continue
             }
             let item = CashPoolItem(
@@ -320,7 +357,7 @@ extension DataBackupService {
         // 旧版备份里的「账户」折算成资金项，与数据库迁移走同一套规则。
         // 沿用账户原 UUID，这样同一份旧备份重复合并导入不会产生重复条目。
         for dto in backup.assets {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "账户")
             if existingCashItemIDs.contains(dtoID) {
                 result.skipped += 1; continue
             }
@@ -344,7 +381,7 @@ extension DataBackupService {
         let existingCashStates = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<CashPoolState>())
         if existingCashStates.isEmpty, let dto = backup.cashPoolStates.max(by: { $0.updatedAt < $1.updatedAt }) {
             let state = CashPoolState(transactionDelta: dto.transactionDelta.decimalValue)
-            state.id = UUID(uuidString: dto.id)!
+            state.id = try Self.validatedUUID(dto.id, label: "资金状态")
             state.updatedAt = dto.updatedAt
             modelContext.insert(state)
         } else if !existingCashStates.isEmpty {
@@ -385,8 +422,8 @@ extension DataBackupService {
         if mode == .replace {
             ReminderDataService(modelContext: modelContext).markLegacyFileMigrationComplete()
         }
-        if mode == .replace || result.remindersImported > 0 || externalSettingsChanged {
-            rebuildNotificationSchedule()
+        if scheduleNotifications && (mode == .replace || result.remindersImported > 0 || externalSettingsChanged) {
+            rebuildNotificationScheduleInBackground()
         }
         try Self.clearImportJournal()
         return result
@@ -400,7 +437,12 @@ extension DataBackupService {
         guard let journal = try Self.readImportJournal() else { return false }
         switch journal.phase {
         case .prepared:
-            _ = try importJSON(data: journal.backupData, mode: journal.mode, recovering: true)
+            _ = try importJSON(
+                data: journal.backupData,
+                mode: journal.mode,
+                recovering: true,
+                scheduleNotifications: true
+            )
         case .databaseCommitted:
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
@@ -413,7 +455,7 @@ extension DataBackupService {
             if journal.mode == .replace {
                 ReminderDataService(modelContext: modelContext).markLegacyFileMigrationComplete()
             }
-            rebuildNotificationSchedule()
+            rebuildNotificationScheduleInBackground()
             try Self.clearImportJournal()
         }
         return true
@@ -502,7 +544,7 @@ extension DataBackupService {
         let existingIDs = Set(existing.map(\.id))
 
         for dto in backup.physicalAssets {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "实物资产")
             if existingIDs.contains(dtoID) {
                 result.skipped += 1
                 continue
@@ -555,7 +597,7 @@ extension DataBackupService {
         let existingIDs = Set(existing.map(\.id))
 
         for dto in backup.installmentBills {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "分期")
             if existingIDs.contains(dtoID) {
                 result.skipped += 1
                 continue
@@ -587,7 +629,7 @@ extension DataBackupService {
         let existingIDs = Set(existing.map(\.id))
 
         for dto in backup.savingsGoals {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "储蓄目标")
             if existingIDs.contains(dtoID) {
                 result.skipped += 1
                 continue
@@ -618,7 +660,7 @@ extension DataBackupService {
         let existingIDs = Set(existing.map(\.id))
 
         for dto in backup.templates {
-            let dtoID = UUID(uuidString: dto.id)!
+            let dtoID = try Self.validatedUUID(dto.id, label: "模板")
             if existingIDs.contains(dtoID) {
                 result.skipped += 1
                 continue
@@ -667,8 +709,27 @@ extension DataBackupService {
         }
     }
 
-    private func rebuildNotificationSchedule() {
-        guard let reminders = try? ReminderDataService(modelContext: modelContext).load() else { return }
-        Task { _ = try? await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders) }
+    private func rebuildNotificationSchedule() async throws {
+        let reminders: [ReminderItem]
+        do {
+            reminders = try ReminderDataService(modelContext: modelContext).load()
+        } catch {
+            NotificationScheduleStatusStore().saveFailure(error)
+            throw error
+        }
+        _ = try await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
+    }
+
+    private func rebuildNotificationScheduleInBackground() {
+        Task {
+            do {
+                try await rebuildNotificationSchedule()
+            } catch {
+                // Scheduling failures are persisted by the coordinator. A
+                // reminder load failure has no coordinator status yet, so make
+                // that failure visible through the same status surface too.
+                NotificationScheduleStatusStore().saveFailure(error)
+            }
+        }
     }
 }

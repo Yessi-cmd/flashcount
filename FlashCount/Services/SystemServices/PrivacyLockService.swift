@@ -32,6 +32,9 @@ final class PrivacyLockService: ObservableObject {
     @Published private(set) var isUnlocked = false
     @Published var lastError: String?
 
+    private var authenticationTask: Task<Void, Never>?
+    private var authenticationGeneration = 0
+
     var maskedText: String { "****" }
     var hidesSensitiveAmounts: Bool { !isUnlocked }
 
@@ -51,9 +54,16 @@ final class PrivacyLockService: ObservableObject {
     /// 提供任何新信息：用户主动点的就是那个数字，意图已经明确，而系统验证弹窗
     /// 本身就是确认环节。原先那句说明并入了下面的验证原因文案。
     func requestReveal() {
-        guard !isUnlocked else { return }
+        guard !isUnlocked, authenticationTask == nil else { return }
         lastError = nil
-        Task { _ = await unlock() }
+        authenticationGeneration += 1
+        let generation = authenticationGeneration
+        authenticationTask = Task { [weak self] in
+            guard let self else { return }
+            _ = await self.unlock()
+            guard self.authenticationGeneration == generation else { return }
+            self.authenticationTask = nil
+        }
     }
 
     private func unlock() async -> Bool {
@@ -66,6 +76,7 @@ final class PrivacyLockService: ObservableObject {
         case .cancelled:
             return false
         case .needsFallback:
+            guard !Task.isCancelled else { return false }
             return await evaluateDeviceAuthentication(reason: reason)
         }
     }
@@ -88,6 +99,7 @@ final class PrivacyLockService: ObservableObject {
 
         do {
             let success = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+            guard !Task.isCancelled else { return .cancelled }
             isUnlocked = success
             return success ? .unlocked : .needsFallback
         } catch let authError as LAError {
@@ -114,6 +126,10 @@ final class PrivacyLockService: ObservableObject {
 
         do {
             let success = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)
+            guard !Task.isCancelled else {
+                isUnlocked = false
+                return false
+            }
             isUnlocked = success
             return success
         } catch let authError as LAError {
@@ -132,6 +148,9 @@ final class PrivacyLockService: ObservableObject {
     }
 
     func lock() {
+        authenticationGeneration += 1
+        authenticationTask?.cancel()
+        authenticationTask = nil
         isUnlocked = false
     }
 }

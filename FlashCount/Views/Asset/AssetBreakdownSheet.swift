@@ -16,7 +16,7 @@ struct AssetBreakdownSheet: View {
                     ForEach(lines) { line in
                         if line.drillsIntoCashImpact {
                             NavigationLink {
-                                CashImpactTransactionList()
+                                CashImpactTransactionList(expectedDelta: line.amount)
                             } label: {
                                 row(line)
                             }
@@ -81,7 +81,7 @@ struct AssetBreakdownSheet: View {
 /// 这个累计值从安装那天起就在后台累加，界面从不显示，
 /// 数字对不上时用户此前没有任何查证手段。
 struct CashImpactTransactionList: View {
-    @Environment(\.modelContext) private var modelContext
+    let expectedDelta: Decimal
 
     @Query(
         filter: #Predicate<Transaction> { $0.cashPoolDelta != nil },
@@ -93,6 +93,17 @@ struct CashImpactTransactionList: View {
 
     private var visible: [Transaction] {
         Array(transactions.prefix(Self.displayLimit))
+    }
+
+    private var transactionDelta: Decimal {
+        transactions.reduce(Decimal.zero) { $0 + ($1.cashPoolDelta ?? 0) }
+    }
+
+    /// Calibration and legacy/imported state can contain an offset that has no
+    /// transaction row. Show it explicitly so the drill-down still reconciles
+    /// to the exact value used by the asset snapshot.
+    private var unexplainedAdjustment: Decimal {
+        expectedDelta - transactionDelta
     }
 
     var body: some View {
@@ -122,11 +133,33 @@ struct CashImpactTransactionList: View {
                     }
                     .accessibilityElement(children: .combine)
                 }
+
+                if unexplainedAdjustment != 0 {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("校准/历史差额")
+                                .font(.subheadline)
+                                .foregroundStyle(DesignSystem.textPrimary)
+                            Text("现金池累计值与交易明细的差额")
+                                .font(.caption2)
+                                .foregroundStyle(DesignSystem.textTertiary)
+                        }
+                        Spacer(minLength: 8)
+                        Text(unexplainedAdjustment.formattedCurrency)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(
+                                unexplainedAdjustment < 0
+                                    ? DesignSystem.expenseColor
+                                    : DesignSystem.incomeColor
+                            )
+                    }
+                    .accessibilityElement(children: .combine)
+                }
             } footer: {
                 if transactions.count > visible.count {
-                    Text("累计影响由全部 \(transactions.count) 笔记账构成，这里显示最近 \(visible.count) 笔。")
+                    Text("累计影响由全部 \(transactions.count) 笔记账和校准/历史差额构成，这里显示最近 \(visible.count) 笔。")
                 } else {
-                    Text("累计影响由这 \(transactions.count) 笔记账构成。")
+                    Text("累计影响由这 \(transactions.count) 笔记账与校准/历史差额构成。")
                 }
             }
         }

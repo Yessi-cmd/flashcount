@@ -86,20 +86,21 @@ struct LedgerView: View {
         )
     }
 
-    /// badge 只在可能变化时重算：条目数量或发薪日变了。
-    /// 金额改动不影响待办条数，不值得为它跑一遍推演。
-    var actionCenterDigest: String {
-        [
-            allBudgets.count,
-            allTransactions.count,
-            recurringRules.count,
-            recurringOccurrences.count,
-            installmentBills.count,
-            reminderModels.count,
-            payday
-        ]
-        .map(String.init)
-        .joined(separator: "-")
+    /// The Action Center count depends on model values, not just collection sizes.
+    /// Keep this digest aligned with the same inputs used by the badge snapshot.
+    var actionCenterDigest: Int {
+        LocalActionCenterDigest.make(
+            budgets: allBudgets,
+            transactions: allTransactions,
+            categories: allCategories,
+            recurringRules: recurringRules,
+            occurrences: recurringOccurrences,
+            installmentBills: installmentBills,
+            reminders: reminderModels,
+            payday: payday,
+            weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent,
+            dismissedSuggestionFingerprints: UserDefaultsRecurringSuggestionDismissalStore().load()
+        )
     }
 
     func isIncomeHidden(_ transaction: Transaction) -> Bool {

@@ -493,15 +493,18 @@ struct SettingsView: View {
         guard url.startAccessingSecurityScopedResource() else {
             importResult = "无法访问文件"; showImportResult = true; return
         }
-        defer { url.stopAccessingSecurityScopedResource() }
-        do {
-            let report = try DataBackupService(modelContext: modelContext).importJSON(from: url, mode: mode)
-            importResult = report.summary
-            showImportResult = true
-            HapticManager.success()
-        } catch {
-            importResult = "导入失败：\(error.localizedDescription)"
-            showImportResult = true
+        Task { @MainActor in
+            defer { url.stopAccessingSecurityScopedResource() }
+            do {
+                let report = try await DataBackupService(modelContext: modelContext)
+                    .importJSONAndRebuildNotifications(from: url, mode: mode)
+                importResult = report.summary
+                showImportResult = true
+                HapticManager.success()
+            } catch {
+                importResult = "导入失败：\(error.localizedDescription)"
+                showImportResult = true
+            }
         }
     }
 }

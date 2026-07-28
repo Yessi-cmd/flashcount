@@ -153,6 +153,54 @@ final class NotificationScheduleCoordinatorTests: XCTestCase {
         }
     }
 
+    @MainActor
+    func testCoordinatorReportsPartialRestoreWhenRestorationAlsoFails() async throws {
+        let unmanaged = UNNotificationRequest(
+            identifier: "other.app.request",
+            content: UNMutableNotificationContent(),
+            trigger: nil
+        )
+        let previousManaged = UNNotificationRequest(
+            identifier: "flashcount.reminder.previous.0",
+            content: UNMutableNotificationContent(),
+            trigger: nil
+        )
+        let center = FakeNotificationCenter(
+            pending: [unmanaged, previousManaged],
+            failAtAdds: [2, 3]
+        )
+        let base = try date(2026, 7, 14, 8)
+        let reminders = [
+            ReminderItem(
+                title: "R0",
+                dueDate: base.addingTimeInterval(3_600),
+                intensity: .strong
+            )
+        ]
+        let suite = "NotificationScheduleTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let coordinator = NotificationScheduleCoordinator(
+            center: center,
+            statusStore: NotificationScheduleStatusStore(userDefaults: defaults),
+            reminderLoader: { reminders },
+            preferencesLoader: { .default },
+            now: { base },
+            calendar: calendar
+        )
+
+        do {
+            _ = try await coordinator.rebuild()
+            XCTFail("Expected injected add failure")
+        } catch {
+            let pending = await center.pendingRequests()
+            XCTAssertEqual(Set(pending.map(\.identifier)), Set([unmanaged.identifier]))
+            let status = NotificationScheduleStatusStore(userDefaults: defaults).load()
+            XCTAssertEqual(status.scheduledCount, 0)
+            XCTAssertTrue(status.errorMessage?.contains("仅恢复 0/1 条") == true)
+        }
+    }
+
     private func date(
         _ year: Int,
         _ month: Int,
@@ -165,12 +213,16 @@ final class NotificationScheduleCoordinatorTests: XCTestCase {
 
 private actor FakeNotificationCenter: NotificationCenterScheduling {
     private var pending: [UNNotificationRequest]
-    private let failAtAdd: Int?
+    private let failAtAdds: Set<Int>
     private var addCount = 0
 
-    init(pending: [UNNotificationRequest] = [], failAtAdd: Int? = nil) {
+    init(
+        pending: [UNNotificationRequest] = [],
+        failAtAdd: Int? = nil,
+        failAtAdds: Set<Int> = []
+    ) {
         self.pending = pending
-        self.failAtAdd = failAtAdd
+        self.failAtAdds = failAtAdds.union(failAtAdd.map { [$0] } ?? [])
     }
 
     func pendingRequests() async -> [UNNotificationRequest] {
@@ -183,7 +235,7 @@ private actor FakeNotificationCenter: NotificationCenterScheduling {
 
     func add(_ request: UNNotificationRequest) async throws {
         addCount += 1
-        if addCount == failAtAdd {
+        if failAtAdds.contains(addCount) {
             throw NSError(domain: "FakeNotificationCenter", code: 1)
         }
         pending.removeAll { $0.identifier == request.identifier }

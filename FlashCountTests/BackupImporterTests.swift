@@ -65,6 +65,28 @@ final class BackupImporterTests: XCTestCase {
         XCTAssertEqual(fromFile.version, fromData.version)
     }
 
+    func testReplaceImportRejectsMalformedRelationshipUUIDWithoutCrashing() throws {
+        let source = try makeContext()
+        let category = Category(name: "关系分类", icon: "tag.fill", colorHex: "#112233")
+        source.insert(category)
+        source.insert(Transaction(amount: 7, category: category))
+        try source.save()
+
+        let service = DataBackupService(modelContext: source)
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: try service.exportJSON()) as? [String: Any])
+        var transactions = try XCTUnwrap(json["transactions"] as? [[String: Any]])
+        transactions[0]["categoryId"] = "not-a-uuid"
+        json["transactions"] = transactions
+
+        let destination = try makeContext()
+        XCTAssertThrowsError(
+            try DataBackupService(modelContext: destination).importJSON(
+                data: try JSONSerialization.data(withJSONObject: json),
+                mode: .replace
+            )
+        )
+    }
+
     func testImportFromFileRestoresTheSameDataAsImportFromMemory() throws {
         let source = try makeContext()
         source.insert(Transaction(amount: 33, note: "文件导入"))
@@ -229,6 +251,30 @@ final class BackupImporterTests: XCTestCase {
         XCTAssertEqual(result.recurringRulesImported, 0)
         XCTAssertEqual(try destination.fetchCount(FetchDescriptor<RecurringRule>()), 0)
         XCTAssertEqual(try destination.fetchCount(FetchDescriptor<Transaction>()), 1)
+    }
+
+    func testCashPoolBackupUsesStableKindKeyAndReadsLegacyLabel() throws {
+        let source = try makeContext()
+        source.insert(CashPoolItem(name: "银行卡", kind: .cash, amount: 1_000))
+        try source.save()
+
+        let service = DataBackupService(modelContext: source)
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: try service.exportJSON()) as? [String: Any])
+        var items = try XCTUnwrap(json["cashPoolItems"] as? [[String: Any]])
+        XCTAssertEqual(items[0]["kind"] as? String, "cash")
+
+        // A backup from the previous format must remain readable too.
+        items[0]["kind"] = "现金/银行卡"
+        json["cashPoolItems"] = items
+
+        let destination = try makeContext()
+        let result = try DataBackupService(modelContext: destination).importJSON(
+            data: try JSONSerialization.data(withJSONObject: json),
+            mode: .merge
+        )
+
+        XCTAssertEqual(result.cashPoolItemsImported, 1)
+        XCTAssertEqual(try destination.fetch(FetchDescriptor<CashPoolItem>()).first?.kind, .cash)
     }
 
     // MARK: - 资产类模型与模板

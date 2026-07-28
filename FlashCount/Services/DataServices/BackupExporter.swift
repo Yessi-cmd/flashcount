@@ -97,7 +97,7 @@ extension DataBackupService {
                          categoryId: b.categoryId?.uuidString)
             },
             cashPoolItems: cashPoolItems.map { item in
-                CashPoolItemDTO(id: item.id.uuidString, name: item.name, kind: item.kind.rawValue,
+                CashPoolItemDTO(id: item.id.uuidString, name: item.name, kind: item.kind.backupKey,
                                 amount: CodableMoney(item.amount),
                                 note: item.note, isArchived: item.isArchived,
                                 sortOrder: item.sortOrder, createdAt: item.createdAt,

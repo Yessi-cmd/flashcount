@@ -12,7 +12,8 @@ struct CategoryWheelLayout: Equatable {
 
     static func preferredSize(itemCount: Int, availableWidth: CGFloat, availableHeight: CGFloat) -> CGFloat {
         let ideal: CGFloat = itemCount <= 5 ? 304 : itemCount <= 7 ? 326 : 348
-        return max(250, min(ideal, availableWidth, availableHeight))
+        let availableSize = max(min(availableWidth, availableHeight), 1)
+        return min(ideal, availableSize)
     }
 
     var center: CGPoint { CGPoint(x: size / 2, y: size / 2) }

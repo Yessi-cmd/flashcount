@@ -234,6 +234,18 @@ struct NotificationScheduleStatusStore {
         userDefaults.set(data, forKey: Self.key)
     }
 
+    func saveFailure(_ error: Error, updatedAt: Date = .now) {
+        save(NotificationScheduleStatus(
+            scheduledCount: 0,
+            capacity: NotificationSchedulePlanner.maximumPendingRequests,
+            unmanagedCount: 0,
+            droppedReminderIDs: [],
+            droppedReportPeriods: [],
+            errorMessage: error.localizedDescription,
+            updatedAt: updatedAt
+        ))
+    }
+
     private var encoder: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -369,16 +381,27 @@ actor NotificationScheduleCoordinator {
             await center.removePendingRequests(withIdentifiers: identifiers)
             // A failed replacement must not turn a previously working reminder
             // schedule into no schedule at all. Re-add the exact snapshot after
-            // clearing only partially-added managed requests.
+            // clearing only partially-added managed requests, while keeping an
+            // accurate count if the restoration itself is partially rejected.
+            var restoredCount = 0
+            var restorationErrors: [String] = []
             for request in managedRequests {
-                try? await center.add(request)
+                do {
+                    try await center.add(request)
+                    restoredCount += 1
+                } catch {
+                    restorationErrors.append(error.localizedDescription)
+                }
             }
+            let restorationMessage = restorationErrors.isEmpty
+                ? error.localizedDescription
+                : "\(error.localizedDescription)；旧通知仅恢复 \(restoredCount)/\(managedRequests.count) 条"
             let status = status(
                 selection: selection,
                 unmanagedCount: unmanagedCount,
-                errorMessage: error.localizedDescription,
+                errorMessage: restorationMessage,
                 updatedAt: referenceDate,
-                scheduledCountOnFailure: managedRequests.count
+                scheduledCountOnFailure: restoredCount
             )
             statusStore.save(status)
             throw error

@@ -85,23 +85,29 @@ extension DataBackupService {
         }
 
         if mode == .replace {
-            let categoryIDs = Set(backup.categories.map { UUID(uuidString: $0.id)! })
-            let ledgerIDs = Set(backup.ledgers.map { UUID(uuidString: $0.id)! })
-            let recurringRuleIDs = Set(backup.recurringRules.map { UUID(uuidString: $0.id)! })
-            let categoryReferences = (backup.transactions.compactMap(\.categoryId)
+            let categoryIDs = Set(try backup.categories.map {
+                try validatedUUID($0.id, label: "分类")
+            })
+            let ledgerIDs = Set(try backup.ledgers.map {
+                try validatedUUID($0.id, label: "账本")
+            })
+            let recurringRuleIDs = Set(try backup.recurringRules.map {
+                try validatedUUID($0.id, label: "周期规则")
+            })
+            let categoryReferences = try (backup.transactions.compactMap(\.categoryId)
                 + backup.recurringRules.compactMap(\.categoryId)
                 + backup.categories.compactMap(\.mergedIntoCategoryId))
-                .map { UUID(uuidString: $0)! }
-            let ledgerReferences = (backup.transactions.compactMap(\.ledgerId)
+                .map { try validatedUUID($0, label: "分类关系引用") }
+            let ledgerReferences = try (backup.transactions.compactMap(\.ledgerId)
                 + backup.recurringRules.compactMap(\.ledgerId)
                 + backup.budgets.compactMap(\.ledgerId))
-                .map { UUID(uuidString: $0)! }
-            let recurringRuleReferences = backup.transactions.compactMap(\.recurringRuleId)
-                .map { UUID(uuidString: $0)! }
-            let occurrenceRuleReferences = backup.recurringOccurrences.compactMap(\.ruleId)
-                .map { UUID(uuidString: $0)! }
-            let occurrenceTransactionReferences = backup.recurringOccurrences.compactMap(\.transactionId)
-                .map { UUID(uuidString: $0)! }
+                .map { try validatedUUID($0, label: "账本关系引用") }
+            let recurringRuleReferences = try backup.transactions.compactMap(\.recurringRuleId)
+                .map { try validatedUUID($0, label: "周期规则关系引用") }
+            let occurrenceRuleReferences = try backup.recurringOccurrences.compactMap(\.ruleId)
+                .map { try validatedUUID($0, label: "周期发生项规则引用") }
+            let occurrenceTransactionReferences = try backup.recurringOccurrences.compactMap(\.transactionId)
+                .map { try validatedUUID($0, label: "周期发生项交易引用") }
             guard categoryReferences.allSatisfy(categoryIDs.contains) else {
                 throw ImportError.invalidContents("分类关系引用不存在")
             }
@@ -114,7 +120,9 @@ extension DataBackupService {
             guard occurrenceRuleReferences.allSatisfy(recurringRuleIDs.contains) else {
                 throw ImportError.invalidContents("周期发生项规则引用不存在")
             }
-            let transactionIDs = Set(backup.transactions.map { UUID(uuidString: $0.id)! })
+            let transactionIDs = Set(try backup.transactions.map {
+                try validatedUUID($0.id, label: "账单")
+            })
             guard occurrenceTransactionReferences.allSatisfy(transactionIDs.contains) else {
                 throw ImportError.invalidContents("周期发生项交易引用不存在")
             }
@@ -128,5 +136,13 @@ extension DataBackupService {
         guard Set(ids.compactMap(UUID.init(uuidString:))).count == ids.count else {
             throw ImportError.invalidContents("\(label)包含重复 UUID")
         }
+    }
+
+    /// Parses untrusted backup IDs without turning malformed input into a crash.
+    static func validatedUUID(_ rawValue: String, label: String) throws -> UUID {
+        guard let id = UUID(uuidString: rawValue) else {
+            throw ImportError.invalidContents("\(label)包含无效 UUID")
+        }
+        return id
     }
 }

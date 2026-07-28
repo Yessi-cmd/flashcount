@@ -37,7 +37,7 @@ enum PhysicalAssetCategory: String, Codable, CaseIterable {
 
     /// 默认折旧率。按直线法理解：`1 / rate` 年折完可折旧金额
     /// （0.25 即四年折完），而非余额递减法的首年比例。
-    var defaultAnnualDepreciationRate: Double {
+    var defaultAnnualDepreciationRate: Decimal {
         switch self {
         case .phone: return 0.25
         case .laptop: return 0.25
@@ -56,7 +56,7 @@ enum PhysicalAssetCategory: String, Codable, CaseIterable {
     }
 
     /// 默认预估残值比例
-    var defaultSalvageRatio: Double {
+    var defaultSalvageRatio: Decimal {
         switch self {
         case .phone: return 0.15      // 手机残值约 15%
         case .laptop: return 0.10
@@ -106,7 +106,7 @@ final class PhysicalAsset {
         self.purchasePrice = normalizedPurchasePrice
         self.purchaseDate = purchaseDate
         // 默认残值 = 购买价 × 行业默认残值比例
-        let defaultSalvage = normalizedPurchasePrice * Decimal(category.defaultSalvageRatio)
+        let defaultSalvage = normalizedPurchasePrice * category.defaultSalvageRatio
         let normalizedSalvage = min(max(salvageValue ?? defaultSalvage, 0), normalizedPurchasePrice)
         self.salvageValue = normalizedSalvage
         // 默认目标日成本 = 折旧成本 ÷ 365
@@ -141,7 +141,10 @@ final class PhysicalAsset {
     /// 达到目标日成本还需持有天数
     func daysToTarget(asOf referenceDate: Date = Date()) -> Int? {
         guard targetDailyCost > 0 else { return nil }
-        let targetDays = NSDecimalNumber(decimal: depreciableCost / targetDailyCost).intValue
+        var targetDaysDecimal = depreciableCost / targetDailyCost
+        var roundedTargetDays = Decimal.zero
+        NSDecimalRound(&roundedTargetDays, &targetDaysDecimal, 0, .up)
+        let targetDays = NSDecimalNumber(decimal: roundedTargetDays).intValue
         let remaining = targetDays - daysHeld(asOf: referenceDate)
         return remaining > 0 ? remaining : 0
     }
@@ -158,10 +161,10 @@ final class PhysicalAsset {
     /// 先乘后除、只做一次除法：先算日折旧再乘天数会引入循环小数误差
     /// （8000 ÷ 1460 × 365 得到的是 2000.000…01 而不是 2000）。
     func currentValue(asOf referenceDate: Date = Date()) -> Decimal {
-        let depreciationDays = Decimal(365.0 / category.defaultAnnualDepreciationRate)
-        guard depreciationDays > 0 else { return max(salvageValue, purchasePrice) }
+        let depreciationRate = category.defaultAnnualDepreciationRate
+        guard depreciationRate > 0 else { return max(salvageValue, purchasePrice) }
         let depreciated = purchasePrice
-            - depreciableCost * Decimal(daysHeld(asOf: referenceDate)) / depreciationDays
+            - depreciableCost * Decimal(daysHeld(asOf: referenceDate)) * depreciationRate / 365
         return max(salvageValue, depreciated)
     }
 

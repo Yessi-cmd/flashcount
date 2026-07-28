@@ -31,6 +31,7 @@
 		1686278248E2E0EB0BD43158 /* ReportSummaryCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */; };
 		19014C10D1A522531CDAC8C0 /* QuickEntryFeedbackCenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE652267F314C0B04170B98 /* QuickEntryFeedbackCenterTests.swift */; };
 		19C11AC50C3838C9B4B2FA40 /* PhysicalAssetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E32DFBBBE5DF24FBC82DCD84 /* PhysicalAssetTests.swift */; };
+		19D27D301FEAA35096BA135C /* LocalActionCenterDigest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111E19CEC9249A3EBFAEA802 /* LocalActionCenterDigest.swift */; };
 		1A452CBB6A09B051CE15209A /* DefaultDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4F8BA17A1077C74363D442E /* DefaultDataService.swift */; };
 		1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */; };
 		1CA242D14AFB3671390BBF05 /* DataHealthFindingRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC3D5D9116336DEFBF736CF6 /* DataHealthFindingRow.swift */; };
@@ -146,6 +147,7 @@
 		C64617B89C3C7D615AFF4E54 /* CashFlowForecastService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66911680311D897822DE8A7A /* CashFlowForecastService.swift */; };
 		C6C6BAC0237D90145BE5A35E /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49B6F38607655BC6FD7A32D2 /* DesignSystem.swift */; };
 		C848E682CA61B43B128D3D14 /* TransactionMutationServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */; };
+		C8BBE30CEB0C60F004C3DAFB /* LocalActionCenterDigestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCBDB2E315E5E8EE02447615 /* LocalActionCenterDigestTests.swift */; };
 		C8E5CB5BE7E12308E665826C /* VisualDirectionExplorationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DC60DF27B6C57F670C432D9 /* VisualDirectionExplorationView.swift */; };
 		CA590ACC5FD95332D299F726 /* ActionCenterSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED4B2EBB93F770D4860E517A /* ActionCenterSummaryView.swift */; };
 		CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */; };
@@ -210,6 +212,7 @@
 		09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationServiceTests.swift; sourceTree = "<group>"; };
 		0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderSettingsView.swift; sourceTree = "<group>"; };
 		10C7C05C009A9D11F4AA4043 /* CSVTransactionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionServiceTests.swift; sourceTree = "<group>"; };
+		111E19CEC9249A3EBFAEA802 /* LocalActionCenterDigest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalActionCenterDigest.swift; sourceTree = "<group>"; };
 		12076086F5AAB6521742DE9D /* RecurringSuggestionPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionPipelineTests.swift; sourceTree = "<group>"; };
 		12725CFF78C8F60C33B60C1D /* QuickEntryControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryControls.swift; sourceTree = "<group>"; };
 		14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSearchDebounce.swift; sourceTree = "<group>"; };
@@ -335,6 +338,7 @@
 		B8C3F704C0822AEC0F80907D /* CategoryWheelLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryWheelLayout.swift; sourceTree = "<group>"; };
 		B8F2123F4154B8A530ECE311 /* MoneyValidation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoneyValidation.swift; sourceTree = "<group>"; };
 		BB731302FEBB7ACF712BE21C /* CategoryManagementService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryManagementService.swift; sourceTree = "<group>"; };
+		BCBDB2E315E5E8EE02447615 /* LocalActionCenterDigestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalActionCenterDigestTests.swift; sourceTree = "<group>"; };
 		BE917E63B5B43B926D1745C8 /* PrivacyLockService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PrivacyLockService.swift; sourceTree = "<group>"; };
 		BEE26957D3CB28546317F74A /* DataHealthCenterView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthCenterView.swift; sourceTree = "<group>"; };
 		C069E9DF2F7E795F59B486A9 /* FinanceDomainTests+Migration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FinanceDomainTests+Migration.swift"; sourceTree = "<group>"; };
@@ -543,6 +547,7 @@
 				A45084F3F7D442B981878563 /* LedgerQueryDataStoreTests.swift */,
 				61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */,
 				6034BD6BC484918A111E209E /* LegacyAssetRemovalTests.swift */,
+				BCBDB2E315E5E8EE02447615 /* LocalActionCenterDigestTests.swift */,
 				B5FEB9024E51A499AAC08A77 /* LocalActionCenterServiceTests.swift */,
 				2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */,
 				6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */,
@@ -653,6 +658,7 @@
 				4804F9EA1F5BDF7A244448B4 /* InstallmentRepaymentService.swift */,
 				9135D5FD720592C567187C6E /* LedgerQueryService.swift */,
 				14684BA5884DAC7DC46D25FC /* LedgerSearchDebounce.swift */,
+				111E19CEC9249A3EBFAEA802 /* LocalActionCenterDigest.swift */,
 				81F7DCDADD9D50A3788689B4 /* LocalActionCenterService.swift */,
 				C8FC52EA4884A4B39278E912 /* PayCycleService.swift */,
 				30159AD8FBCFF39D60087239 /* RecurringCatchUpPreferences.swift */,
@@ -913,6 +919,7 @@
 				9D68AAE9D7596215FDD234D2 /* LedgerQueryDataStoreTests.swift in Sources */,
 				1C18A58AF97AAA6C81DE7EFF /* LedgerQueryServiceTests.swift in Sources */,
 				AAF24BDAA8FF15A103F1C1A5 /* LegacyAssetRemovalTests.swift in Sources */,
+				C8BBE30CEB0C60F004C3DAFB /* LocalActionCenterDigestTests.swift in Sources */,
 				E7DF1CD725953C8F75956F96 /* LocalActionCenterServiceTests.swift in Sources */,
 				EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */,
 				0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */,
@@ -1004,6 +1011,7 @@
 				06DCA2FDCE0C7A2A3D63332E /* LedgerSections.swift in Sources */,
 				06A524FFEF1E3C0166204953 /* LedgerView.swift in Sources */,
 				084E5C7F72EFC8C515770079 /* LiquidGlassContainer.swift in Sources */,
+				19D27D301FEAA35096BA135C /* LocalActionCenterDigest.swift in Sources */,
 				46CCFBBCF0ED67C7AD57A01E /* LocalActionCenterService.swift in Sources */,
 				1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */,
 				EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */,

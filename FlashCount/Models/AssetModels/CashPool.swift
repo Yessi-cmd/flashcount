@@ -4,14 +4,34 @@ import SwiftData
 /// 资金项的种类。`isNegative` 决定它在净资产里是加项还是减项——
 /// 「待还款/分期」是唯一的负向种类。
 ///
-/// `rawValue` 会进备份 JSON，改动即破坏旧备份的可读性；面向用户的文案走
-/// `displayName`，两者刻意分开正是为了让文案可以改。
+/// SwiftData raw value 保持兼容；备份使用独立的稳定 key，避免用户文案变化
+/// 破坏旧备份的可读性。面向用户的文案走 `displayName`。
 enum CashPoolItemKind: String, Codable, CaseIterable, Identifiable {
     case cash = "现金/银行卡"
     case flexibleInvestment = "可动用理财"
     case liability = "待还款/分期"
 
     var id: String { rawValue }
+
+    /// Stable key for backups. Keep the SwiftData raw values unchanged for
+    /// schema compatibility, but never make backup compatibility depend on
+    /// user-facing Chinese copy.
+    var backupKey: String {
+        switch self {
+        case .cash: return "cash"
+        case .flexibleInvestment: return "flexibleInvestment"
+        case .liability: return "liability"
+        }
+    }
+
+    static func fromBackupKey(_ rawValue: String) -> Self? {
+        switch rawValue {
+        case "cash", "现金/银行卡": return .cash
+        case "flexibleInvestment", "可动用理财": return .flexibleInvestment
+        case "liability", "待还款/分期": return .liability
+        default: return nil
+        }
+    }
 
     var displayName: String {
         switch self {

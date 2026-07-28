@@ -7,7 +7,7 @@ struct CashPoolView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @Query(sort: \CashPoolItem.sortOrder) private var items: [CashPoolItem]
-    @Query private var states: [CashPoolState]
+    @Query(sort: \CashPoolState.updatedAt, order: .reverse) private var states: [CashPoolState]
     @Query(sort: \InstallmentBill.createdAt, order: .reverse) private var installmentBills: [InstallmentBill]
 
     @State private var showAddItem = false
