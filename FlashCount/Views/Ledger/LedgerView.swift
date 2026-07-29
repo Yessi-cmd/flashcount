@@ -39,13 +39,19 @@ struct LedgerView: View {
     @State var showFilterSheet = false
     @State var deleteError: String?
     @State var undoInfo: DeletedTransactionSnapshot?
-    @State var undoWorkItem: DispatchWorkItem?
+    @State var undoDismissTask: Task<Void, Never>?
+    @State var undoDismissToken: UUID?
     @State var isSelecting = false
     @State var selectedIds = Set<UUID>()
+    @State var selectAllTask: Task<Void, Never>?
+    @State var selectAllLoadToken: UUID?
     @State var batchDeleteError: String?
     @State var loadedTransactions: [Transaction] = []
     @State var totalTransactionCount = 0
     @State var ledgerSummary: LedgerSummary?
+    @State var ledgerPresentation = LedgerPresentation.empty
+    @State var loadedLedgerQueryID: String?
+    @State var ledgerDataRevision = 0
     @State var isLoadingPage = false
     @State var pageLoadToken: UUID?
 
@@ -68,7 +74,7 @@ struct LedgerView: View {
     }
 
     var displayedMonthlySummary: LedgerPresentation.MonthlySummary {
-        guard let ledgerSummary else { return makePresentation().monthlySummary }
+        guard let ledgerSummary else { return ledgerPresentation.monthlySummary }
         return LedgerPresentation.MonthlySummary(
             expense: ledgerSummary.expense,
             income: ledgerSummary.income,
@@ -110,15 +116,8 @@ struct LedgerView: View {
         )
     }
 
-    func isProtectedIncomeMetadataHidden(_ transaction: Transaction) -> Bool {
-        PrivacyVisibilityPolicy.hidesProtectedMetadata(
-            isProtectedIncome: transaction.isProtectedIncome,
-            isUnlocked: privacyLock.isUnlocked
-        )
-    }
-
     var body: some View {
-        let presentation = makePresentation()
+        let presentation = ledgerPresentation
 
         return NavigationStack {
             ZStack {
@@ -151,6 +150,7 @@ struct LedgerView: View {
                 if isSelecting {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("取消") {
+                            cancelSelectAllTask()
                             withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                 isSelecting = false
                                 selectedIds.removeAll()
@@ -167,6 +167,7 @@ struct LedgerView: View {
                             Button(selectedIds.count == presentation.totalTransactionCount ? "取消全选" : "全选") {
                                 withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                                     if selectedIds.count == presentation.totalTransactionCount {
+                                        cancelSelectAllTask()
                                         selectedIds.removeAll()
                                     } else {
                                         selectAllMatchingTransactions()
@@ -348,7 +349,10 @@ struct LedgerView: View {
                 await loadFirstPage()
             }
             .task(id: actionCenterDigest) {
-                refreshPendingActionCount()
+                await refreshPendingActionCount()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: ModelContext.didSave)) { _ in
+                ledgerDataRevision &+= 1
             }
             .onChange(of: filterState.debouncedSearchText) { resetLedgerPage() }
             .onChange(of: filterState.dateFilter) { resetLedgerPage() }
@@ -360,6 +364,13 @@ struct LedgerView: View {
             .onChange(of: filterState.customEndDate) { resetLedgerPage() }
             .onChange(of: filterState.sortField) { resetLedgerPage() }
             .onChange(of: filterState.sortDirection) { resetLedgerPage() }
+            .onDisappear {
+                cancelSelectAllTask()
+                undoDismissTask?.cancel()
+                undoDismissTask = nil
+                undoDismissToken = nil
+                undoInfo = nil
+            }
         }
     }
 }

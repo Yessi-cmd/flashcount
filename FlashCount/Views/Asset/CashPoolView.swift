@@ -16,43 +16,25 @@ struct CashPoolView: View {
     @State private var calibrationText = ""
     @State private var saveError: String?
 
-    private var activeItems: [CashPoolItem] {
-        items.filter { !$0.isArchived }
-    }
-
-    private var manualTotal: Decimal {
-        activeItems.reduce(Decimal(0)) { $0 + $1.signedAmount }
-    }
-
-    private var transactionDelta: Decimal {
-        states.first?.transactionDelta ?? 0
-    }
-
-    private var activeInstallmentBills: [InstallmentBill] {
-        installmentBills.filter { !$0.isArchived }
-    }
-
-    private var installmentRemainingTotal: Decimal {
-        activeInstallmentBills.reduce(Decimal(0)) { $0 + $1.remainingAmount }
-    }
-
-    private var availableAmount: Decimal {
-        manualTotal + transactionDelta - installmentRemainingTotal
-    }
-
     private var hidesMoney: Bool {
         PrivacyVisibilityPolicy.hidesAssets(isUnlocked: privacyLock.isUnlocked)
     }
 
     var body: some View {
-        NavigationStack {
+        let snapshot = AssetPortfolioSnapshot(
+            cashPoolItems: items,
+            cashPoolTransactionDelta: states.first?.transactionDelta ?? 0,
+            installmentBills: installmentBills
+        )
+
+        return NavigationStack {
             ZStack {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
                 ScrollView {
                     VStack(spacing: DesignSystem.sectionSpacing) {
-                        summaryCard
-                        installmentSummary
-                        itemList
+                        summaryCard(snapshot)
+                        installmentSummary(snapshot)
+                        itemList(snapshot.activeCashPoolItems)
                     }
                     .padding()
                 }
@@ -92,7 +74,7 @@ struct CashPoolView: View {
                 TextField("当前可动用资金", text: $calibrationText)
                     .keyboardType(.decimalPad)
                 Button("取消", role: .cancel) { calibrationText = "" }
-                Button("保存") { calibrate() }
+                Button("保存") { calibrate(using: snapshot) }
             } message: {
                 Text("输入你现在真实可动用的总资金，App 会用校准差额对齐。")
             }
@@ -107,7 +89,7 @@ struct CashPoolView: View {
         }
     }
 
-    private var summaryCard: some View {
+    private func summaryCard(_ snapshot: AssetPortfolioSnapshot) -> some View {
         VStack(spacing: 16) {
             HStack {
                 Label("可动用资金", systemImage: "wallet.pass.fill")
@@ -116,17 +98,21 @@ struct CashPoolView: View {
                 Spacer()
             }
 
-            Text(hidesMoney ? privacyLock.maskedText : availableAmount.formattedCurrency)
+            Text(hidesMoney ? privacyLock.maskedText : snapshot.cashPoolAvailable.formattedCurrency)
                 .font(DesignSystem.Typography.amount)
                 .monospacedDigit()
-                .foregroundStyle(hidesMoney ? DesignSystem.textTertiary : (availableAmount >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor))
+                .foregroundStyle(
+                    hidesMoney
+                        ? DesignSystem.textTertiary
+                        : (snapshot.cashPoolAvailable >= 0 ? DesignSystem.textPrimary : DesignSystem.expenseColor)
+                )
 
             HStack(spacing: 0) {
-                metric(title: "资金净额", value: manualTotal)
+                metric(title: "资金净额", value: snapshot.cashPoolManualTotal)
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 30)
-                metric(title: "记账变动", value: transactionDelta)
+                metric(title: "记账变动", value: snapshot.cashPoolTransactionDelta)
                 Rectangle().fill(DesignSystem.dividerColor).frame(width: 1, height: 30)
-                metric(title: "分期待还", value: -installmentRemainingTotal)
+                metric(title: "分期待还", value: -snapshot.installmentRemainingTotal)
             }
         }
         .glassCard()
@@ -142,7 +128,7 @@ struct CashPoolView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private var installmentSummary: some View {
+    private func installmentSummary(_ snapshot: AssetPortfolioSnapshot) -> some View {
         NavigationLink {
             InstallmentBillView()
         } label: {
@@ -159,13 +145,17 @@ struct CashPoolView: View {
                     Text("分期账单")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(DesignSystem.textPrimary)
-                    Text("\(activeInstallmentBills.count) 笔正在追踪")
+                    Text("\(snapshot.activeInstallmentBills.count) 笔正在追踪")
                         .font(.caption)
                         .foregroundStyle(DesignSystem.textTertiary)
                 }
                 Spacer()
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text(hidesMoney ? privacyLock.maskedText : installmentRemainingTotal.formattedCurrency)
+                    Text(
+                        hidesMoney
+                            ? privacyLock.maskedText
+                            : snapshot.installmentRemainingTotal.formattedCurrency
+                    )
                         .font(.subheadline.weight(.semibold).monospacedDigit())
                         .foregroundStyle(DesignSystem.expenseColor)
                     Text("剩余待还")
@@ -181,7 +171,7 @@ struct CashPoolView: View {
         .buttonStyle(.plain)
     }
 
-    private var itemList: some View {
+    private func itemList(_ activeItems: [CashPoolItem]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("资金组成")
@@ -280,7 +270,7 @@ struct CashPoolView: View {
         action()
     }
 
-    private func calibrate() {
+    private func calibrate(using snapshot: AssetPortfolioSnapshot) {
         let target: Decimal
         switch MoneyValidation.parse(calibrationText, requirement: .nonNegative) {
         case .success(let value):
@@ -293,8 +283,8 @@ struct CashPoolView: View {
         do {
             try CashPoolService(modelContext: modelContext).calibrate(
                 to: target,
-                items: activeItems,
-                installmentLiability: installmentRemainingTotal
+                items: snapshot.activeCashPoolItems,
+                installmentLiability: snapshot.installmentRemainingTotal
             )
             try modelContext.save()
             HapticManager.success()

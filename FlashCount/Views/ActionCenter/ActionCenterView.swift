@@ -36,7 +36,7 @@ struct ActionCenterView: View {
         )
     }
 
-    private var snapshot: LocalActionCenterSnapshot {
+    private func makeSnapshot() -> LocalActionCenterSnapshot {
         LocalActionCenterService.snapshot(
             budgets: budgets,
             transactions: expenseTransactions,
@@ -54,7 +54,9 @@ struct ActionCenterView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let snapshot = makeSnapshot()
+
+        return NavigationStack {
             ZStack {
                 AmbientBackground(accent: DesignSystem.warningColor)
 

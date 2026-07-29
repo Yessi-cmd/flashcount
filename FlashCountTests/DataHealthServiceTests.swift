@@ -152,6 +152,49 @@ final class DataHealthServiceTests: XCTestCase {
         XCTAssertNil(transaction.cashPoolDelta)
     }
 
+    func testScanReportsInvalidAmountsAcrossFinancialModels() throws {
+        let context = try makeContext()
+
+        let rule = RecurringRule(title: "周期", amount: 10, nextDueDate: .now)
+        rule.amount = 0
+        context.insert(rule)
+
+        let cashItem = CashPoolItem(name: "现金", kind: .cash, amount: 10)
+        cashItem.amount = -1
+        context.insert(cashItem)
+
+        let budget = Budget(monthlyLimit: 100, year: 2026, month: 7)
+        budget.monthlyLimit = 0
+        context.insert(budget)
+
+        let goal = SavingsGoal(name: "目标", targetAmount: 100)
+        goal.currentAmount = -1
+        context.insert(goal)
+
+        let bill = InstallmentBill(
+            name: "分期",
+            totalAmount: 100,
+            installmentCount: 2,
+            repaymentDay: 1,
+            firstRepaymentDate: .now
+        )
+        bill.totalAmount = 0
+        context.insert(bill)
+        try context.save()
+
+        let report = try DataHealthService(modelContext: context).scan()
+        let invalidAmounts = finding(.invalidFinancialAmount, in: report)
+
+        XCTAssertEqual(invalidAmounts.count, 5)
+        XCTAssertEqual(invalidAmounts.repairableCount, 0)
+        XCTAssertEqual(invalidAmounts.manualCount, 5)
+        XCTAssertTrue(invalidAmounts.detail.contains("周期规则 1"))
+        XCTAssertTrue(invalidAmounts.detail.contains("资金项 1"))
+        XCTAssertTrue(invalidAmounts.detail.contains("预算 1"))
+        XCTAssertTrue(invalidAmounts.detail.contains("储蓄目标 1"))
+        XCTAssertTrue(invalidAmounts.detail.contains("分期 1"))
+    }
+
     private func finding(_ kind: DataHealthIssueKind, in report: DataHealthReport) -> DataHealthFinding {
         if let finding = report.findings.first(where: { $0.kind == kind }) {
             return finding

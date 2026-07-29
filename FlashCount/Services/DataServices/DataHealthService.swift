@@ -80,6 +80,34 @@ final class DataHealthService {
         let duplicateStatesToDelete: [CashPoolState]
     }
 
+    /// 交易之外各财务模型的金额约束。旧备份或历史版本可能绕过当前输入校验，
+    /// 因此体检不能只检查 `Transaction.amount`。
+    private struct InvalidFinancialAmountTotals {
+        let recurringRules: Int
+        let cashPoolItems: Int
+        let budgets: Int
+        let savingsGoals: Int
+        let installmentBills: Int
+
+        var count: Int {
+            recurringRules + cashPoolItems + budgets + savingsGoals + installmentBills
+        }
+
+        var detail: String {
+            guard count > 0 else {
+                return "周期规则、资金项、预算、储蓄目标和分期金额均符合约束。"
+            }
+            let parts: [String] = [
+                recurringRules > 0 ? "周期规则 \(recurringRules)" : nil,
+                cashPoolItems > 0 ? "资金项 \(cashPoolItems)" : nil,
+                budgets > 0 ? "预算 \(budgets)" : nil,
+                savingsGoals > 0 ? "储蓄目标 \(savingsGoals)" : nil,
+                installmentBills > 0 ? "分期 \(installmentBills)" : nil,
+            ].compactMap { $0 }
+            return "发现无效金额：\(parts.joined(separator: "、"))。这些金额不会被自动改写。"
+        }
+    }
+
     init(modelContext: ModelContext) {
         self.modelContext = modelContext
     }
@@ -250,6 +278,7 @@ final class DataHealthService {
         deltaRepair: DeltaRepair
     ) -> [DataHealthFinding] {
         let invalidAmountTransactions = snapshot.transactions.filter { $0.amount <= 0 }
+        let invalidFinancialAmounts = invalidFinancialAmountTotals(in: snapshot)
         let uncategorizedTransactions = snapshot.transactions.filter { $0.category == nil }
         let duplicateUUIDCount = duplicates.count
         let missingLedgerTransactions = ledgerRepair.missingTransactions
@@ -321,8 +350,29 @@ final class DataHealthService {
                 detail: invalidAmountTransactions.isEmpty
                     ? "没有发现非正交易金额。"
                     : "非正金额不会被自动改写。"
+            ),
+            DataHealthFinding(
+                kind: .invalidFinancialAmount,
+                count: invalidFinancialAmounts.count,
+                repairableCount: 0,
+                manualCount: invalidFinancialAmounts.count,
+                detail: invalidFinancialAmounts.detail
             )
         ]
+    }
+
+    private func invalidFinancialAmountTotals(
+        in snapshot: Snapshot
+    ) -> InvalidFinancialAmountTotals {
+        InvalidFinancialAmountTotals(
+            recurringRules: snapshot.recurringRules.count(where: { $0.amount <= 0 }),
+            cashPoolItems: snapshot.cashPoolItems.count(where: { $0.amount <= 0 }),
+            budgets: snapshot.budgets.count(where: { $0.monthlyLimit <= 0 }),
+            savingsGoals: snapshot.savingsGoals.count(where: {
+                $0.targetAmount <= 0 || $0.currentAmount < 0
+            }),
+            installmentBills: snapshot.installmentBills.count(where: { $0.totalAmount <= 0 })
+        )
     }
 
     func apply(_ plan: DataHealthRepairPlan) throws -> DataHealthApplyResult {

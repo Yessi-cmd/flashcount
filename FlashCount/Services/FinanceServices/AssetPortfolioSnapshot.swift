@@ -48,12 +48,17 @@ struct AssetPortfolioSnapshot {
         cashPoolItems: [CashPoolItem] = [],
         cashPoolTransactionDelta: Decimal = 0,
         savingsGoals: [SavingsGoal] = [],
-        installmentBills: [InstallmentBill] = []
+        installmentBills: [InstallmentBill] = [],
+        asOf: Date = .now
     ) {
         let activePhysicalAssets = physicalAssets.filter { !$0.isArchived }
-        physicalTotalValue = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.currentValue() }
+        physicalTotalValue = activePhysicalAssets.reduce(Decimal(0)) {
+            $0 + $1.currentValue(asOf: asOf)
+        }
         physicalPurchaseTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.purchasePrice }
-        physicalDailyCostTotal = activePhysicalAssets.reduce(Decimal(0)) { $0 + $1.dailyCost() }
+        physicalDailyCostTotal = activePhysicalAssets.reduce(Decimal(0)) {
+            $0 + $1.dailyCost(asOf: asOf)
+        }
 
         let activeCashPoolItems = cashPoolItems.filter { !$0.isArchived }
         var manualTotal: Decimal = 0

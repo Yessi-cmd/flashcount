@@ -1,7 +1,7 @@
 import Foundation
 
 /// 精确的金额编解码 — JSON 中存字符串（如 "9.99"），但兼容旧版 Double 数值
-struct CodableMoney: Codable {
+struct CodableMoney: Codable, Sendable {
     let value: String
     let decimalValue: Decimal
 
@@ -59,7 +59,7 @@ extension DataBackupService {
         }
     }
 
-    struct BackupData: Codable {
+    struct BackupData: Codable, Sendable {
         let version: String
         let createdAt: Date
         let categories: [CategoryDTO]
@@ -143,7 +143,7 @@ extension DataBackupService {
         }
     }
 
-    struct CategoryDTO: Codable {
+    struct CategoryDTO: Codable, Sendable {
         let id: String
         let name: String
         let icon: String
@@ -157,7 +157,7 @@ extension DataBackupService {
         let mergedIntoCategoryId: String?
     }
 
-    struct LedgerDTO: Codable {
+    struct LedgerDTO: Codable, Sendable {
         let id: String
         let name: String
         let icon: String
@@ -168,7 +168,7 @@ extension DataBackupService {
         let sortOrder: Int
     }
 
-    struct TransactionDTO: Codable {
+    struct TransactionDTO: Codable, Sendable {
         let id: String
         let amount: CodableMoney
         let isExpense: Bool
@@ -185,7 +185,7 @@ extension DataBackupService {
         let recurringRuleId: String?
     }
 
-    struct AssetDTO: Codable {
+    struct AssetDTO: Codable, Sendable {
         let id: String
         let name: String
         let type: String
@@ -198,7 +198,7 @@ extension DataBackupService {
         let createdAt: Date
     }
 
-    struct PhysicalAssetDTO: Codable {
+    struct PhysicalAssetDTO: Codable, Sendable {
         let id: String
         let name: String
         let category: String
@@ -212,7 +212,7 @@ extension DataBackupService {
         let isArchived: Bool
     }
 
-    struct RecurringRuleDTO: Codable {
+    struct RecurringRuleDTO: Codable, Sendable {
         let id: String
         let title: String
         let amount: CodableMoney
@@ -228,7 +228,7 @@ extension DataBackupService {
         let ledgerId: String?
     }
 
-    struct RecurringOccurrenceDTO: Codable {
+    struct RecurringOccurrenceDTO: Codable, Sendable {
         let id: String
         let occurrenceKey: String
         let ruleId: String
@@ -246,7 +246,7 @@ extension DataBackupService {
         let resolvedAt: Date?
     }
 
-    struct BudgetDTO: Codable {
+    struct BudgetDTO: Codable, Sendable {
         let id: String
         let monthlyLimit: CodableMoney
         let year: Int
@@ -256,7 +256,7 @@ extension DataBackupService {
         let categoryId: String?
     }
 
-    struct CashPoolItemDTO: Codable {
+    struct CashPoolItemDTO: Codable, Sendable {
         let id: String
         let name: String
         let kind: String
@@ -268,13 +268,13 @@ extension DataBackupService {
         let updatedAt: Date
     }
 
-    struct CashPoolStateDTO: Codable {
+    struct CashPoolStateDTO: Codable, Sendable {
         let id: String
         let transactionDelta: CodableMoney
         let updatedAt: Date
     }
 
-    struct InstallmentBillDTO: Codable {
+    struct InstallmentBillDTO: Codable, Sendable {
         let id: String
         let name: String
         let totalAmount: CodableMoney
@@ -288,7 +288,7 @@ extension DataBackupService {
         let updatedAt: Date
     }
 
-    struct SavingsGoalDTO: Codable {
+    struct SavingsGoalDTO: Codable, Sendable {
         let id: String
         let name: String
         let targetAmount: CodableMoney
@@ -301,7 +301,7 @@ extension DataBackupService {
         let updatedAt: Date
     }
 
-    struct TransactionTemplateDTO: Codable {
+    struct TransactionTemplateDTO: Codable, Sendable {
         let id: String
         let name: String
         let amount: CodableMoney
@@ -311,7 +311,7 @@ extension DataBackupService {
         let sortOrder: Int
     }
 
-    struct SettingsDTO: Codable {
+    struct SettingsDTO: Codable, Sendable {
         let payday: Int
         let appearance: String?
         let hideAssetBalance: Bool?
@@ -339,7 +339,7 @@ extension DataBackupService {
         }
     }
 
-    enum ImportMode: String, Codable { case merge, replace }
+    enum ImportMode: String, Codable, Sendable { case merge, replace }
 
     struct BackupPreview {
         let version: String

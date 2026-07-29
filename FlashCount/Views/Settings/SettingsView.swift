@@ -24,6 +24,7 @@ struct SettingsView: View {
     @State private var showDataManagementResult = false
     @State private var showExportShare = false
     @State private var exportFileURL: URL?
+    @State private var isExportingBackup = false
     @State private var showImportPicker = false
     @State private var showCSVImportPicker = false
     @State private var importResult: String?
@@ -58,7 +59,7 @@ struct SettingsView: View {
                                     Text(privacyLock.isUnlocked ? "隐私金额当前可见" : "隐私金额当前隐藏")
                                         .font(.subheadline)
                                         .foregroundStyle(DesignSystem.textPrimary)
-                                    Text(privacyLock.isUnlocked ? "点击立即隐藏收入和资产" : "确认并验证后，统一显示收入和资产")
+                                    Text(privacyLock.isUnlocked ? "点击立即隐藏收入和资产" : "验证后，统一显示收入和资产")
                                         .font(.caption)
                                         .foregroundStyle(DesignSystem.textTertiary)
                                 }
@@ -71,7 +72,7 @@ struct SettingsView: View {
                     } header: {
                         Text("隐私").foregroundStyle(DesignSystem.textSecondary)
                     } footer: {
-                        Text("显示前会先确认，再使用 Face ID、Touch ID 或设备密码验证。App 进入后台后自动隐藏。")
+                        Text("点击显示会直接使用 Face ID、Touch ID 或设备密码验证。App 进入后台后自动隐藏。")
                             .font(.caption2)
                             .foregroundStyle(DesignSystem.textTertiary)
                     }
@@ -248,13 +249,20 @@ struct SettingsView: View {
                             exportData()
                         } label: {
                             HStack {
-                                Image(systemName: "square.and.arrow.up").foregroundStyle(DesignSystem.primaryColor)
+                                if isExportingBackup {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .foregroundStyle(DesignSystem.primaryColor)
+                                }
                                 VStack(alignment: .leading) {
                                     Text("导出数据 (JSON)").font(.subheadline).foregroundStyle(DesignSystem.textPrimary)
                                     Text("备份实物资产等数据到文件").font(.caption).foregroundStyle(DesignSystem.textTertiary)
                                 }
                             }
                         }
+                        .disabled(isExportingBackup)
                         Button {
                             showImportPicker = true
                         } label: {
@@ -425,15 +433,19 @@ struct SettingsView: View {
     }
 
     private func exportData() {
-        let service = DataBackupService(modelContext: modelContext)
-        do {
-            let url = try service.exportToFile()
-            exportFileURL = url
-            showExportShare = true
-            HapticManager.success()
-        } catch {
-            dataManagementResult = "导出失败：\(error.localizedDescription)"
-            showDataManagementResult = true
+        guard !isExportingBackup else { return }
+        isExportingBackup = true
+        Task { @MainActor in
+            defer { isExportingBackup = false }
+            do {
+                let url = try await DataBackupService(modelContext: modelContext).exportToFile()
+                exportFileURL = url
+                showExportShare = true
+                HapticManager.success()
+            } catch {
+                dataManagementResult = "导出失败：\(error.localizedDescription)"
+                showDataManagementResult = true
+            }
         }
     }
 

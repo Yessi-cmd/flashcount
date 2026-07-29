@@ -28,12 +28,14 @@ struct AssetDashboardView: View {
     }
 
     var body: some View {
+        let asOf = Date.now
         let snapshot = AssetPortfolioSnapshot(
             physicalAssets: physicalAssets,
             cashPoolItems: cashPoolItems,
             cashPoolTransactionDelta: cashPoolStates.first?.transactionDelta ?? 0,
             savingsGoals: savingsGoals,
-            installmentBills: installmentBills
+            installmentBills: installmentBills,
+            asOf: asOf
         )
 
         return NavigationStack {

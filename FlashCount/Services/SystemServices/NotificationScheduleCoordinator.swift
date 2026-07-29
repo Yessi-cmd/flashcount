@@ -339,7 +339,10 @@ actor NotificationScheduleCoordinator {
     }
 
     @discardableResult
-    func rebuild(reminders providedReminders: [ReminderItem]? = nil) async throws -> NotificationScheduleStatus {
+    func rebuild(
+        reminders providedReminders: [ReminderItem]? = nil,
+        reportPreferences providedReportPreferences: ReportReminderPreferences? = nil
+    ) async throws -> NotificationScheduleStatus {
         let referenceDate = now()
         let pending = await center.pendingRequests()
         let managedRequests = pending.filter {
@@ -353,7 +356,7 @@ actor NotificationScheduleCoordinator {
         )
         let candidates = NotificationSchedulePlanner.candidates(
             reminders: providedReminders ?? reminderLoader(),
-            reportPreferences: preferencesLoader(),
+            reportPreferences: providedReportPreferences ?? preferencesLoader(),
             referenceDate: referenceDate,
             calendar: calendar,
             payday: paydayLoader(),

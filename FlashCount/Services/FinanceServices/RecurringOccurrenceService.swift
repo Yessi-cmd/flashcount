@@ -80,60 +80,13 @@ final class RecurringOccurrenceService {
         now: Date = .now,
         maxOccurrences: Int = 120
     ) -> [RecurringOccurrencePreview] {
-        guard maxOccurrences > 0 else { return [] }
-
-        let resolvedKeys = Set(occurrences.compactMap { occurrence in
-            occurrence.status.isResolved ? occurrence.occurrenceKey : nil
-        })
-        var previews: [RecurringOccurrencePreview] = []
-
-        for rule in rules where rule.isActive {
-            guard previews.count < maxOccurrences else { break }
-            var cursor = rule.nextDueDate
-            var iterations = 0
-
-            if rule.anchorDay == nil, rule.frequency == .monthly || rule.frequency == .yearly {
-                // 仅用于纯计算，不在预览阶段改变规则。
-            }
-
-            while cursor <= now && iterations < maxOccurrences * 4 {
-                iterations += 1
-                if let endDate = rule.endDate, cursor > endDate {
-                    break
-                }
-
-                let key = RecurringOccurrence.key(
-                    ruleID: rule.id,
-                    scheduledDate: cursor,
-                    calendar: calendar
-                )
-                if !resolvedKeys.contains(key) {
-                    previews.append(
-                        RecurringOccurrencePreview(
-                            id: key,
-                            ruleID: rule.id,
-                            scheduledDate: cursor,
-                            amount: rule.amount,
-                            isExpense: rule.isExpense,
-                            title: rule.title,
-                            note: rule.note,
-                            categoryID: rule.category?.id,
-                            ledgerID: rule.ledger?.id,
-                            isProtectedIncome: rule.isProtectedIncome
-                        )
-                    )
-                }
-
-                guard let next = nextDate(for: rule, from: cursor) else { break }
-                cursor = next
-                if previews.count >= maxOccurrences { break }
-            }
-        }
-
-        return previews.sorted {
-            if $0.scheduledDate == $1.scheduledDate { return $0.title < $1.title }
-            return $0.scheduledDate < $1.scheduledDate
-        }
+        RecurringOccurrencePreviewCalculator.pendingOccurrences(
+            rules: rules,
+            occurrences: occurrences,
+            now: now,
+            maxOccurrences: maxOccurrences,
+            calendar: calendar
+        )
     }
 
     /// 将历史生成的周期交易登记为已处理发生项，避免新版本首次启动时重复补账。

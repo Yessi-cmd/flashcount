@@ -27,30 +27,34 @@ extension LedgerView {
         let monthlySummary: MonthlySummary
         let dayGroups: [DayGroup]
 
+        static let empty = LedgerPresentation(
+            filteredTransactions: [],
+            visibleTransactionCount: 0,
+            totalTransactionCount: 0,
+            monthlySummary: MonthlySummary(
+                expense: 0,
+                income: 0,
+                hasHiddenIncome: false
+            ),
+            dayGroups: []
+        )
+
         var hasMoreTransactions: Bool {
             visibleTransactionCount < totalTransactionCount
         }
     }
 
+    func rebuildPresentation() {
+        ledgerPresentation = makePresentation()
+    }
+
+    /// Builds day groups from the already-filtered current page.
+    ///
+    /// Filtering and sorting happen once in `LedgerQueryDataStore`; rebuilding
+    /// this value is tied to page loads rather than every unrelated body update.
     func makePresentation() -> LedgerPresentation {
         let calendar = Calendar.current
-        let now = Date()
-        let range = filterState.dateFilter.dateRange(
-            referenceDate: now,
-            payday: payday,
-            customStart: filterState.customStartDate,
-            customEnd: filterState.customEndDate,
-            calendar: calendar
-        )
-        let selectedCategory = filterState.categoryFilterId.flatMap { id in allCategories.first { $0.id == id } }
-        let categoryRootName = selectedCategory?.rootCategoryName == selectedCategory?.name ? selectedCategory?.name : nil
-        let categoryID = categoryRootName == nil ? selectedCategory?.id : nil
-        let selectedExpenseType: Bool? = filterState.typeFilter == .all ? nil : filterState.typeFilter == .expense
-        let minAmount = Decimal(string: filterState.minAmountText).flatMap { $0 > 0 ? $0 : nil }
-        let maxAmount = Decimal(string: filterState.maxAmountText).flatMap { $0 > 0 ? $0 : nil }
-        let searchQuery = filterState.debouncedSearchText.isEmpty ? nil : filterState.debouncedSearchText.lowercased()
-
-        var filteredTransactions: [Transaction] = []
+        let visibleTransactions = presentationTransactions
         var expense: Decimal = 0
         var income: Decimal = 0
         var hasHiddenIncome = false
@@ -58,25 +62,7 @@ extension LedgerView {
         var netTotalsByDay: [Date: Decimal] = [:]
         var hiddenIncomeByDay: Set<Date> = []
 
-        for transaction in presentationTransactions {
-            guard range?.contains(transaction.date) ?? true,
-                  selectedExpenseType.map({ transaction.isExpense == $0 }) ?? true,
-                  categoryRootName.map({ transaction.category?.rootCategoryName == $0 }) ?? true,
-                  categoryID.map({ transaction.category?.id == $0 }) ?? true,
-                  minAmount.map({ transaction.amount >= $0 }) ?? true,
-                  maxAmount.map({ transaction.amount <= $0 }) ?? true
-            else { continue }
-
-            if let searchQuery {
-                guard !isProtectedIncomeMetadataHidden(transaction),
-                      transaction.note.lowercased().contains(searchQuery)
-                        || transaction.category?.name.lowercased().contains(searchQuery) == true
-                        || transaction.category?.rootCategoryName.lowercased().contains(searchQuery) == true
-                        || "\(transaction.amount)".contains(searchQuery)
-                else { continue }
-            }
-
-            filteredTransactions.append(transaction)
+        for transaction in visibleTransactions {
             let day = calendar.startOfDay(for: transaction.date)
             netTotalsByDay[day, default: 0] += transaction.signedAmount
             if isIncomeHidden(transaction) {
@@ -91,27 +77,6 @@ extension LedgerView {
             }
         }
 
-        filteredTransactions.sort { lhs, rhs in
-            switch filterState.sortField {
-            case .date:
-                if lhs.date != rhs.date {
-                    return filterState.sortDirection == .ascending ? lhs.date < rhs.date : lhs.date > rhs.date
-                }
-                if lhs.createdAt != rhs.createdAt {
-                    return filterState.sortDirection == .ascending ? lhs.createdAt < rhs.createdAt : lhs.createdAt > rhs.createdAt
-                }
-            case .amount:
-                if lhs.amount != rhs.amount {
-                    return filterState.sortDirection == .ascending ? lhs.amount < rhs.amount : lhs.amount > rhs.amount
-                }
-                if lhs.date != rhs.date {
-                    return filterState.sortDirection == .ascending ? lhs.date < rhs.date : lhs.date > rhs.date
-                }
-            }
-            return lhs.id.uuidString < rhs.id.uuidString
-        }
-
-        let visibleTransactions = filteredTransactions
         let dayGroups: [LedgerPresentation.DayGroup]
         if filterState.sortField == .date {
             for transaction in visibleTransactions {
@@ -137,13 +102,13 @@ extension LedgerView {
                 id: "amount",
                 title: filterState.sortDirection.detail(for: .amount),
                 transactions: visibleTransactions,
-                netTotal: filteredTransactions.reduce(0) { $0 + $1.signedAmount },
-                hasHiddenIncome: filteredTransactions.contains(where: isIncomeHidden)
+                netTotal: visibleTransactions.reduce(0) { $0 + $1.signedAmount },
+                hasHiddenIncome: visibleTransactions.contains(where: isIncomeHidden)
             )]
         }
 
         return LedgerPresentation(
-            filteredTransactions: filteredTransactions,
+            filteredTransactions: visibleTransactions,
             visibleTransactionCount: visibleTransactions.count,
             totalTransactionCount: totalTransactionCount,
             monthlySummary: .init(expense: expense, income: income, hasHiddenIncome: hasHiddenIncome),
@@ -152,24 +117,7 @@ extension LedgerView {
     }
 
     var ledgerQueryID: String {
-        "\(filterState.dateFilter.rawValue)-\(filterState.customStartDate.timeIntervalSinceReferenceDate)-\(filterState.customEndDate.timeIntervalSinceReferenceDate)-\(filterState.typeFilter.rawValue)-\(filterState.categoryFilterId?.uuidString ?? "all")-\(filterState.minAmountText)-\(filterState.maxAmountText)-\(filterState.debouncedSearchText)-\(filterState.sortField.rawValue)-\(filterState.sortDirection.rawValue)-\(privacyLock.isUnlocked)-\(ledgerDataDigest)"
-    }
-
-    var ledgerDataDigest: Int {
-        var hasher = Hasher()
-        for transaction in allTransactions {
-            hasher.combine(transaction.id)
-            hasher.combine(transaction.amount)
-            hasher.combine(transaction.isExpense)
-            hasher.combine(transaction.date)
-            hasher.combine(transaction.createdAt)
-            hasher.combine(transaction.note)
-            hasher.combine(transaction.isPrivateIncome)
-            hasher.combine(transaction.category?.id)
-            hasher.combine(transaction.category?.name)
-            hasher.combine(transaction.category?.rootCategoryName)
-        }
-        return hasher.finalize()
+        "\(filterState.dateFilter.rawValue)-\(filterState.customStartDate.timeIntervalSinceReferenceDate)-\(filterState.customEndDate.timeIntervalSinceReferenceDate)-\(filterState.typeFilter.rawValue)-\(filterState.categoryFilterId?.uuidString ?? "all")-\(filterState.minAmountText)-\(filterState.maxAmountText)-\(filterState.debouncedSearchText)-\(filterState.sortField.rawValue)-\(filterState.sortDirection.rawValue)-\(privacyLock.isUnlocked)-\(ledgerDataRevision)"
     }
 
     var currentLedgerFilter: LedgerFilter {

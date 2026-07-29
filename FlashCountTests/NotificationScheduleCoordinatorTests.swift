@@ -108,6 +108,30 @@ final class NotificationScheduleCoordinatorTests: XCTestCase {
     }
 
     @MainActor
+    func testCoordinatorUsesExplicitReportPreferencesInsteadOfStoredLoader() async throws {
+        let center = FakeNotificationCenter()
+        let base = try date(2026, 7, 14, 8)
+        let coordinator = NotificationScheduleCoordinator(
+            center: center,
+            preferencesLoader: { .default },
+            now: { base },
+            calendar: calendar
+        )
+        let explicit = ReportReminderPreferences(
+            enabledPeriods: [.daily],
+            deliveryTime: ReportReminderTime(hour: 10, minute: 0)
+        )
+
+        _ = try await coordinator.rebuild(
+            reminders: [],
+            reportPreferences: explicit
+        )
+
+        let pending = await center.pendingRequests()
+        XCTAssertEqual(pending.map(\.identifier), ["flashcount.report.daily"])
+    }
+
+    @MainActor
     func testCoordinatorRestoresManagedScheduleWhenReplacementFails() async throws {
         let unmanaged = UNNotificationRequest(
             identifier: "other.app.request",

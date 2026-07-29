@@ -5,6 +5,25 @@ import SwiftData
 
 extension DataBackupService {
     func exportJSON() throws -> Data {
+        try BackupArchiveWorker.encodeSynchronously(makeBackupSnapshot())
+    }
+
+    func exportJSON() async throws -> Data {
+        let backup = try makeBackupSnapshot()
+        return try await BackupArchiveWorker.shared.encode(backup)
+    }
+
+    func exportToFile() throws -> URL {
+        let data = try exportJSON()
+        return try BackupArchiveWorker.writeSynchronously(data, timestamp: .now)
+    }
+
+    func exportToFile() async throws -> URL {
+        let backup = try makeBackupSnapshot()
+        return try await BackupArchiveWorker.shared.write(backup, timestamp: .now)
+    }
+
+    private func makeBackupSnapshot() throws -> BackupData {
         let categories = try modelContext.fetch(FetchDescriptor<Category>())
         let ledgers = try modelContext.fetch(FetchDescriptor<Ledger>())
         let transactions = try modelContext.fetch(FetchDescriptor<Transaction>())
@@ -144,19 +163,6 @@ extension DataBackupService {
             )
         )
 
-        let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(backup)
-    }
-
-    func exportToFile() throws -> URL {
-        let data = try exportJSON()
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmmss"
-        let filename = "FlashCount_Backup_\(formatter.string(from: Date())).json"
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent(filename)
-        try data.write(to: url)
-        return url
+        return backup
     }
 }

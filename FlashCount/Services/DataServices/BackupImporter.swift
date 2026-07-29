@@ -14,6 +14,10 @@ extension DataBackupService {
         decoder.dateDecodingStrategy = .iso8601
         let backup = try decoder.decode(BackupData.self, from: data)
         try Self.validateVersion(backup.version)
+        // 预览就是用户决定是否导入前的安全门。备份是全量格式，因此按
+        // replace 的严格口径校验 UUID、金额与关系完整性，避免用户确认后
+        // 才发现文件损坏。
+        try Self.validateContents(backup, mode: .replace)
         let count = backup.categories.count + backup.ledgers.count + backup.transactions.count + backup.assets.count
             + backup.physicalAssets.count + backup.recurringRules.count + backup.recurringOccurrences.count + backup.budgets.count + backup.cashPoolItems.count
             + backup.cashPoolStates.count + backup.installmentBills.count + backup.savingsGoals.count + backup.templates.count

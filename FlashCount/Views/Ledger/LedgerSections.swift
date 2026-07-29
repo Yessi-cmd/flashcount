@@ -567,7 +567,9 @@ extension LedgerView {
                         withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
                             undoInfo = nil
                         }
-                        undoWorkItem?.cancel()
+                        undoDismissTask?.cancel()
+                        undoDismissTask = nil
+                        undoDismissToken = nil
                     } label: {
                         Image(systemName: "xmark")
                             .font(.caption.weight(.bold))

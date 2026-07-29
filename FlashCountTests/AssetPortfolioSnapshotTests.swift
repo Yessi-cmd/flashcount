@@ -94,6 +94,26 @@ final class AssetPortfolioSnapshotTests: XCTestCase {
         XCTAssertEqual(snapshot.physicalPurchaseTotal, 1_500)
     }
 
+    func testPhysicalMetricsUseOneExplicitReferenceDate() {
+        let purchaseDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let asOf = purchaseDate.addingTimeInterval(123.75 * 86_400)
+        let asset = PhysicalAsset(
+            name: "电脑",
+            category: .laptop,
+            purchasePrice: 12_000,
+            purchaseDate: purchaseDate,
+            salvageValue: 1_000
+        )
+
+        let snapshot = AssetPortfolioSnapshot(
+            physicalAssets: [asset],
+            asOf: asOf
+        )
+
+        XCTAssertEqual(snapshot.physicalTotalValue, asset.currentValue(asOf: asOf))
+        XCTAssertEqual(snapshot.physicalDailyCostTotal, asset.dailyCost(asOf: asOf))
+    }
+
     func testEmptyPortfolioReportsEmpty() {
         XCTAssertTrue(AssetPortfolioSnapshot().isEmpty)
         XCTAssertEqual(AssetPortfolioSnapshot().netWorth, 0)

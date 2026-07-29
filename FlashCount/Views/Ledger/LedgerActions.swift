@@ -6,9 +6,12 @@ import SwiftData
 
 extension LedgerView {
     func resetLedgerPage() {
+        cancelSelectAllTask()
         loadedTransactions.removeAll()
         totalTransactionCount = 0
         ledgerSummary = nil
+        ledgerPresentation = .empty
+        loadedLedgerQueryID = nil
         selectedIds.removeAll()
     }
 
@@ -24,20 +27,33 @@ extension LedgerView {
 
         let queryID = ledgerQueryID
         let filter = currentLedgerFilter
+        if loadedLedgerQueryID != queryID {
+            loadedTransactions = []
+            totalTransactionCount = 0
+            ledgerSummary = nil
+            ledgerPresentation = .empty
+        }
         do {
             let store = LedgerQueryDataStore(modelContainer: modelContext.container)
-            let page = try await store.fetchPage(filter: filter, offset: 0, limit: transactionPageSize)
-            let summary = try await store.summary(filter: filter)
+            let snapshot = try await store.fetchPageSnapshot(
+                filter: filter,
+                offset: 0,
+                limit: transactionPageSize
+            )
             try Task.checkCancellation()
             guard queryID == ledgerQueryID else { return }
-            loadedTransactions = materialize(page.persistentIDs)
-            totalTransactionCount = page.totalCount
-            ledgerSummary = summary
+            loadedTransactions = materialize(snapshot.page.persistentIDs)
+            totalTransactionCount = snapshot.page.totalCount
+            ledgerSummary = snapshot.summary
+            loadedLedgerQueryID = queryID
+            rebuildPresentation()
         } catch {
             guard !Task.isCancelled, queryID == ledgerQueryID else { return }
             loadedTransactions = []
             totalTransactionCount = 0
             ledgerSummary = nil
+            ledgerPresentation = .empty
+            loadedLedgerQueryID = nil
             deleteError = error.localizedDescription
         }
     }
@@ -64,6 +80,7 @@ extension LedgerView {
             let existingIDs = Set(loadedTransactions.map(\.id))
             loadedTransactions.append(contentsOf: materialize(page.persistentIDs).filter { !existingIDs.contains($0.id) })
             totalTransactionCount = page.totalCount
+            rebuildPresentation()
         } catch {
             guard !Task.isCancelled, queryID == ledgerQueryID else { return }
             deleteError = error.localizedDescription
@@ -75,49 +92,45 @@ extension LedgerView {
     /// 输入刻意和 `ActionCenterView` 保持一致（同一份支出交易、同一批已忽略建议），
     /// 否则会出现 badge 说 3 项、打开却是 4 项——一个比不显示数量更糟的结果。
     /// 这里包含 `pendingOccurrences` 的推演，所以只在 digest 变化时跑一次。
-    func refreshPendingActionCount() {
-        let expenseTransactions: [Transaction]
+    func refreshPendingActionCount() async {
+        let dismissedSuggestionFingerprints = UserDefaultsRecurringSuggestionDismissalStore().load()
         do {
-            expenseTransactions = try modelContext.fetch(
-                FetchDescriptor<Transaction>(
-                    predicate: #Predicate<Transaction> { $0.isExpense == true },
-                    sortBy: [SortDescriptor(\Transaction.date, order: .reverse)]
+            let count = try await LocalActionCenterDataStore(
+                modelContainer: modelContext.container
+            ).totalCount(
+                dismissedSuggestionFingerprints: dismissedSuggestionFingerprints,
+                payday: payday,
+                weekendMultiplier: WeekendBudgetPreferences.multiplier(
+                    for: weekendBudgetMultiplierPercent
                 )
             )
+            try Task.checkCancellation()
+            pendingActionCount = count
+        } catch is CancellationError {
+            return
         } catch {
             pendingActionCount = 0
-            return
         }
-
-        let pendingBackfill = RecurringOccurrenceService(modelContext: modelContext).pendingOccurrences(
-            rules: recurringRules,
-            occurrences: recurringOccurrences,
-            maxOccurrences: 120
-        )
-
-        pendingActionCount = LocalActionCenterService.snapshot(
-            budgets: allBudgets,
-            transactions: expenseTransactions,
-            recurringRules: recurringRules,
-            occurrences: recurringOccurrences,
-            pendingBackfill: pendingBackfill,
-            installmentBills: installmentBills,
-            reminders: reminderModels.map(\.item),
-            dismissedSuggestionFingerprints: UserDefaultsRecurringSuggestionDismissalStore().load(),
-            payday: payday,
-            weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent)
-        ).totalCount
     }
 
     func selectAllMatchingTransactions() {
+        cancelSelectAllTask()
         let queryID = ledgerQueryID
         let filter = currentLedgerFilter
-        Task {
+        let token = UUID()
+        selectAllLoadToken = token
+        selectAllTask = Task { @MainActor in
+            defer {
+                if selectAllLoadToken == token {
+                    selectAllLoadToken = nil
+                    selectAllTask = nil
+                }
+            }
             do {
                 let ids = try await LedgerQueryDataStore(modelContainer: modelContext.container)
                     .fetchMatchingTransactionIDs(filter: filter)
                 try Task.checkCancellation()
-                guard queryID == ledgerQueryID else { return }
+                guard queryID == ledgerQueryID, selectAllLoadToken == token else { return }
                 selectedIds = ids
             } catch is CancellationError {
                 return
@@ -125,6 +138,12 @@ extension LedgerView {
                 batchDeleteError = error.localizedDescription
             }
         }
+    }
+
+    func cancelSelectAllTask() {
+        selectAllTask?.cancel()
+        selectAllTask = nil
+        selectAllLoadToken = nil
     }
 
     func materialize(_ persistentIDs: [PersistentIdentifier]) -> [Transaction] {
@@ -159,19 +178,29 @@ extension LedgerView {
         withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
             undoInfo = snapshot
         }
-        undoWorkItem?.cancel()
-        let task = DispatchWorkItem { [self] in
-            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
-                self.undoInfo = nil
+        undoDismissTask?.cancel()
+        let token = UUID()
+        undoDismissToken = token
+        undoDismissTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: .seconds(4))
+            } catch {
+                return
             }
+            guard undoDismissToken == token else { return }
+            withAnimation(reduceMotion ? nil : .spring(response: 0.3)) {
+                undoInfo = nil
+            }
+            undoDismissTask = nil
+            undoDismissToken = nil
         }
-        undoWorkItem = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4, execute: task)
     }
 
     func undoDelete() {
         guard let info = undoInfo else { return }
-        undoWorkItem?.cancel()
+        undoDismissTask?.cancel()
+        undoDismissTask = nil
+        undoDismissToken = nil
 
         do {
             try TransactionMutationService(modelContext: modelContext).restore(info)

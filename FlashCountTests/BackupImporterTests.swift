@@ -65,6 +65,23 @@ final class BackupImporterTests: XCTestCase {
         XCTAssertEqual(fromFile.version, fromData.version)
     }
 
+    func testAsyncExportEncodesAndWritesValueSnapshot() async throws {
+        let context = try makeContext()
+        context.insert(Transaction(amount: 19, note: "后台导出"))
+        try context.save()
+
+        let service = DataBackupService(modelContext: context)
+        let data = try await service.exportJSON()
+        let preview = try service.previewJSON(data: data)
+        XCTAssertGreaterThan(preview.itemCount, 0)
+
+        let url = try await service.exportToFile()
+        defer { try? FileManager.default.removeItem(at: url) }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        let filePreview = try service.previewJSON(data: Data(contentsOf: url))
+        XCTAssertEqual(filePreview.itemCount, preview.itemCount)
+    }
+
     func testReplaceImportRejectsMalformedRelationshipUUIDWithoutCrashing() throws {
         let source = try makeContext()
         let category = Category(name: "关系分类", icon: "tag.fill", colorHex: "#112233")
@@ -84,6 +101,26 @@ final class BackupImporterTests: XCTestCase {
                 data: try JSONSerialization.data(withJSONObject: json),
                 mode: .replace
             )
+        )
+    }
+
+    func testPreviewRejectsMalformedRelationshipBeforeConfirmation() throws {
+        let source = try makeContext()
+        let category = Category(name: "关系分类", icon: "tag.fill", colorHex: "#112233")
+        source.insert(category)
+        source.insert(Transaction(amount: 7, category: category))
+        try source.save()
+
+        let service = DataBackupService(modelContext: source)
+        var json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: try service.exportJSON()) as? [String: Any]
+        )
+        var transactions = try XCTUnwrap(json["transactions"] as? [[String: Any]])
+        transactions[0]["categoryId"] = UUID().uuidString
+        json["transactions"] = transactions
+
+        XCTAssertThrowsError(
+            try service.previewJSON(data: try JSONSerialization.data(withJSONObject: json))
         )
     }
 

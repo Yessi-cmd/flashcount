@@ -269,8 +269,10 @@ enum ReportReminderNotificationService {
         with preferences: ReportReminderPreferences,
         reminders: [ReminderItem]
     ) async throws {
-        _ = preferences
-        try await NotificationScheduleCoordinator.shared.rebuild(reminders: reminders)
+        try await NotificationScheduleCoordinator.shared.rebuild(
+            reminders: reminders,
+            reportPreferences: preferences
+        )
     }
 
     static func cancelAll(reminders: [ReminderItem]) async {

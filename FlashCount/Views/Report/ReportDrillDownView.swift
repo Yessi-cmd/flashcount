@@ -27,6 +27,7 @@ struct ReportDrillDownView: View {
     @State private var transactions: [Transaction] = []
     @State private var totalCount = 0
     @State private var totalAmount: Decimal = 0
+    @State private var isLoading = true
     @State private var loadError: String?
     @State private var editingTransaction: Transaction?
 
@@ -37,7 +38,10 @@ struct ReportDrillDownView: View {
             ZStack {
                 DesignSystem.surfaceBackground.ignoresSafeArea()
 
-                if let loadError {
+                if isLoading {
+                    ProgressView("正在读取明细…")
+                        .foregroundStyle(DesignSystem.textSecondary)
+                } else if let loadError {
                     ContentUnavailableView {
                         Label("明细读取失败", systemImage: "exclamationmark.triangle")
                     } description: {
@@ -91,7 +95,7 @@ struct ReportDrillDownView: View {
             .sheet(item: $editingTransaction) { transaction in
                 EditTransactionView(transaction: transaction)
             }
-            .task { load() }
+            .task { await load() }
         }
     }
 
@@ -118,7 +122,13 @@ struct ReportDrillDownView: View {
         .accessibilityIdentifier("report.drillDown.summary")
     }
 
-    private func load() {
+    private func load() async {
+        isLoading = true
+        defer {
+            if !Task.isCancelled {
+                isLoading = false
+            }
+        }
         let filter = LedgerFilter(
             startDate: request.range.start,
             endDate: request.range.end,
@@ -134,12 +144,22 @@ struct ReportDrillDownView: View {
         )
 
         do {
-            let service = LedgerQueryService(modelContext: modelContext)
-            let page = try service.fetchPage(filter: filter, offset: 0, limit: Self.pageLimit)
-            transactions = page.transactions
-            totalCount = page.totalCount
-            totalAmount = try service.summary(filter: filter).expense
+            let snapshot = try await LedgerQueryDataStore(
+                modelContainer: modelContext.container
+            ).fetchPageSnapshot(
+                filter: filter,
+                offset: 0,
+                limit: Self.pageLimit
+            )
+            try Task.checkCancellation()
+            transactions = snapshot.page.persistentIDs.compactMap {
+                modelContext.model(for: $0) as? Transaction
+            }
+            totalCount = snapshot.page.totalCount
+            totalAmount = snapshot.summary.expense
             loadError = nil
+        } catch is CancellationError {
+            return
         } catch {
             transactions = []
             totalCount = 0

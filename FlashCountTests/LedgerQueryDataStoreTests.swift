@@ -90,6 +90,26 @@ final class LedgerQueryDataStoreTests: XCTestCase {
         XCTAssertFalse(beyondEnd.hasMore)
     }
 
+    @MainActor
+    func testPageSnapshotReusesOneFilteredResultForRowsAndSummary() async throws {
+        let context = try makeContext()
+        context.insert(Transaction(amount: 10, note: "同一筛选"))
+        context.insert(Transaction(amount: 20, note: "同一筛选"))
+        context.insert(Transaction(amount: 999, note: "无关"))
+        try context.save()
+
+        let snapshot = try await LedgerQueryDataStore(modelContainer: context.container)
+            .fetchPageSnapshot(
+                filter: makeFilter(searchText: "同一筛选"),
+                offset: 0,
+                limit: 1
+            )
+
+        XCTAssertEqual(snapshot.page.persistentIDs.count, 1)
+        XCTAssertEqual(snapshot.page.totalCount, 2)
+        XCTAssertEqual(snapshot.summary.expense, 30)
+    }
+
     // MARK: - 夹具
 
     private func makeFilter(

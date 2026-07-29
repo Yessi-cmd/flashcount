@@ -9,6 +9,7 @@ enum DataHealthIssueKind: String, CaseIterable, Identifiable, Equatable {
     case missingLedger
     case uncategorizedTransaction
     case invalidTransactionAmount
+    case invalidFinancialAmount
 
     var id: String { rawValue }
 
@@ -21,6 +22,7 @@ enum DataHealthIssueKind: String, CaseIterable, Identifiable, Equatable {
         case .missingLedger: return "缺失账本"
         case .uncategorizedTransaction: return "未分类交易"
         case .invalidTransactionAmount: return "无效交易金额"
+        case .invalidFinancialAmount: return "无效财务金额"
         }
     }
 
@@ -33,6 +35,7 @@ enum DataHealthIssueKind: String, CaseIterable, Identifiable, Equatable {
         case .missingLedger: return "book.closed"
         case .uncategorizedTransaction: return "tag"
         case .invalidTransactionAmount: return "exclamationmark.triangle"
+        case .invalidFinancialAmount: return "banknote.fill"
         }
     }
 
@@ -40,7 +43,7 @@ enum DataHealthIssueKind: String, CaseIterable, Identifiable, Equatable {
         switch self {
         case .missingLedger, .emptyTransactionDelta, .duplicateCashPoolState:
             return DesignSystem.primaryColor
-        case .duplicateUUID, .orphanBudget, .invalidTransactionAmount:
+        case .duplicateUUID, .orphanBudget, .invalidTransactionAmount, .invalidFinancialAmount:
             return DesignSystem.warningColor
         case .uncategorizedTransaction:
             return DesignSystem.textSecondary
