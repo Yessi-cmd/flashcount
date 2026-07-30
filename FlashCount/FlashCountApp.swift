@@ -182,6 +182,7 @@ private struct AppRootView: View {
             let recurringResult = try DefaultDataService(modelContext: modelContext).prepareAppData()
             prepareReportLayoutUITestDataIfNeeded()
             prepareActionCenterUITestDataIfNeeded()
+            prepareCashFlowForecastUITestDataIfNeeded()
             startupState = .ready
             rebuildNotificationSchedule()
             if recurringResult.hasRemainingDueRules {
@@ -350,6 +351,100 @@ private struct AppRootView: View {
                     title: "测试行动提醒",
                     dueDate: reminderDate
                 )
+            )
+        )
+
+        try? modelContext.save()
+#endif
+    }
+
+    /// Adds eight completed recording weeks plus known future cash flows so the
+    /// interval chart can be reviewed and smoke-tested deterministically.
+    private func prepareCashFlowForecastUITestDataIfNeeded() {
+#if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard arguments.contains("-uiTestCashFlowForecast") else { return }
+
+        let marker = "__ui_test_cash_flow__"
+        let existingTransactions = try? modelContext.fetch(FetchDescriptor<Transaction>())
+        guard existingTransactions?.contains(where: { $0.note.hasPrefix(marker) }) != true else { return }
+
+        var calendar = Calendar.current
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        let now = Date.now
+        guard
+            let currentWeekStart = calendar.dateInterval(
+                of: .weekOfYear,
+                for: now
+            )?.start,
+            let category = (try? modelContext.fetch(
+                FetchDescriptor<Category>(
+                    predicate: #Predicate<Category> {
+                        $0.name == "餐饮" && $0.isExpense && !$0.isArchived
+                    }
+                )
+            ))?.first
+        else {
+            return
+        }
+
+        let weeklyAmounts: [Decimal] = [
+            350, 490, 630, 770, 910, 1_050, 1_190, 1_330,
+        ]
+        for (index, amount) in weeklyAmounts.enumerated() {
+            guard
+                let weekStart = calendar.date(
+                    byAdding: .weekOfYear,
+                    value: index - weeklyAmounts.count,
+                    to: currentWeekStart
+                ),
+                let transactionDate = calendar.date(
+                    byAdding: .day,
+                    value: 2,
+                    to: weekStart
+                )
+            else {
+                continue
+            }
+            modelContext.insert(
+                Transaction(
+                    amount: amount,
+                    note: "\(marker).week.\(index)",
+                    date: transactionDate,
+                    dailyBudgetOverride: true,
+                    category: category
+                )
+            )
+        }
+
+        modelContext.insert(
+            CashPoolItem(
+                name: "\(marker).cash",
+                kind: .cash,
+                amount: 3_500
+            )
+        )
+
+        let rentDate = calendar.date(byAdding: .day, value: 5, to: now) ?? now
+        modelContext.insert(
+            RecurringRule(
+                title: "房租",
+                amount: 2_200,
+                nextDueDate: rentDate,
+                note: marker,
+                category: category
+            )
+        )
+
+        let salaryDate = calendar.date(byAdding: .day, value: 20, to: now) ?? now
+        modelContext.insert(
+            RecurringRule(
+                title: "工资",
+                amount: 3_000,
+                isExpense: false,
+                nextDueDate: salaryDate,
+                note: marker
             )
         )
 

@@ -97,6 +97,94 @@ final class FlashCountSmokeTests: XCTestCase {
         XCTAssertTrue(app.navigationBars["本地行动中心"].waitForExistence(timeout: 5))
     }
 
+    func testCashFlowForecastShowsRangeSwitchesModeAndExplainsMethod() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestUnlockPrivacy",
+            "-uiTestCashFlowForecast",
+            "-visualReviewTab", "4"
+        ]
+        app.launch()
+
+        let card = app.buttons["assets.cashFlowForecast"]
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        card.tap()
+
+        XCTAssertTrue(app.navigationBars["现金流预测"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.descendants(matching: .any)["cashFlow.summary.range"]
+                .waitForExistence(timeout: 5),
+            "足够的完整记录周应显示余额区间"
+        )
+
+        let fixedOnly = app.buttons["仅已知事项"]
+        XCTAssertTrue(fixedOnly.waitForExistence(timeout: 3))
+        fixedOnly.tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["cashFlow.summary.value"]
+                .waitForExistence(timeout: 3),
+            "切换到仅已知事项后应收起历史区间"
+        )
+        app.buttons["历史常见区间"].tap()
+        XCTAssertTrue(
+            app.descendants(matching: .any)["cashFlow.summary.range"]
+                .waitForExistence(timeout: 3)
+        )
+
+        app.swipeUp()
+        let chart = app.otherElements
+            .matching(identifier: "cashFlow.chart.card")
+            .firstMatch
+        XCTAssertTrue(chart.waitForExistence(timeout: 5))
+
+        let method = app.buttons["cashFlow.method"]
+        XCTAssertTrue(method.waitForExistence(timeout: 5))
+        let tabBarTop = app.buttons["mainTab.assets"].frame.minY
+        var scrollAttempts = 0
+        while method.frame.maxY > tabBarTop, scrollAttempts < 5 {
+            app.swipeUp()
+            scrollAttempts += 1
+        }
+        XCTAssertLessThanOrEqual(method.frame.maxY, tabBarTop)
+        tapDirectly(method)
+        XCTAssertTrue(app.navigationBars["计算方法"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["较低支出（P20）"].waitForExistence(timeout: 5))
+        let higherSpending = app.staticTexts["较高支出（P80）"]
+        if !higherSpending.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(higherSpending.waitForExistence(timeout: 5))
+    }
+
+    func testCashFlowChartHidesPlotWhilePrivacyIsLocked() {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            "-hasCompletedOnboarding", "true",
+            "-uiTestCashFlowForecast",
+            "-visualReviewTab", "4"
+        ]
+        app.launch()
+
+        let card = app.buttons["assets.cashFlowForecast"]
+        XCTAssertTrue(card.waitForExistence(timeout: 8))
+        card.tap()
+
+        XCTAssertTrue(app.navigationBars["现金流预测"].waitForExistence(timeout: 5))
+        app.swipeUp()
+        XCTAssertTrue(
+            app.staticTexts["解锁后查看余额区间"].waitForExistence(timeout: 5),
+            "隐私锁生效时应以解锁入口替代真实图表"
+        )
+        XCTAssertFalse(
+            app.descendants(matching: .any)
+                .matching(identifier: "cashFlow.chart.interaction")
+                .firstMatch
+                .exists,
+            "锁定状态不应创建含真实坐标的图表交互层"
+        )
+    }
+
     func testLedgerBatchActionsStayAboveMainTabBar() {
         let app = XCUIApplication()
         app.launchArguments = ["-hasCompletedOnboarding", "true"]

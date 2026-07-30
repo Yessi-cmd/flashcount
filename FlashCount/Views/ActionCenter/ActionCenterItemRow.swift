@@ -56,6 +56,10 @@ struct ActionCenterItemRow: View {
         switch item.kind {
         case .budgetOverrun:
             DesignSystem.dangerColor
+        case .cashFlowRisk:
+            item.severity == .urgent
+                ? DesignSystem.dangerColor
+                : DesignSystem.warningColor
         case .recurringDebit, .installmentDue:
             DesignSystem.expenseColor
         case .recurringSuggestion:

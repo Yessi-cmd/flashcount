@@ -24,6 +24,7 @@
 		0D6CC3568E879C501B77EE1C /* AddReminderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A25736CBBC2CCA2F7E6527E /* AddReminderView.swift */; };
 		0D6D087A308EBA9B366E15B7 /* NotificationScheduleCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E0972865ACDED27B1AAADF3 /* NotificationScheduleCoordinatorTests.swift */; };
 		1012BB03607699D92610830C /* ReportStreakCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A23FD76130EA35FAE6B2BE5 /* ReportStreakCalculator.swift */; };
+		10162AB2D27728F9DDF220FC /* CashFlowRangeChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CB41417ECC39F941C7BFF01 /* CashFlowRangeChart.swift */; };
 		103A01669289A20425DBF5D4 /* ReminderItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 576E3BCB6980873E51D3A0B8 /* ReminderItem.swift */; };
 		1107FB196BC96BF4C83CFB2C /* RecurringCatchUpPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30159AD8FBCFF39D60087239 /* RecurringCatchUpPreferences.swift */; };
 		13AC61775C4DCB3F2B84C126 /* CashPoolService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 030061CEC562B81C1B7B0C3D /* CashPoolService.swift */; };
@@ -40,6 +41,7 @@
 		1E594E500C23CE7A65B8CF23 /* FlashCountSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = 214FECFB8A46540B23411B24 /* FlashCountSchema.swift */; };
 		1EDD37DA094667B6285517AC /* MainInterfaceExplorationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B82942383FFAC85D692A7031 /* MainInterfaceExplorationView.swift */; };
 		1F3FD337430E5786ADA03F40 /* TemplateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6EA8F2E67C1B676182446B /* TemplateBarView.swift */; };
+		1FE420E5C53C4B72D227F9C9 /* CashFlowEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BA9C50F0E6E9C1CE9D0D728 /* CashFlowEventRow.swift */; };
 		237E258B499B368D81DD8965 /* FinanceDomainTests+Recurring.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2138D1C9174D58A85735FE89 /* FinanceDomainTests+Recurring.swift */; };
 		24F9BCA44C5191183E31CD00 /* AssetPortfolioSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = A67EB5A2386263FC2E91EC32 /* AssetPortfolioSnapshot.swift */; };
 		25508CD080DACE14CE31BF56 /* Ledger.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE1C3CA8CF1103A0EB494B7B /* Ledger.swift */; };
@@ -53,6 +55,7 @@
 		32FD6E021D51ECE4823F7742 /* FinanceDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F27BCD9B648D9091737CA888 /* FinanceDomainTests.swift */; };
 		33AC277FE5E36B92BDAEDFF2 /* InstallmentBill.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44850532ED0D315BFCB16D9 /* InstallmentBill.swift */; };
 		33F008A1FD132222A2B1128C /* WeekendBudgetPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */; };
+		350093BDEEF30E023A4E4660 /* CashFlowForecastControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94CB554466E56CB24B204D5A /* CashFlowForecastControls.swift */; };
 		3598F1C79B571778BC11A2E3 /* PayCycleService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8FC52EA4884A4B39278E912 /* PayCycleService.swift */; };
 		363B3F0D215117E006A8DBE1 /* AssetBreakdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE12748D21B6F09C131F5EA4 /* AssetBreakdownTests.swift */; };
 		366B8E103E01172DB8C33E6A /* FinanceDomainTests+Backup.swift in Sources */ = {isa = PBXBuildFile; fileRef = B69EF83BF53BB977C49FDF4E /* FinanceDomainTests+Backup.swift */; };
@@ -72,6 +75,7 @@
 		48ABF62D1E1FB42B901F8235 /* ReportReminderPreferencesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44ED3657E41E040314D63848 /* ReportReminderPreferencesStore.swift */; };
 		4937879A4084BE8B7C3FB72A /* DailyBudgetScopeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6C353AB5561EBD96657B182 /* DailyBudgetScopeView.swift */; };
 		499C894AE855060406B52B76 /* CategoryBudgetService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45CCF20C66441FB06536D937 /* CategoryBudgetService.swift */; };
+		49F0BBDFAFF900FBF9C68EA0 /* CashFlowForecastMethodCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69957F90A876BE5068ABE754 /* CashFlowForecastMethodCard.swift */; };
 		4AD3D846FD1695BA9132B7FC /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1ADA7956C6C99C09B67BA62C /* PrivacyInfo.xcprivacy */; };
 		4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */; };
 		4B6BDBD4D494CD302A0B6216 /* DataHealthRepairPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52FC2A042FE21B6B6BD477C1 /* DataHealthRepairPlan.swift */; };
@@ -82,10 +86,12 @@
 		518906D1BB40E34A9DF0FFCE /* InstallmentRepaymentServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABCA6FC8516383394A21726F /* InstallmentRepaymentServiceTests.swift */; };
 		521BAA56D0D45CDDEC999D79 /* LedgerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A503499BBB8FAD9C2B718B91 /* LedgerPresentation.swift */; };
 		54F99BA3721CB70E9A36E004 /* QuickEntryAmountInputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCF0A525836FFDC90EE053B /* QuickEntryAmountInputTests.swift */; };
+		55DE83E1BCAFFEF96BD53D72 /* CashFlowForecastSummaryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9BAB58F2CAB42006D5AE3FC /* CashFlowForecastSummaryCard.swift */; };
 		566909CCF24EE8E82A4466DD /* DataHealthServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */; };
 		57E48658B4E0DE4D34531491 /* LedgerQueryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9135D5FD720592C567187C6E /* LedgerQueryService.swift */; };
 		636984214ED3D236A36BE33C /* LedgerActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 338B2E3E70FD9CBF647930A3 /* LedgerActions.swift */; };
 		697ED69C6FFF9A2E243D5168 /* LocalActionCenterDataStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46C768A1F529AE9695CFE675 /* LocalActionCenterDataStoreTests.swift */; };
+		6B983A6FEDFC13EE9AC1747E /* RoutineSpendingProfileTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 621F894B8059BC43A17C04A4 /* RoutineSpendingProfileTests.swift */; };
 		6D33173402F409712ABD8C4B /* RecurringRule.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB3F38C38BEDF6396D15AE5E /* RecurringRule.swift */; };
 		6E622DE3993822821DE7FF69 /* AssetPortfolioSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53467D59BF9EB836F1FC5A62 /* AssetPortfolioSnapshotTests.swift */; };
 		6FF2E927C28F2BC8CF8D8AD9 /* CashFlowForecastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D151BB6EE2B34C65A55127D /* CashFlowForecastView.swift */; };
@@ -157,6 +163,7 @@
 		CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */; };
 		CD161CD39C37F8747F8F19D5 /* SavingsGoalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C6FDA81436A9B8623D1B0EA /* SavingsGoalView.swift */; };
 		CE7B1D6D32B88BC5FA52091D /* BackupImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17FA43688643A3C342CFFFB0 /* BackupImporter.swift */; };
+		CF9CBAE9491AE785D7055FEA /* RoutineSpendingProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D857D994840642D3229C4 /* RoutineSpendingProfile.swift */; };
 		D0DECAD57D1195E1490A607A /* ReportShareCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD0D1E8C8D9A7DB5B8F0AF2B /* ReportShareCard.swift */; };
 		D284938ECE4AE2580EF1C53F /* ReportPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1FF48441638307D9EDBA856 /* ReportPresentation.swift */; };
 		D5735C0BE5EA9C89441EE9B7 /* LedgerQueryExecutor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB5A574635D34896F9B3C311 /* LedgerQueryExecutor.swift */; };
@@ -184,6 +191,8 @@
 		EDBDC59FE0C41CD7C6ACD8EF /* MoneyValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CDD11E538004796EB92A4F0 /* MoneyValidationTests.swift */; };
 		EDE549C053A24074D2EE4D6E /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454084E97E2460EC422CA4D1 /* MainTabView.swift */; };
 		EFA3FA702D94A14C5FA060D2 /* BackupExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A843AEFBCC16B33EAF56D8C /* BackupExporter.swift */; };
+		F2BD59D6F799D194E491E851 /* AssetCashFlowForecastCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D009457189497A1C99724BFF /* AssetCashFlowForecastCard.swift */; };
+		F2DB96D8E0314415DAC7E1C6 /* CashFlowForecastScenario.swift in Sources */ = {isa = PBXBuildFile; fileRef = F761E23F17185B3417808E20 /* CashFlowForecastScenario.swift */; };
 		F3D56E55CBFD10AD0416EFD3 /* ReportChartCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4700410EC20728E44DA5831 /* ReportChartCards.swift */; };
 		F85318229FBA2F510E928517 /* InstallmentRepaymentService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4804F9EA1F5BDF7A244448B4 /* InstallmentRepaymentService.swift */; };
 		FE3F5BF744046B84CA2050D6 /* CashPool.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93D00BC2D91830E9EF101E56 /* CashPool.swift */; };
@@ -217,6 +226,7 @@
 		03D1DAE410336C0B0B1944E7 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		07DB9D3D6E1549D61AC58249 /* CalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarView.swift; sourceTree = "<group>"; };
 		09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationServiceTests.swift; sourceTree = "<group>"; };
+		0BA9C50F0E6E9C1CE9D0D728 /* CashFlowEventRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowEventRow.swift; sourceTree = "<group>"; };
 		0D92C1E2A72C7A3009D2099B /* ReportReminderSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportReminderSettingsView.swift; sourceTree = "<group>"; };
 		10C7C05C009A9D11F4AA4043 /* CSVTransactionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionServiceTests.swift; sourceTree = "<group>"; };
 		111E19CEC9249A3EBFAEA802 /* LocalActionCenterDigest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalActionCenterDigest.swift; sourceTree = "<group>"; };
@@ -273,6 +283,7 @@
 		4A311A07E87BD6282499BBE4 /* DataHealthServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthServiceTests.swift; sourceTree = "<group>"; };
 		4A843AEFBCC16B33EAF56D8C /* BackupExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupExporter.swift; sourceTree = "<group>"; };
 		4A9DC9D3772627449CAE070F /* ReportPageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPageCache.swift; sourceTree = "<group>"; };
+		4CB41417ECC39F941C7BFF01 /* CashFlowRangeChart.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowRangeChart.swift; sourceTree = "<group>"; };
 		4F9F2891D6F47600C3813AD6 /* WeekendBudgetPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekendBudgetPreferences.swift; sourceTree = "<group>"; };
 		5135CC79D6F54B517077FC78 /* FlashCountApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashCountApp.swift; sourceTree = "<group>"; };
 		5149DDB0778D319390564E4F /* RecurringOccurrenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringOccurrenceService.swift; sourceTree = "<group>"; };
@@ -288,12 +299,14 @@
 		6034BD6BC484918A111E209E /* LegacyAssetRemovalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacyAssetRemovalTests.swift; sourceTree = "<group>"; };
 		60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringSuggestionServiceTests.swift; sourceTree = "<group>"; };
 		61B8D6D49F2BCB24D1BDCED8 /* LedgerQueryServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerQueryServiceTests.swift; sourceTree = "<group>"; };
+		621F894B8059BC43A17C04A4 /* RoutineSpendingProfileTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutineSpendingProfileTests.swift; sourceTree = "<group>"; };
 		62F04AD8E1487702754644DD /* InstallmentBillView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstallmentBillView.swift; sourceTree = "<group>"; };
 		6310F1C512A94ECA5EBBACDF /* LedgerFilterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerFilterState.swift; sourceTree = "<group>"; };
 		644EEC0E4F8740428A7AA323 /* ActionCenterItemRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterItemRow.swift; sourceTree = "<group>"; };
 		6474E7E78E7F9BC4FFABA606 /* RecurringService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringService.swift; sourceTree = "<group>"; };
 		66911680311D897822DE8A7A /* CashFlowForecastService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastService.swift; sourceTree = "<group>"; };
 		6958950D41A4E8CD91DCB2E5 /* QuickAddIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickAddIntent.swift; sourceTree = "<group>"; };
+		69957F90A876BE5068ABE754 /* CashFlowForecastMethodCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastMethodCard.swift; sourceTree = "<group>"; };
 		6D2927DCAF44C764B12376C6 /* CategoryBudgetsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryBudgetsView.swift; sourceTree = "<group>"; };
 		6D8CD218FE5B62A309ABCC2C /* StartupFailureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupFailureView.swift; sourceTree = "<group>"; };
 		6DE8376903D1AEA9D4340451 /* LedgerTransactionMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerTransactionMatcher.swift; sourceTree = "<group>"; };
@@ -319,6 +332,7 @@
 		9135D5FD720592C567187C6E /* LedgerQueryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerQueryService.swift; sourceTree = "<group>"; };
 		91C4DB6E1BDDF34C4DE3ACBD /* CategoryHierarchyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryHierarchyTests.swift; sourceTree = "<group>"; };
 		93D00BC2D91830E9EF101E56 /* CashPool.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashPool.swift; sourceTree = "<group>"; };
+		94CB554466E56CB24B204D5A /* CashFlowForecastControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastControls.swift; sourceTree = "<group>"; };
 		9C362FFD8BCB929EA58D61DD /* AddRecurringRuleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddRecurringRuleView.swift; sourceTree = "<group>"; };
 		A09A3E2CB08BE1306C67F21D /* CashFlowForecastTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastTests.swift; sourceTree = "<group>"; };
 		A218A299FB92357FF2E66D84 /* AppDeepLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDeepLink.swift; sourceTree = "<group>"; };
@@ -341,6 +355,7 @@
 		AE9F137467C4C9058D41AD0C /* LedgerSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerSections.swift; sourceTree = "<group>"; };
 		AFA56DC79211569DA706F949 /* ReportSummaryCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportSummaryCards.swift; sourceTree = "<group>"; };
 		B05285ADD9B6AC2660BBBF3E /* BudgetAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BudgetAnalyzer.swift; sourceTree = "<group>"; };
+		B41D857D994840642D3229C4 /* RoutineSpendingProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutineSpendingProfile.swift; sourceTree = "<group>"; };
 		B517332913BF860F9A5593AC /* Budget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Budget.swift; sourceTree = "<group>"; };
 		B5FEB9024E51A499AAC08A77 /* LocalActionCenterServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalActionCenterServiceTests.swift; sourceTree = "<group>"; };
 		B66674F214D250C00FDB12AA /* ReportRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportRoute.swift; sourceTree = "<group>"; };
@@ -364,6 +379,7 @@
 		C8FC52EA4884A4B39278E912 /* PayCycleService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayCycleService.swift; sourceTree = "<group>"; };
 		CA07EB27C4CAF30E53F187FB /* LedgerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerView.swift; sourceTree = "<group>"; };
 		CAB7A360D69781ACB0C93555 /* ValidationMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ValidationMessage.swift; sourceTree = "<group>"; };
+		D009457189497A1C99724BFF /* AssetCashFlowForecastCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetCashFlowForecastCard.swift; sourceTree = "<group>"; };
 		D3474D18D3D98F0E29892BC0 /* ReportBudgetSnapshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportBudgetSnapshotService.swift; sourceTree = "<group>"; };
 		D46587B0FD88BF215D27EEE1 /* DataHealthReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthReport.swift; sourceTree = "<group>"; };
 		D4F8BA17A1077C74363D442E /* DefaultDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultDataService.swift; sourceTree = "<group>"; };
@@ -381,6 +397,7 @@
 		E7249DAF95AB976C95EB8329 /* CashFlowForecastHorizonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastHorizonTests.swift; sourceTree = "<group>"; };
 		E86B579E1EAD806782774386 /* LedgerFilterQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LedgerFilterQueryTests.swift; sourceTree = "<group>"; };
 		E94FA939D27F7853D52D9940 /* QuickEntryLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickEntryLogic.swift; sourceTree = "<group>"; };
+		E9BAB58F2CAB42006D5AE3FC /* CashFlowForecastSummaryCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastSummaryCard.swift; sourceTree = "<group>"; };
 		ED4B2EBB93F770D4860E517A /* ActionCenterSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCenterSummaryView.swift; sourceTree = "<group>"; };
 		EE30225D24B9028D99C97465 /* ReminderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReminderView.swift; sourceTree = "<group>"; };
 		EEBF638849D9D22CD83348A1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -388,6 +405,7 @@
 		F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransactionMutationService.swift; sourceTree = "<group>"; };
 		F6EC02DA026860FD1B5DE60C /* CSVTransactionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSVTransactionService.swift; sourceTree = "<group>"; };
 		F6F1A9BBC47DE836248A9BE8 /* LiquidGlassContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiquidGlassContainer.swift; sourceTree = "<group>"; };
+		F761E23F17185B3417808E20 /* CashFlowForecastScenario.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CashFlowForecastScenario.swift; sourceTree = "<group>"; };
 		F8466A7DFE220F43816D4D85 /* Reminder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reminder.swift; sourceTree = "<group>"; };
 		F9E2683C8AFA57C9063ECE82 /* CategoryChangeBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategoryChangeBadge.swift; sourceTree = "<group>"; };
 		FAA5288E4B0ADB2DA4F1023A /* DataHealthIssueKind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataHealthIssueKind.swift; sourceTree = "<group>"; };
@@ -574,6 +592,7 @@
 				60F4EB3B90C22E051B3E0758 /* RecurringSuggestionServiceTests.swift */,
 				A27C19DB4A8F453637E7259D /* ReportDomainTests.swift */,
 				77045E48D3D60F6A725BAD72 /* ReportShareCardTests.swift */,
+				621F894B8059BC43A17C04A4 /* RoutineSpendingProfileTests.swift */,
 				A9D3F56F6963B48C443F28A0 /* SavingsGoalServiceTests.swift */,
 				09BB1327CFF99993D1AA8FE5 /* TransactionMutationServiceTests.swift */,
 			);
@@ -667,6 +686,7 @@
 			children = (
 				86C9F0D208702E5814332945 /* AssetBreakdown.swift */,
 				A67EB5A2386263FC2E91EC32 /* AssetPortfolioSnapshot.swift */,
+				F761E23F17185B3417808E20 /* CashFlowForecastScenario.swift */,
 				66911680311D897822DE8A7A /* CashFlowForecastService.swift */,
 				030061CEC562B81C1B7B0C3D /* CashPoolService.swift */,
 				4804F9EA1F5BDF7A244448B4 /* InstallmentRepaymentService.swift */,
@@ -688,6 +708,7 @@
 				4A9DC9D3772627449CAE070F /* ReportPageCache.swift */,
 				46165C4E87806B426267358D /* ReportPeriodCalculator.swift */,
 				4A23FD76130EA35FAE6B2BE5 /* ReportStreakCalculator.swift */,
+				B41D857D994840642D3229C4 /* RoutineSpendingProfile.swift */,
 				D83CA6CAD2B4C390736693F6 /* SavingsGoalService.swift */,
 				F5A4F1F7A955939CC5EFE7D7 /* TransactionMutationService.swift */,
 			);
@@ -741,8 +762,14 @@
 			isa = PBXGroup;
 			children = (
 				79CF0478800247D86D527877 /* AssetBreakdownSheet.swift */,
+				D009457189497A1C99724BFF /* AssetCashFlowForecastCard.swift */,
 				419CC96D1F0DAFBC7CEF02E1 /* AssetDashboardView.swift */,
+				0BA9C50F0E6E9C1CE9D0D728 /* CashFlowEventRow.swift */,
+				94CB554466E56CB24B204D5A /* CashFlowForecastControls.swift */,
+				69957F90A876BE5068ABE754 /* CashFlowForecastMethodCard.swift */,
+				E9BAB58F2CAB42006D5AE3FC /* CashFlowForecastSummaryCard.swift */,
 				3D151BB6EE2B34C65A55127D /* CashFlowForecastView.swift */,
+				4CB41417ECC39F941C7BFF01 /* CashFlowRangeChart.swift */,
 				28E6DA89B6319DACF056D151 /* CashPoolView.swift */,
 				62F04AD8E1487702754644DD /* InstallmentBillView.swift */,
 				32098830C4942F2DE5E169E0 /* InstallmentRepaymentSheet.swift */,
@@ -951,6 +978,7 @@
 				AD7031C194788D8B54FE7CD4 /* RecurringSuggestionServiceTests.swift in Sources */,
 				CCF82D22CC92B875526692A2 /* ReportDomainTests.swift in Sources */,
 				4BF40B9AD247ADCC097163AB /* ReportShareCardTests.swift in Sources */,
+				6B983A6FEDFC13EE9AC1747E /* RoutineSpendingProfileTests.swift in Sources */,
 				7952CD5AB9A5BE36D194801C /* SavingsGoalServiceTests.swift in Sources */,
 				C848E682CA61B43B128D3D14 /* TransactionMutationServiceTests.swift in Sources */,
 			);
@@ -971,6 +999,7 @@
 				77D08BC677CCD4BBAF5D1EFD /* Asset.swift in Sources */,
 				DB5C33A4C7B844EEAD0A050F /* AssetBreakdown.swift in Sources */,
 				262EDC2E17F12002888B5324 /* AssetBreakdownSheet.swift in Sources */,
+				F2BD59D6F799D194E491E851 /* AssetCashFlowForecastCard.swift in Sources */,
 				4B20EAB7205F2BF68B6F4117 /* AssetDashboardView.swift in Sources */,
 				24F9BCA44C5191183E31CD00 /* AssetPortfolioSnapshot.swift in Sources */,
 				910B7574E688BB5DE807C3C7 /* BackTapSetupView.swift in Sources */,
@@ -986,8 +1015,14 @@
 				E5F01D6D9E75A893B253FD5F /* BudgetView.swift in Sources */,
 				034521543E79940405F4C51F /* CSVTransactionService.swift in Sources */,
 				A13EA735400140C43507A11A /* CalendarView.swift in Sources */,
+				1FE420E5C53C4B72D227F9C9 /* CashFlowEventRow.swift in Sources */,
+				350093BDEEF30E023A4E4660 /* CashFlowForecastControls.swift in Sources */,
+				49F0BBDFAFF900FBF9C68EA0 /* CashFlowForecastMethodCard.swift in Sources */,
+				F2DB96D8E0314415DAC7E1C6 /* CashFlowForecastScenario.swift in Sources */,
 				C64617B89C3C7D615AFF4E54 /* CashFlowForecastService.swift in Sources */,
+				55DE83E1BCAFFEF96BD53D72 /* CashFlowForecastSummaryCard.swift in Sources */,
 				6FF2E927C28F2BC8CF8D8AD9 /* CashFlowForecastView.swift in Sources */,
+				10162AB2D27728F9DDF220FC /* CashFlowRangeChart.swift in Sources */,
 				FE3F5BF744046B84CA2050D6 /* CashPool.swift in Sources */,
 				13AC61775C4DCB3F2B84C126 /* CashPoolService.swift in Sources */,
 				9542F7F221B42C848E869513 /* CashPoolView.swift in Sources */,
@@ -1085,6 +1120,7 @@
 				1012BB03607699D92610830C /* ReportStreakCalculator.swift in Sources */,
 				1686278248E2E0EB0BD43158 /* ReportSummaryCards.swift in Sources */,
 				987E0D8310DFAAF54DD28DE5 /* ReportView.swift in Sources */,
+				CF9CBAE9491AE785D7055FEA /* RoutineSpendingProfile.swift in Sources */,
 				C3C6B2BC947F3488E07D1D30 /* SavingsGoal.swift in Sources */,
 				E16562F55F65CBD0E60BD9E3 /* SavingsGoalAdjustmentSheet.swift in Sources */,
 				016C937B1649A8F83C23F10D /* SavingsGoalService.swift in Sources */,
@@ -1133,6 +1169,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = FlashCount/FlashCount.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 66WCCRKRLC;
 				INFOPLIST_FILE = FlashCount/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

@@ -13,6 +13,8 @@ enum LocalActionCenterDigest {
         occurrences: [RecurringOccurrence],
         installmentBills: [InstallmentBill],
         reminders: [Reminder],
+        cashPoolItems: [CashPoolItem],
+        cashPoolStates: [CashPoolState],
         payday: Int,
         weekendBudgetMultiplierPercent: Int,
         dismissedSuggestionFingerprints: Set<String>
@@ -105,6 +107,22 @@ enum LocalActionCenterDigest {
             hasher.combine(reminder.completedAt)
         }
 
+        for item in cashPoolItems.sorted(by: sortByID) {
+            hasher.combine(item.id)
+            hasher.combine(item.name)
+            hasher.combine(item.kind.rawValue)
+            hasher.combine(item.amount)
+            hasher.combine(item.isArchived)
+            hasher.combine(item.sortOrder)
+            hasher.combine(item.updatedAt)
+        }
+
+        for state in cashPoolStates.sorted(by: sortByID) {
+            hasher.combine(state.id)
+            hasher.combine(state.transactionDelta)
+            hasher.combine(state.updatedAt)
+        }
+
         for fingerprint in dismissedSuggestionFingerprints.sorted() {
             hasher.combine(fingerprint)
         }
@@ -118,4 +136,6 @@ enum LocalActionCenterDigest {
     private static func sortByID(_ lhs: RecurringOccurrence, _ rhs: RecurringOccurrence) -> Bool { lhs.id.uuidString < rhs.id.uuidString }
     private static func sortByID(_ lhs: InstallmentBill, _ rhs: InstallmentBill) -> Bool { lhs.id.uuidString < rhs.id.uuidString }
     private static func sortByID(_ lhs: Reminder, _ rhs: Reminder) -> Bool { lhs.id.uuidString < rhs.id.uuidString }
+    private static func sortByID(_ lhs: CashPoolItem, _ rhs: CashPoolItem) -> Bool { lhs.id.uuidString < rhs.id.uuidString }
+    private static func sortByID(_ lhs: CashPoolState, _ rhs: CashPoolState) -> Bool { lhs.id.uuidString < rhs.id.uuidString }
 }

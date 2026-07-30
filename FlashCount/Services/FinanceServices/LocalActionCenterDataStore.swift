@@ -28,6 +28,12 @@ actor LocalActionCenterDataStore {
         let occurrences = try modelContext.fetch(FetchDescriptor<RecurringOccurrence>())
         let installmentBills = try modelContext.fetch(FetchDescriptor<InstallmentBill>())
         let reminders = try modelContext.fetch(FetchDescriptor<Reminder>())
+        let cashPoolItems = try modelContext.fetch(FetchDescriptor<CashPoolItem>())
+        let cashPoolStates = try modelContext.fetch(
+            FetchDescriptor<CashPoolState>(
+                sortBy: [SortDescriptor(\CashPoolState.updatedAt, order: .reverse)]
+            )
+        )
         let pendingBackfill = RecurringOccurrencePreviewCalculator.pendingOccurrences(
             rules: recurringRules,
             occurrences: occurrences,
@@ -43,6 +49,8 @@ actor LocalActionCenterDataStore {
             pendingBackfill: pendingBackfill,
             installmentBills: installmentBills,
             reminders: reminders.map(\.item),
+            cashPoolItems: cashPoolItems,
+            cashPoolState: cashPoolStates.first,
             dismissedSuggestionFingerprints: dismissedSuggestionFingerprints,
             referenceDate: referenceDate,
             payday: payday,

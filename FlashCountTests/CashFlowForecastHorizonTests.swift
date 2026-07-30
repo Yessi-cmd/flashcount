@@ -123,6 +123,127 @@ final class CashFlowForecastHorizonTests: XCTestCase {
         let forecast = makeForecast(mode: .fixedAndRoutine, transactions: [], calendar: Calendar(identifier: .gregorian))
         XCTAssertEqual(forecast.dailyRoutineExpense, 0, "没有历史消费就不该凭空估算")
         XCTAssertEqual(forecast.estimatedExpense, 0)
+        XCTAssertNil(forecast.routineProfile)
+        XCTAssertFalse(forecast.hasBalanceRange)
+    }
+
+    func testRoutineRangeOrdersBalancesAndKeepsEstimatesOutOfKnownEvents() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        let referenceDay = calendar.startOfDay(for: reference)
+        let weeklyTotals = [70, 140, 210, 280, 350, 420, 490, 560]
+        let history = try weeklyTotals.enumerated().map { index, total -> Transaction in
+            let weekStart = try XCTUnwrap(
+                calendar.date(
+                    byAdding: .day,
+                    value: -((index + 1) * 7),
+                    to: referenceDay
+                )
+            )
+            let transaction = Transaction(
+                amount: Decimal(total),
+                date: try XCTUnwrap(
+                    calendar.date(byAdding: .day, value: 2, to: weekStart)
+                )
+            )
+            transaction.dailyBudgetOverride = true
+            return transaction
+        }
+        let fixedDate = try XCTUnwrap(
+            calendar.date(byAdding: .day, value: 5, to: reference)
+        )
+        let fixedRule = RecurringRule(
+            title: "房租",
+            amount: 100,
+            frequency: .monthly,
+            nextDueDate: fixedDate
+        )
+
+        let forecast = CashFlowForecastService.forecast(
+            cashPoolItems: [
+                CashPoolItem(name: "现金", kind: .cash, amount: 5_000)
+            ],
+            cashPoolState: nil,
+            recurringRules: [fixedRule],
+            occurrences: [],
+            installmentBills: [],
+            transactions: history,
+            referenceDate: reference,
+            horizon: .thirtyDays,
+            mode: .fixedAndRoutine,
+            calendar: calendar
+        )
+
+        XCTAssertEqual(forecast.routineProfile?.dataBasis, .sufficient)
+        XCTAssertTrue(forecast.hasBalanceRange)
+        XCTAssertEqual(forecast.events.count, 1, "事件列表只应保留真正的固定事项")
+        XCTAssertFalse(forecast.events.contains { $0.source == .routine })
+        XCTAssertLessThan(
+            forecast.lighterEstimatedExpense,
+            forecast.estimatedExpense
+        )
+        XCTAssertLessThan(
+            forecast.estimatedExpense,
+            forecast.higherEstimatedExpense
+        )
+        XCTAssertTrue(
+            forecast.points.allSatisfy {
+                $0.lowerBalance <= $0.typicalBalance
+                    && $0.typicalBalance <= $0.upperBalance
+            }
+        )
+        XCTAssertLessThan(
+            forecast.endingBalanceLowerBound,
+            forecast.endingBalance
+        )
+        XCTAssertLessThan(
+            forecast.endingBalance,
+            forecast.endingBalanceUpperBound
+        )
+        XCTAssertEqual(
+            forecast.points.first { !$0.events.isEmpty }?.confirmedOutflow,
+            100
+        )
+    }
+
+    func testRoutineEstimateMultipliesBeforeDividingWeeklyAmount() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        calendar.firstWeekday = 2
+        calendar.minimumDaysInFirstWeek = 4
+        let currentWeekStart = try XCTUnwrap(
+            calendar.dateInterval(of: .weekOfYear, for: reference)?.start
+        )
+        let previousWeekStart = try XCTUnwrap(
+            calendar.date(
+                byAdding: .weekOfYear,
+                value: -1,
+                to: currentWeekStart
+            )
+        )
+        let transaction = Transaction(
+            amount: 100,
+            date: try XCTUnwrap(
+                calendar.date(byAdding: .day, value: 2, to: previousWeekStart)
+            ),
+            dailyBudgetOverride: true
+        )
+
+        let forecast = makeForecast(
+            mode: .fixedAndRoutine,
+            transactions: [transaction],
+            calendar: calendar
+        )
+        let estimatedDays = Decimal(forecast.points.count - 1)
+        let expectedExpense = Decimal(100) * estimatedDays / Decimal(7)
+
+        XCTAssertEqual(forecast.estimatedExpense, expectedExpense)
+        XCTAssertEqual(
+            forecast.endingBalance,
+            forecast.openingBalance - expectedExpense
+        )
     }
 
     // MARK: - 最低点
@@ -166,6 +287,72 @@ final class CashFlowForecastHorizonTests: XCTestCase {
         XCTAssertLessThan(lowest.closingBalance, forecast.endingBalance, "发薪之后余额回升，最低点不应是最后一天")
         XCTAssertEqual(forecast.confirmedIncome, 5_000)
         XCTAssertEqual(forecast.confirmedExpense, 800)
+    }
+
+    func testFirstNegativeDateIsDistinctFromLowestBalanceDate() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let firstDebitDate = try XCTUnwrap(
+            calendar.date(byAdding: .day, value: 3, to: reference)
+        )
+        let secondDebitDate = try XCTUnwrap(
+            calendar.date(byAdding: .day, value: 5, to: reference)
+        )
+        let recoveryDate = try XCTUnwrap(
+            calendar.date(byAdding: .day, value: 10, to: reference)
+        )
+        let rules = [
+            RecurringRule(
+                title: "第一次扣款",
+                amount: 120,
+                frequency: .monthly,
+                nextDueDate: firstDebitDate
+            ),
+            RecurringRule(
+                title: "第二次扣款",
+                amount: 50,
+                frequency: .monthly,
+                nextDueDate: secondDebitDate
+            ),
+            RecurringRule(
+                title: "收入",
+                amount: 500,
+                isExpense: false,
+                frequency: .monthly,
+                nextDueDate: recoveryDate
+            ),
+        ]
+
+        let forecast = CashFlowForecastService.forecast(
+            cashPoolItems: [
+                CashPoolItem(name: "现金", kind: .cash, amount: 100)
+            ],
+            cashPoolState: nil,
+            recurringRules: rules,
+            occurrences: [],
+            installmentBills: [],
+            transactions: [],
+            referenceDate: reference,
+            horizon: .thirtyDays,
+            mode: .fixedOnly,
+            calendar: calendar
+        )
+
+        let firstNegative = try XCTUnwrap(
+            forecast.firstNegativePoint(for: .typical)
+        )
+        let lowest = try XCTUnwrap(
+            forecast.lowestPoint(for: .typical)
+        )
+        XCTAssertEqual(
+            firstNegative.date,
+            calendar.startOfDay(for: firstDebitDate)
+        )
+        XCTAssertEqual(
+            lowest.date,
+            calendar.startOfDay(for: secondDebitDate)
+        )
+        XCTAssertEqual(firstNegative.balance(for: .typical), -20)
+        XCTAssertEqual(lowest.balance(for: .typical), -70)
     }
 
     /// 停用的周期规则不该出现在预测里。

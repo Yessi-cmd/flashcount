@@ -19,7 +19,7 @@ enum CashFlowForecastHorizon: String, CaseIterable, Identifiable {
     }
 }
 
-/// 预测口径：只算已确定的固定支出，还是把日常消费的估算也计入。
+/// 预测口径：只算已确定事项，或叠加历史日常消费节奏。
 enum CashFlowForecastMode: String, CaseIterable, Identifiable {
     case fixedOnly
     case fixedAndRoutine
@@ -28,8 +28,8 @@ enum CashFlowForecastMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .fixedOnly: return "固定事项"
-        case .fixedAndRoutine: return "固定 + 日常趋势"
+        case .fixedOnly: return "仅已知事项"
+        case .fixedAndRoutine: return "历史常见区间"
         }
     }
 }
@@ -62,16 +62,35 @@ struct CashFlowEvent: Identifiable, Equatable {
     var isExpense: Bool { signedAmount < 0 }
 }
 
-/// 预测曲线上的一天：当天余额与当天发生的事件。
+/// 预测曲线上的一天：已知事项精确落点，日常消费按三种历史节奏展开。
 struct CashFlowForecastPoint: Identifiable, Equatable {
     var id: Date { date }
     let date: Date
     let openingBalance: Decimal
-    let inflow: Decimal
-    let outflow: Decimal
-    let estimatedOutflow: Decimal
-    let closingBalance: Decimal
+    let confirmedInflow: Decimal
+    let confirmedOutflow: Decimal
+    let lighterRoutineOutflow: Decimal
+    let typicalRoutineOutflow: Decimal
+    let higherRoutineOutflow: Decimal
+    /// 较高支出节奏对应余额下界。
+    let lowerBalance: Decimal
+    let typicalBalance: Decimal
+    /// 较低支出节奏对应余额上界。
+    let upperBalance: Decimal
     let events: [CashFlowEvent]
+
+    var inflow: Decimal { confirmedInflow }
+    var outflow: Decimal { confirmedOutflow + typicalRoutineOutflow }
+    var estimatedOutflow: Decimal { typicalRoutineOutflow }
+    var closingBalance: Decimal { typicalBalance }
+
+    func balance(for scenario: CashFlowForecastScenario) -> Decimal {
+        switch scenario {
+        case .lighterSpending: return upperBalance
+        case .typical: return typicalBalance
+        case .higherSpending: return lowerBalance
+        }
+    }
 }
 
 /// 一次现金流预测的完整结果，含最低点——用户真正要问的是「哪天会不够」。
@@ -81,15 +100,31 @@ struct CashFlowForecast: Equatable {
     let horizon: CashFlowForecastHorizon
     let mode: CashFlowForecastMode
     let openingBalance: Decimal
+    let routineProfile: RoutineSpendingProfile?
     let dailyRoutineExpense: Decimal
     let events: [CashFlowEvent]
     let points: [CashFlowForecastPoint]
     let confirmedIncome: Decimal
     let confirmedExpense: Decimal
+    let lighterEstimatedExpense: Decimal
     let estimatedExpense: Decimal
+    let higherEstimatedExpense: Decimal
 
     var endingBalance: Decimal {
         points.last?.closingBalance ?? openingBalance
+    }
+
+    var endingBalanceLowerBound: Decimal {
+        points.last?.lowerBalance ?? openingBalance
+    }
+
+    var endingBalanceUpperBound: Decimal {
+        points.last?.upperBalance ?? openingBalance
+    }
+
+    var hasBalanceRange: Bool {
+        routineProfile?.hasVisibleSpread == true
+            && endingBalanceLowerBound < endingBalanceUpperBound
     }
 
     var netChange: Decimal {
@@ -97,7 +132,21 @@ struct CashFlowForecast: Equatable {
     }
 
     var lowestPoint: CashFlowForecastPoint? {
-        points.min { $0.closingBalance < $1.closingBalance }
+        lowestPoint(for: .typical)
+    }
+
+    func lowestPoint(
+        for scenario: CashFlowForecastScenario
+    ) -> CashFlowForecastPoint? {
+        points.min {
+            $0.balance(for: scenario) < $1.balance(for: scenario)
+        }
+    }
+
+    func firstNegativePoint(
+        for scenario: CashFlowForecastScenario
+    ) -> CashFlowForecastPoint? {
+        points.first { $0.balance(for: scenario) < 0 }
     }
 }
 
@@ -151,38 +200,23 @@ enum CashFlowForecastService {
             calendar: calendar
         ))
 
-        let dailyRoutineExpense: Decimal
+        let routineProfile: RoutineSpendingProfile?
         if mode == .fixedAndRoutine {
-            dailyRoutineExpense = routineExpensePerDay(
+            routineProfile = RoutineSpendingProfile.calculate(
                 transactions: transactions,
                 referenceDate: reference,
                 calendar: calendar,
                 lookbackDays: routineLookbackDays
             )
         } else {
-            dailyRoutineExpense = 0
+            routineProfile = nil
         }
-
-        if dailyRoutineExpense > 0 {
-            var cursor = calendar.date(byAdding: .day, value: 1, to: start) ?? end
-            while cursor < end {
-                let id = "routine|\(cursor.timeIntervalSinceReferenceDate)"
-                events.append(
-                    CashFlowEvent(
-                        id: id,
-                        date: cursor,
-                        title: "日常消费估算",
-                        signedAmount: -dailyRoutineExpense,
-                        source: .routine,
-                        isEstimated: true,
-                        isProtectedIncome: false
-                    )
-                )
-                let next = calendar.date(byAdding: .day, value: 1, to: cursor) ?? end
-                guard next > cursor else { break }
-                cursor = next
-            }
-        }
+        let lighterDailyExpense = routineProfile?.lighterDailyExpense ?? 0
+        let dailyRoutineExpense = routineProfile?.typicalDailyExpense ?? 0
+        let higherDailyExpense = routineProfile?.higherDailyExpense ?? 0
+        let lighterWeeklyExpense = routineProfile?.lighterWeeklyExpense ?? 0
+        let typicalWeeklyExpense = routineProfile?.typicalWeeklyExpense ?? 0
+        let higherWeeklyExpense = routineProfile?.higherWeeklyExpense ?? 0
 
         events.sort {
             if $0.date == $1.date { return $0.id < $1.id }
@@ -193,7 +227,9 @@ enum CashFlowForecastService {
             calendar.startOfDay(for: event.date)
         }
         var points: [CashFlowForecastPoint] = []
-        var balance = openingBalance
+        var confirmedBalance = openingBalance
+        var previousTypicalBalance = openingBalance
+        var estimatedDayCount = 0
         var cursor = start
 
         while cursor < end {
@@ -202,29 +238,48 @@ enum CashFlowForecastService {
                 end
             )
             let dayEvents = (groupedEvents[cursor] ?? []).sorted { $0.date < $1.date }
-            let inflow = dayEvents.reduce(Decimal.zero) { total, event in
+            let confirmedInflow = dayEvents.reduce(Decimal.zero) { total, event in
                 total + max(event.signedAmount, 0)
             }
-            let outflow = dayEvents.reduce(Decimal.zero) { total, event in
+            let confirmedOutflow = dayEvents.reduce(Decimal.zero) { total, event in
                 total + max(-event.signedAmount, 0)
             }
-            let estimatedOutflow = dayEvents.reduce(Decimal.zero) { total, event in
-                guard event.isEstimated else { return total }
-                return total + max(-event.signedAmount, 0)
+            let includesRoutineEstimate = cursor > start && routineProfile != nil
+            let lighterRoutineOutflow = includesRoutineEstimate ? lighterDailyExpense : 0
+            let typicalRoutineOutflow = includesRoutineEstimate ? dailyRoutineExpense : 0
+            let higherRoutineOutflow = includesRoutineEstimate ? higherDailyExpense : 0
+            if includesRoutineEstimate {
+                estimatedDayCount += 1
             }
-            let opening = balance
-            balance += inflow - outflow
+
+            let opening = previousTypicalBalance
+            let confirmedDelta = confirmedInflow - confirmedOutflow
+            confirmedBalance += confirmedDelta
+            let elapsedDays = Decimal(estimatedDayCount)
+            // Multiply before dividing so repeating daily sevenths do not
+            // accumulate a rounding tail across the horizon.
+            let lighterCumulativeExpense = lighterWeeklyExpense * elapsedDays / Decimal(7)
+            let typicalCumulativeExpense = typicalWeeklyExpense * elapsedDays / Decimal(7)
+            let higherCumulativeExpense = higherWeeklyExpense * elapsedDays / Decimal(7)
+            let lowerBalance = confirmedBalance - higherCumulativeExpense
+            let typicalBalance = confirmedBalance - typicalCumulativeExpense
+            let upperBalance = confirmedBalance - lighterCumulativeExpense
             points.append(
                 CashFlowForecastPoint(
                     date: cursor,
                     openingBalance: opening,
-                    inflow: inflow,
-                    outflow: outflow,
-                    estimatedOutflow: estimatedOutflow,
-                    closingBalance: balance,
+                    confirmedInflow: confirmedInflow,
+                    confirmedOutflow: confirmedOutflow,
+                    lighterRoutineOutflow: lighterRoutineOutflow,
+                    typicalRoutineOutflow: typicalRoutineOutflow,
+                    higherRoutineOutflow: higherRoutineOutflow,
+                    lowerBalance: lowerBalance,
+                    typicalBalance: typicalBalance,
+                    upperBalance: upperBalance,
                     events: dayEvents
                 )
             )
+            previousTypicalBalance = typicalBalance
             guard next > cursor else { break }
             cursor = next
         }
@@ -237,10 +292,10 @@ enum CashFlowForecastService {
             guard !event.isEstimated else { return total }
             return total + max(-event.signedAmount, 0)
         }
-        let estimatedExpense = events.reduce(Decimal.zero) { total, event in
-            guard event.isEstimated else { return total }
-            return total + max(-event.signedAmount, 0)
-        }
+        let estimatedDays = Decimal(estimatedDayCount)
+        let lighterEstimatedExpense = lighterWeeklyExpense * estimatedDays / Decimal(7)
+        let estimatedExpense = typicalWeeklyExpense * estimatedDays / Decimal(7)
+        let higherEstimatedExpense = higherWeeklyExpense * estimatedDays / Decimal(7)
 
         return CashFlowForecast(
             referenceDate: reference,
@@ -248,12 +303,15 @@ enum CashFlowForecastService {
             horizon: horizon,
             mode: mode,
             openingBalance: openingBalance,
+            routineProfile: routineProfile,
             dailyRoutineExpense: dailyRoutineExpense,
             events: events,
             points: points,
             confirmedIncome: confirmedIncome,
             confirmedExpense: confirmedExpense,
-            estimatedExpense: estimatedExpense
+            lighterEstimatedExpense: lighterEstimatedExpense,
+            estimatedExpense: estimatedExpense,
+            higherEstimatedExpense: higherEstimatedExpense
         )
     }
 
@@ -350,28 +408,6 @@ enum CashFlowForecastService {
             }
         }
         return result
-    }
-
-    private static func routineExpensePerDay(
-        transactions: [Transaction],
-        referenceDate: Date,
-        calendar: Calendar,
-        lookbackDays: Int
-    ) -> Decimal {
-        let normalizedReference = calendar.startOfDay(for: referenceDate)
-        let days = max(lookbackDays, 1)
-        let cutoff = calendar.date(byAdding: .day, value: -days, to: normalizedReference) ?? normalizedReference
-        let total = transactions.reduce(Decimal.zero) { total, transaction in
-            guard transaction.date >= cutoff,
-                  transaction.date < referenceDate,
-                  transaction.isExpense,
-                  transaction.recurringRule == nil,
-                  BudgetScope.includesInDailyBudget(transaction) else {
-                return total
-            }
-            return total + transaction.amount
-        }
-        return total / Decimal(days)
     }
 
     private static func nextDate(

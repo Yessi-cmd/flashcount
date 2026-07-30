@@ -3,6 +3,7 @@ import Foundation
 /// 行动中心的分组类型，顺序即展示顺序（按紧急程度排列）。
 enum LocalActionKind: String, CaseIterable, Identifiable {
     case budgetOverrun
+    case cashFlowRisk
     case recurringDebit
     case installmentDue
     case recurringSuggestion
@@ -13,6 +14,7 @@ enum LocalActionKind: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .budgetOverrun: return "预算风险"
+        case .cashFlowRisk: return "现金风险"
         case .recurringDebit: return "近期扣款"
         case .installmentDue: return "分期到期"
         case .recurringSuggestion: return "周期建议"
@@ -23,6 +25,7 @@ enum LocalActionKind: String, CaseIterable, Identifiable {
     var iconName: String {
         switch self {
         case .budgetOverrun: return "exclamationmark.triangle.fill"
+        case .cashFlowRisk: return "waveform.path.ecg.rectangle.fill"
         case .recurringDebit: return "repeat.circle.fill"
         case .installmentDue: return "creditcard.trianglebadge.exclamationmark.fill"
         case .recurringSuggestion: return "sparkles"
@@ -35,6 +38,7 @@ enum LocalActionKind: String, CaseIterable, Identifiable {
 /// 否则用户只能看着它却无法处理。
 enum LocalActionDestination: String, Hashable, Identifiable {
     case budget
+    case cashFlowForecast
     case recurringRules
     case installmentBills
     case reminders
@@ -113,6 +117,8 @@ enum LocalActionCenterService {
         pendingBackfill: [RecurringOccurrencePreview],
         installmentBills: [InstallmentBill],
         reminders: [ReminderItem],
+        cashPoolItems: [CashPoolItem] = [],
+        cashPoolState: CashPoolState? = nil,
         dismissedSuggestionFingerprints: Set<String> = [],
         referenceDate: Date = .now,
         payday: Int = 1,
@@ -135,6 +141,18 @@ enum LocalActionCenterService {
             referenceDate: referenceDate,
             payday: payday,
             weekendMultiplier: weekendMultiplier,
+            calendar: calendar
+        )
+        appendCashFlowRiskItem(
+            to: &grouped,
+            cashPoolItems: cashPoolItems,
+            cashPoolState: cashPoolState,
+            recurringRules: recurringRules,
+            occurrences: occurrences,
+            installmentBills: installmentBills,
+            transactions: transactions,
+            referenceDate: referenceDate,
+            payday: payday,
             calendar: calendar
         )
         appendRecurringItems(
@@ -172,6 +190,7 @@ enum LocalActionCenterService {
 
         let orderedKinds: [LocalActionKind] = [
             .budgetOverrun,
+            .cashFlowRisk,
             .recurringDebit,
             .installmentDue,
             .recurringSuggestion,
@@ -232,6 +251,74 @@ enum LocalActionCenterService {
             isPrivacySensitiveAmount: false
         )
         grouped[.budgetOverrun, default: []].append(item)
+    }
+
+    private static func appendCashFlowRiskItem(
+        to grouped: inout [LocalActionKind: [LocalActionItem]],
+        cashPoolItems: [CashPoolItem],
+        cashPoolState: CashPoolState?,
+        recurringRules: [RecurringRule],
+        occurrences: [RecurringOccurrence],
+        installmentBills: [InstallmentBill],
+        transactions: [Transaction],
+        referenceDate: Date,
+        payday: Int,
+        calendar: Calendar
+    ) {
+        guard cashPoolItems.contains(where: { !$0.isArchived }) else { return }
+
+        let forecast = CashFlowForecastService.forecast(
+            cashPoolItems: cashPoolItems,
+            cashPoolState: cashPoolState,
+            recurringRules: recurringRules,
+            occurrences: occurrences,
+            installmentBills: installmentBills,
+            transactions: transactions,
+            referenceDate: referenceDate,
+            horizon: .thirtyDays,
+            mode: .fixedAndRoutine,
+            payday: payday,
+            calendar: calendar
+        )
+
+        let scenario: CashFlowForecastScenario
+        let firstNegativePoint: CashFlowForecastPoint
+        let detailPrefix: String
+        let severity: LocalActionSeverity
+
+        if let point = forecast.firstNegativePoint(for: .lighterSpending) {
+            scenario = .lighterSpending
+            firstNegativePoint = point
+            detailPrefix = "即使支出偏低"
+            severity = .urgent
+        } else if let point = forecast.firstNegativePoint(for: .typical) {
+            scenario = .typical
+            firstNegativePoint = point
+            detailPrefix = "按典型节奏"
+            severity = .urgent
+        } else if let point = forecast.firstNegativePoint(for: .higherSpending) {
+            scenario = .higherSpending
+            firstNegativePoint = point
+            detailPrefix = "支出偏高时"
+            severity = .upcoming
+        } else {
+            return
+        }
+
+        let lowestBalance = forecast.lowestPoint(for: scenario)?
+            .balance(for: scenario) ?? firstNegativePoint.balance(for: scenario)
+        let item = LocalActionItem(
+            id: "cashflow.30day-risk",
+            kind: .cashFlowRisk,
+            destination: .cashFlowForecast,
+            title: "未来 30 天现金可能不足",
+            detail: "\(detailPrefix) · \(firstNegativePoint.date.shortDateString) 起可能为负",
+            date: firstNegativePoint.date,
+            amount: abs(min(lowestBalance, 0)),
+            severity: severity,
+            isPrivacySensitiveAmount: true
+        )
+        grouped[.cashFlowRisk, default: []].append(item)
     }
 
     private static func appendRecurringItems(

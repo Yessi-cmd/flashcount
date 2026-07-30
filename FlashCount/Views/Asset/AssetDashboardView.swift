@@ -11,9 +11,26 @@ struct AssetDashboardView: View {
     @Query(sort: \CashPoolState.updatedAt, order: .reverse) private var cashPoolStates: [CashPoolState]
     @Query(sort: \SavingsGoal.createdAt, order: .reverse) private var savingsGoals: [SavingsGoal]
     @Query(sort: \InstallmentBill.createdAt, order: .reverse) private var installmentBills: [InstallmentBill]
+    @Query(sort: \RecurringRule.nextDueDate) private var recurringRules: [RecurringRule]
+    @Query private var recurringOccurrences: [RecurringOccurrence]
+    @Query private var recentTransactions: [Transaction]
+    @AppStorage("payday") private var payday = 1
     @State private var showAddCashPoolItem = false
     @State private var showTutorial = false
     @State private var breakdownRequest: BreakdownRequest?
+
+    init() {
+        let cutoff = Calendar.current.date(
+            byAdding: .day,
+            value: -120,
+            to: Date.now
+        ) ?? .distantPast
+        _recentTransactions = Query(
+            filter: #Predicate<Transaction> { $0.date >= cutoff },
+            sort: \Transaction.date,
+            order: .reverse
+        )
+    }
 
     /// 明细与卡片汇总必须来自同一次计算，所以点击时把行一并带走，
     /// 而不是让弹层自己再算一遍。
@@ -45,7 +62,11 @@ struct AssetDashboardView: View {
                     VStack(spacing: DesignSystem.sectionSpacing) {
                         netWorthCard(snapshot)
                         cashPoolSummary(snapshot)
-                        cashFlowForecastCard
+                        AssetCashFlowForecastCard(
+                            forecast: cashFlowForecast,
+                            hidesMoney: hidesAssetMoney,
+                            maskedText: privacyLock.maskedText
+                        )
                         if !snapshot.activeSavingsGoals.isEmpty { savingsGoalSummary(snapshot) }
                         if !snapshot.activePhysicalAssets.isEmpty { physicalAssetSummary(snapshot) }
 
@@ -226,36 +247,18 @@ struct AssetDashboardView: View {
         .glassCard()
     }
 
-    private var cashFlowForecastCard: some View {
-        NavigationLink {
-            CashFlowForecastView()
-        } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(DesignSystem.primaryColor.opacity(0.12))
-                        .frame(width: 42, height: 42)
-                    Image(systemName: "chart.line.uptrend.xyaxis")
-                        .foregroundStyle(DesignSystem.primaryColor)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("现金流预测")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DesignSystem.textPrimary)
-                    Text("查看未来余额、固定支出和现金低点")
-                        .font(.caption)
-                        .foregroundStyle(DesignSystem.textSecondary)
-                }
-
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(DesignSystem.textTertiary)
-            }
-            .glassCard()
-        }
-        .buttonStyle(.plain)
+    private var cashFlowForecast: CashFlowForecast {
+        CashFlowForecastService.forecast(
+            cashPoolItems: cashPoolItems,
+            cashPoolState: cashPoolStates.first,
+            recurringRules: recurringRules,
+            occurrences: recurringOccurrences,
+            installmentBills: installmentBills,
+            transactions: recentTransactions,
+            horizon: .thirtyDays,
+            mode: .fixedAndRoutine,
+            payday: payday
+        )
     }
 
     private func savingsGoalSummary(_ snapshot: AssetPortfolioSnapshot) -> some View {

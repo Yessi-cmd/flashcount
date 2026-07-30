@@ -18,6 +18,8 @@ struct ActionCenterView: View {
     @Query private var occurrences: [RecurringOccurrence]
     @Query(sort: \InstallmentBill.createdAt, order: .reverse) private var installmentBills: [InstallmentBill]
     @Query(sort: \Reminder.dueDate) private var reminderModels: [Reminder]
+    @Query(sort: \CashPoolItem.sortOrder) private var cashPoolItems: [CashPoolItem]
+    @Query(sort: \CashPoolState.updatedAt, order: .reverse) private var cashPoolStates: [CashPoolState]
 
     @AppStorage("payday") private var payday = 1
     @AppStorage(WeekendBudgetPreferences.storageKey)
@@ -45,6 +47,8 @@ struct ActionCenterView: View {
             pendingBackfill: pendingBackfill,
             installmentBills: installmentBills,
             reminders: reminderModels.map(\.item),
+            cashPoolItems: cashPoolItems,
+            cashPoolState: cashPoolStates.first,
             dismissedSuggestionFingerprints: dismissedSuggestionFingerprints,
             payday: payday,
             weekendMultiplier: WeekendBudgetPreferences.multiplier(
@@ -68,7 +72,7 @@ struct ActionCenterView: View {
                             ContentUnavailableView(
                                 "暂无待处理事项",
                                 systemImage: "checkmark.circle",
-                                description: Text("新的预算风险、扣款、分期、周期建议或提醒出现后，会在这里集中展示。")
+                                description: Text("新的预算、现金流、扣款、分期或提醒风险出现后，会在这里集中展示。")
                             )
                             .frame(maxWidth: .infinity, minHeight: 260)
                         } else {
@@ -116,6 +120,10 @@ struct ActionCenterView: View {
         switch destination {
         case .budget:
             BudgetView()
+        case .cashFlowForecast:
+            NavigationStack {
+                CashFlowForecastView()
+            }
         case .recurringRules:
             RecurringRulesView()
         case .installmentBills:

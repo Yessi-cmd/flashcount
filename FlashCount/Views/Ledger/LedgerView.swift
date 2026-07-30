@@ -25,6 +25,8 @@ struct LedgerView: View {
     @Query var recurringOccurrences: [RecurringOccurrence]
     @Query(sort: \InstallmentBill.createdAt, order: .reverse) var installmentBills: [InstallmentBill]
     @Query(sort: \Reminder.dueDate) var reminderModels: [Reminder]
+    @Query(sort: \CashPoolItem.sortOrder) var cashPoolItems: [CashPoolItem]
+    @Query(sort: \CashPoolState.updatedAt, order: .reverse) var cashPoolStates: [CashPoolState]
 
     @State var filterState = LedgerFilterState()
     @State var pendingActionCount = 0
@@ -103,6 +105,8 @@ struct LedgerView: View {
             occurrences: recurringOccurrences,
             installmentBills: installmentBills,
             reminders: reminderModels,
+            cashPoolItems: cashPoolItems,
+            cashPoolStates: cashPoolStates,
             payday: payday,
             weekendBudgetMultiplierPercent: weekendBudgetMultiplierPercent,
             dismissedSuggestionFingerprints: UserDefaultsRecurringSuggestionDismissalStore().load()

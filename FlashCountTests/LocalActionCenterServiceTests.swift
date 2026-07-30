@@ -289,6 +289,43 @@ final class LocalActionCenterServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.totalCount, 0)
     }
 
+    func testThirtyDayNegativeCashFlowCreatesPrivateAction() throws {
+        let referenceDate = try date(2026, 7, 25, 12)
+        let cash = CashPoolItem(
+            name: "现金",
+            kind: .cash,
+            amount: 100
+        )
+        let debit = RecurringRule(
+            title: "房租",
+            amount: 150,
+            frequency: .monthly,
+            nextDueDate: try date(2026, 7, 26)
+        )
+
+        let snapshot = LocalActionCenterService.snapshot(
+            budgets: [],
+            transactions: [],
+            recurringRules: [debit],
+            occurrences: [],
+            pendingBackfill: [],
+            installmentBills: [],
+            reminders: [],
+            cashPoolItems: [cash],
+            referenceDate: referenceDate,
+            calendar: calendar
+        )
+
+        let item = try XCTUnwrap(
+            snapshot.sections.first { $0.kind == .cashFlowRisk }?.items.first
+        )
+        XCTAssertEqual(item.destination, .cashFlowForecast)
+        XCTAssertEqual(item.date, try date(2026, 7, 26))
+        XCTAssertEqual(item.amount, 50)
+        XCTAssertEqual(item.severity, .urgent)
+        XCTAssertTrue(item.isPrivacySensitiveAmount)
+    }
+
     private func expenseCategory() -> FlashCount.Category {
         FlashCount.Category(
             name: "餐饮",
