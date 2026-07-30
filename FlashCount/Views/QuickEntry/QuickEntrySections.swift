@@ -286,19 +286,20 @@ extension QuickEntryView {
                 }
             } label: {
                 HStack(spacing: 8) {
-                Image(systemName: showAllCategories ? "chevron.up.circle.fill" : "square.grid.2x2")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(DesignSystem.primaryColor)
+                    Image(systemName: showAllCategories ? "chevron.up.circle.fill" : "square.grid.2x2")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(DesignSystem.primaryColor)
 
-                Text(showAllCategories ? "收起全部分类" : "展开全部分类")
-                    .font(DesignSystem.Typography.compactLabel)
-                    .foregroundStyle(DesignSystem.textSecondary)
+                    Text(showAllCategories ? "收起全部分类" : "展开全部分类")
+                        .font(DesignSystem.Typography.compactLabel)
+                        .foregroundStyle(DesignSystem.textSecondary)
 
                     Spacer(minLength: 2)
                 }
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityIdentifier("quickEntry.expandAllCategories")
 
             if isExpense {
                 Rectangle()
@@ -328,7 +329,8 @@ extension QuickEntryView {
                     .labelsHidden()
                     .tint(DesignSystem.primaryColor)
                     .scaleEffect(0.82)
-                    .frame(width: 42)
+                    .frame(width: 42, height: 44)
+                    .accessibilityIdentifier("quickEntry.dailyBudgetToggle")
             } else if let selectedCategory {
                 Text(selectedCategory.entryDisplayName)
                     .font(DesignSystem.Typography.supportingLabel)
@@ -416,14 +418,14 @@ extension QuickEntryView {
                 bottomControlsContent
             }
             .padding(.horizontal)
-            .padding(.top, DesignSystem.space8)
-            .padding(.bottom, DesignSystem.space8)
+            .padding(.top, DesignSystem.space4)
+            .padding(.bottom, DesignSystem.space4)
             .background(DesignSystem.surfaceBackground)
         } else {
             bottomControlsContent
                 .padding(.horizontal)
-                .padding(.top, DesignSystem.space8)
-                .padding(.bottom, DesignSystem.space8)
+                .padding(.top, DesignSystem.space4)
+                .padding(.bottom, DesignSystem.space4)
                 .background(DesignSystem.cardBackground)
                 .overlay(alignment: .top) {
                     Rectangle()
@@ -434,7 +436,7 @@ extension QuickEntryView {
     }
 
     private var bottomControlsContent: some View {
-        VStack(spacing: DesignSystem.space8) {
+        VStack(spacing: DesignSystem.space4) {
             if isBackdated {
                 backdatedNotice
             }

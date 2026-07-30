@@ -3,11 +3,17 @@ import SwiftUI
 /// 记账页的自定义数字键盘。键位含义与「+」累加见 `QuickEntryAmountInput`。
 struct QuickEntryNumberPad: View {
     let onKeyPress: (String) -> Void
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
-    private let legacyKeyHeight: CGFloat = 44
-    // 玻璃按钮自带上下内边距，38pt 标签的整键仍 ≥44pt 点按目标；
-    // 压缩键盘高度，把屏幕比例还给上方表单区。
-    private let liquidGlassLabelHeight: CGFloat = 38
+    // 记账键盘是固定在底部的安全区内容；减少键帽的上下留白，
+    // 把屏幕比例还给上方表单区。大字体时恢复原高度，避免键帽里的数字被裁切。
+    private var legacyKeyHeight: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 44 : 40
+    }
+
+    private var liquidGlassLabelHeight: CGFloat {
+        dynamicTypeSize.isAccessibilitySize ? 38 : 32
+    }
 
     // 右下角原本是个空键位，白占 1/16 的键盘面积。
     // 「+」把拆账、凑总额这个记账里最常见的算术补上了。
@@ -19,9 +25,9 @@ struct QuickEntryNumberPad: View {
     ]
 
     var body: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 4) {
             ForEach(buttons, id: \.self) { row in
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     ForEach(row, id: \.self) { button in
                         keyButton(for: button)
                     }
@@ -127,6 +133,7 @@ struct QuickEntrySubmitButton: View {
     let isExpense: Bool
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     @ViewBuilder
     var body: some View {
@@ -149,7 +156,7 @@ struct QuickEntrySubmitButton: View {
                 .font(DesignSystem.Typography.controlLabel)
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
-                .frame(minHeight: 40)
+                .frame(minHeight: dynamicTypeSize.isAccessibilitySize ? 40 : 36)
         }
         .buttonStyle(.glassProminent)
         .tint(isExpense ? DesignSystem.expenseColor : DesignSystem.incomeColor)

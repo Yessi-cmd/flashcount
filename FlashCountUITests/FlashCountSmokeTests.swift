@@ -303,15 +303,24 @@ final class FlashCountSmokeTests: XCTestCase {
         let oneKey = app.buttons["quickEntry.key.1"]
         let amount = app.staticTexts["quickEntry.amount"]
         let save = app.buttons["quickEntry.save"]
-        let categoryControls = app.buttons["展开全部分类"]
+        let categoryControls = app.buttons["quickEntry.expandAllCategories"]
+        let dailyBudget = app.descendants(matching: .any)["quickEntry.dailyBudgetToggle"].firstMatch
 
         XCTAssertTrue(oneKey.waitForExistence(timeout: 5))
         XCTAssertTrue(amount.waitForExistence(timeout: 5))
         XCTAssertTrue(categoryControls.waitForExistence(timeout: 5))
+        XCTAssertTrue(dailyBudget.waitForExistence(timeout: 5))
+        XCTAssertTrue(categoryControls.isHittable, "展开全部分类应在记账页首屏可直接点击")
+        XCTAssertTrue(dailyBudget.isHittable, "日常预算开关应在记账页首屏可直接点击")
         XCTAssertLessThanOrEqual(
             categoryControls.frame.maxY,
             oneKey.frame.minY,
             "底部玻璃键盘不应覆盖分类控制区"
+        )
+        XCTAssertLessThanOrEqual(
+            dailyBudget.frame.maxY,
+            oneKey.frame.minY,
+            "底部玻璃键盘不应覆盖日常预算开关"
         )
         XCTAssertFalse(save.isEnabled)
 
