@@ -225,6 +225,105 @@ final class NotificationScheduleCoordinatorTests: XCTestCase {
         }
     }
 
+    func testPlannerProducesSubscriptionRenewalCandidate() throws {
+        let reference = try date(2026, 7, 1, 8)
+        let item = SubscriptionRenewalItem(
+            id: UUID(),
+            name: "iCloud",
+            nextRenewalDate: try date(2026, 7, 10, 9),
+            remindBeforeDays: 3
+        )
+
+        let candidates = NotificationSchedulePlanner.candidates(
+            reminders: [],
+            reportPreferences: .default,
+            subscriptionRenewals: [item],
+            referenceDate: reference,
+            calendar: calendar
+        )
+
+        let subscriptionCandidates = candidates.filter {
+            if case .subscriptionRenewal = $0.kind { return true }
+            return false
+        }
+        XCTAssertEqual(subscriptionCandidates.count, 1)
+        let candidate = try XCTUnwrap(subscriptionCandidates.first)
+        XCTAssertEqual(candidate.identifier, "flashcount.subscription.\(item.id.uuidString)")
+        XCTAssertEqual(candidate.nextTriggerDate, try date(2026, 7, 7, 9), "续费前 3 天触发")
+        XCTAssertFalse(candidate.repeats)
+        XCTAssertEqual(candidate.sortPriority, 1)
+        XCTAssertTrue(candidate.body.contains(item.name), "通知文案带订阅名称")
+    }
+
+    func testPlannerDropsSubscriptionsWithoutReminderOrPastFireDate() throws {
+        let reference = try date(2026, 7, 1, 8)
+        let noReminder = SubscriptionRenewalItem(
+            id: UUID(),
+            name: "不提醒",
+            nextRenewalDate: try date(2026, 7, 10),
+            remindBeforeDays: nil
+        )
+        let past = SubscriptionRenewalItem(
+            id: UUID(),
+            name: "已过触发",
+            nextRenewalDate: try date(2026, 7, 3),
+            remindBeforeDays: 3
+        )
+
+        let candidates = NotificationSchedulePlanner.candidates(
+            reminders: [],
+            reportPreferences: .default,
+            subscriptionRenewals: [noReminder, past],
+            referenceDate: reference,
+            calendar: calendar
+        )
+
+        XCTAssertTrue(candidates.filter { if case .subscriptionRenewal = $0.kind { return true }; return false }.isEmpty)
+    }
+
+    @MainActor
+    func testCoordinatorSchedulesSubscriptionFromInjectedLoader() async throws {
+        let center = FakeNotificationCenter()
+        let base = try date(2026, 7, 1, 8)
+        let item = SubscriptionRenewalItem(
+            id: UUID(),
+            name: "Netflix",
+            nextRenewalDate: try date(2026, 7, 10, 9),
+            remindBeforeDays: 2
+        )
+        let coordinator = NotificationScheduleCoordinator(
+            center: center,
+            preferencesLoader: { .default },
+            subscriptionLoader: { [item] },
+            now: { base },
+            calendar: calendar
+        )
+
+        _ = try await coordinator.rebuild(reminders: [])
+
+        let pending = await center.pendingRequests()
+        XCTAssertEqual(pending.map(\.identifier), ["flashcount.subscription.\(item.id.uuidString)"])
+        let userInfo = pending.first?.content.userInfo
+        XCTAssertEqual(
+            userInfo?[SubscriptionRoute.notificationSubscriptionIDUserInfoKey] as? String,
+            item.id.uuidString
+        )
+    }
+
+    func testStatusDecodesLegacyPayloadWithoutSubscriptionField() throws {
+        let json = """
+        {"scheduledCount":2,"capacity":64,"unmanagedCount":0,
+         "droppedReminderIDs":[],"droppedReportPeriods":[],
+         "errorMessage":null,"updatedAt":"2026-07-01T00:00:00Z"}
+        """.data(using: .utf8)!
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let status = try decoder.decode(NotificationScheduleStatus.self, from: json)
+        XCTAssertEqual(status.droppedSubscriptionIDs, [])
+        XCTAssertEqual(status.scheduledCount, 2)
+        XCTAssertFalse(status.hasDroppedCandidates)
+    }
+
     private func date(
         _ year: Int,
         _ month: Int,

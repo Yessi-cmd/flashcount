@@ -76,5 +76,8 @@ private final class ReminderNotificationDelegate: NSObject, UNUserNotificationCe
             userInfo: response.notification.request.content.userInfo,
             deliveredAt: response.notification.date
         )
+        SubscriptionRoute.requestFromNotification(
+            userInfo: response.notification.request.content.userInfo
+        )
     }
 }

@@ -36,6 +36,7 @@ extension DataBackupService {
         let installmentBills = try modelContext.fetch(FetchDescriptor<InstallmentBill>())
         let savingsGoals = try modelContext.fetch(FetchDescriptor<SavingsGoal>())
         let templates = try modelContext.fetch(FetchDescriptor<TransactionTemplate>())
+        let subscriptions = try modelContext.fetch(FetchDescriptor<Subscription>())
         let reminders = try ReminderDataService(modelContext: modelContext).load()
 
         let backup = BackupData(
@@ -152,6 +153,21 @@ extension DataBackupService {
                                        categoryName: t.categoryName, sortOrder: t.sortOrder)
             },
             reminders: reminders,
+            subscriptions: subscriptions.map { s in
+                SubscriptionDTO(
+                    id: s.id.uuidString,
+                    name: s.name,
+                    cost: CodableMoney(s.cost),
+                    billingCycle: s.billingCycle.rawValue,
+                    nextRenewalDate: s.nextRenewalDate,
+                    renewalDay: s.renewalDay,
+                    remindBeforeDays: s.remindBeforeDays,
+                    note: s.note,
+                    isArchived: s.isArchived,
+                    createdAt: s.createdAt,
+                    updatedAt: s.updatedAt
+                )
+            },
             settings: SettingsDTO(
                 payday: max(UserDefaults.standard.integer(forKey: "payday"), 1),
                 appearance: UserDefaults.standard.string(forKey: "appearance"),

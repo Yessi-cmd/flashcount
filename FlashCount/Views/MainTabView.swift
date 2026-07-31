@@ -4,11 +4,13 @@ import SwiftData
 private enum MainSheetDestination: Identifiable, Equatable {
     case quickEntry
     case deliveredReport(ReportRoute.Request)
+    case subscription(UUID)
 
     var id: String {
         switch self {
         case .quickEntry: return "quickEntry"
         case .deliveredReport(let request): return "deliveredReport.\(request.id.uuidString)"
+        case .subscription(let id): return "subscription.\(id.uuidString)"
         }
     }
 }
@@ -24,9 +26,11 @@ struct MainTabView: View {
     @State private var presentedSheet: MainSheetDestination?
     @State private var pendingForegroundReport: ReportRoute.Request?
     @State private var tabReportRequest: ReportRoute.Request?
+    @State private var pendingForegroundSubscriptionID: UUID?
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @AppStorage(QuickEntryRoute.requestKey) private var shouldShowQuickEntry = false
     @AppStorage(ReportRoute.requestKey) private var shouldShowReport = false
+    @AppStorage(SubscriptionRoute.requestKey) private var shouldShowSubscription = false
     @State private var showOnboarding = false
 
     init() {
@@ -94,6 +98,8 @@ struct MainTabView: View {
                     requestedReport: request,
                     showsDismissButton: true
                 )
+            case .subscription(let id):
+                SubscriptionView(initialSubscriptionID: id)
             }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
@@ -107,28 +113,34 @@ struct MainTabView: View {
             }
             processQuickEntryRequestIfNeeded()
             processReportRequestIfNeeded()
+            processSubscriptionRequestIfNeeded()
             prepareForegroundReportUITestIfNeeded()
         }
         .onChange(of: shouldShowQuickEntry) { processQuickEntryRequestIfNeeded() }
         .onChange(of: shouldShowReport) { processReportRequestIfNeeded() }
+        .onChange(of: shouldShowSubscription) { processSubscriptionRequestIfNeeded() }
         .onChange(of: showOnboarding) { _, isPresented in
             handleOverlayStateChange(isPresented: isPresented)
             if !showOnboarding {
                 processQuickEntryRequestIfNeeded()
                 processReportRequestIfNeeded()
+                processSubscriptionRequestIfNeeded()
                 presentPendingForegroundReportIfPossible()
+                presentPendingForegroundSubscriptionIfPossible()
             }
         }
         .onChange(of: presentedSheet) { _, destination in
             handleOverlayStateChange(isPresented: destination != nil)
             if destination == nil {
                 presentPendingForegroundReportIfPossible()
+                presentPendingForegroundSubscriptionIfPossible()
             }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 processQuickEntryRequestIfNeeded()
                 processReportRequestIfNeeded()
+                processSubscriptionRequestIfNeeded()
             }
         }
         .onOpenURL { url in
@@ -276,6 +288,28 @@ struct MainTabView: View {
               presentedSheet == nil else { return }
         pendingForegroundReport = nil
         presentedSheet = .deliveredReport(request)
+    }
+
+    /// 订阅续费通知点按后：切到资产页并展示订阅视图。已有 sheet 时先存下，
+    /// 等当前 sheet 关闭后再弹（与报表通知的排队行为一致）。
+    private func processSubscriptionRequestIfNeeded() {
+        guard shouldShowSubscription, hasCompletedOnboarding, !showOnboarding else { return }
+        guard let id = SubscriptionRoute.consume() else { return }
+        selectTab(4, providesHaptic: false)
+        if presentedSheet == nil {
+            presentedSheet = .subscription(id)
+        } else {
+            pendingForegroundSubscriptionID = id
+        }
+    }
+
+    private func presentPendingForegroundSubscriptionIfPossible() {
+        guard let id = pendingForegroundSubscriptionID,
+              hasCompletedOnboarding,
+              !showOnboarding,
+              presentedSheet == nil else { return }
+        pendingForegroundSubscriptionID = nil
+        presentedSheet = .subscription(id)
     }
 
     private func handleDeepLink(_ url: URL) {

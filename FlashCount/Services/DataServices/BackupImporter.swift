@@ -20,7 +20,7 @@ extension DataBackupService {
         try Self.validateContents(backup, mode: .replace)
         let count = backup.categories.count + backup.ledgers.count + backup.transactions.count + backup.assets.count
             + backup.physicalAssets.count + backup.recurringRules.count + backup.recurringOccurrences.count + backup.budgets.count + backup.cashPoolItems.count
-            + backup.cashPoolStates.count + backup.installmentBills.count + backup.savingsGoals.count + backup.templates.count
+            + backup.cashPoolStates.count + backup.installmentBills.count + backup.savingsGoals.count + backup.templates.count + backup.subscriptions.count
         return BackupPreview(version: backup.version, createdAt: backup.createdAt, itemCount: count, reminderCount: backup.reminders.count)
     }
 
@@ -407,13 +407,21 @@ extension DataBackupService {
         // 10. 导入记账模板
         try importTemplates(backup, mode: mode, result: &result)
 
-        // 11. 导入提醒。提醒与财务模型处于同一个 SwiftData 提交中，
+        // 11. 导入订阅
+        try importSubscriptions(backup, mode: mode, result: &result)
+
+        // 12. 导入提醒。提醒与财务模型处于同一个 SwiftData 提交中，
         // 不再依赖独立 JSON 文件的第二次写入。
         try importReminders(backup, mode: mode, result: &result)
 
         // 默认数据、单账本整理与本次恢复共用一次数据库事务。
         try DefaultDataService(modelContext: modelContext).stageDefaultData()
         try modelContext.save()
+
+        // 订阅提醒快照随导入数据重建——通知排期的真源是 SwiftData 模型，
+        // 恢复后不刷新会让下次排期用到导入前的旧 UserDefaults 镜像。
+        let importedSubscriptions = (try? modelContext.fetch(FetchDescriptor<Subscription>())) ?? []
+        SubscriptionRenewalSnapshotStore.refresh(from: importedSubscriptions)
         } catch {
             modelContext.rollback()
             try? Self.clearImportJournal()
@@ -527,6 +535,7 @@ extension DataBackupService {
         try deleteAll(RecurringRule.self); try deleteAll(Budget.self)
         try deleteAll(PhysicalAsset.self); try deleteAll(CashPoolItem.self); try deleteAll(CashPoolState.self)
         try deleteAll(SavingsGoal.self); try deleteAll(InstallmentBill.self); try deleteAll(TransactionTemplate.self)
+        try deleteAll(Subscription.self)
         try deleteAll(Reminder.self); try deleteAll(RecurringOccurrence.self)
     }
 
@@ -680,6 +689,41 @@ extension DataBackupService {
             template.id = dtoID
             modelContext.insert(template)
             result.templatesImported += 1
+        }
+    }
+
+    private func importSubscriptions(
+        _ backup: BackupData,
+        mode: ImportMode,
+        result: inout ImportResult
+    ) throws {
+        let existing = mode == .replace ? [] : try modelContext.fetch(FetchDescriptor<Subscription>())
+        let existingIDs = Set(existing.map(\.id))
+
+        for dto in backup.subscriptions {
+            let dtoID = try Self.validatedUUID(dto.id, label: "订阅")
+            if existingIDs.contains(dtoID) {
+                result.skipped += 1
+                continue
+            }
+            guard let cycle = SubscriptionBillingCycle(rawValue: dto.billingCycle) else {
+                throw DataBackupService.ImportError.invalidContents("无法识别的订阅周期：\(dto.billingCycle)")
+            }
+            let subscription = Subscription(
+                name: dto.name,
+                cost: dto.cost.decimalValue,
+                billingCycle: cycle,
+                nextRenewalDate: dto.nextRenewalDate,
+                remindBeforeDays: dto.remindBeforeDays,
+                note: dto.note
+            )
+            subscription.id = dtoID
+            subscription.renewalDay = dto.renewalDay
+            subscription.isArchived = dto.isArchived
+            subscription.createdAt = dto.createdAt
+            subscription.updatedAt = dto.updatedAt
+            modelContext.insert(subscription)
+            result.subscriptionsImported += 1
         }
     }
 

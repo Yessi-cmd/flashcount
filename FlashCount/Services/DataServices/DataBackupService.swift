@@ -10,7 +10,7 @@ import SwiftData
 @MainActor
 final class DataBackupService {
 
-    nonisolated static let currentBackupVersion = "1.10.0"
+    nonisolated static let currentBackupVersion = "1.11.0"
     nonisolated static let minimumSupportedBackupVersion = "1.0.0"
 
     let modelContext: ModelContext

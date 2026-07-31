@@ -76,6 +76,7 @@ extension DataBackupService {
         let savingsGoals: [SavingsGoalDTO]
         let templates: [TransactionTemplateDTO]
         let reminders: [ReminderItem]
+        let subscriptions: [SubscriptionDTO]
         let settings: SettingsDTO?
 
         init(
@@ -95,6 +96,7 @@ extension DataBackupService {
             savingsGoals: [SavingsGoalDTO],
             templates: [TransactionTemplateDTO],
             reminders: [ReminderItem],
+            subscriptions: [SubscriptionDTO] = [],
             settings: SettingsDTO?
         ) {
             self.version = version
@@ -113,12 +115,13 @@ extension DataBackupService {
             self.savingsGoals = savingsGoals
             self.templates = templates
             self.reminders = reminders
+            self.subscriptions = subscriptions
             self.settings = settings
         }
 
         enum CodingKeys: String, CodingKey {
             case version, createdAt, categories, ledgers, transactions, assets, physicalAssets, recurringRules, recurringOccurrences, budgets
-            case cashPoolItems, cashPoolStates, installmentBills, savingsGoals, templates, reminders, settings
+            case cashPoolItems, cashPoolStates, installmentBills, savingsGoals, templates, reminders, subscriptions, settings
         }
 
         init(from decoder: Decoder) throws {
@@ -139,6 +142,7 @@ extension DataBackupService {
             savingsGoals = try container.decodeIfPresent([SavingsGoalDTO].self, forKey: .savingsGoals) ?? []
             templates = try container.decodeIfPresent([TransactionTemplateDTO].self, forKey: .templates) ?? []
             reminders = try container.decodeIfPresent([ReminderItem].self, forKey: .reminders) ?? []
+            subscriptions = try container.decodeIfPresent([SubscriptionDTO].self, forKey: .subscriptions) ?? []
             settings = try container.decodeIfPresent(SettingsDTO.self, forKey: .settings)
         }
     }
@@ -311,6 +315,20 @@ extension DataBackupService {
         let sortOrder: Int
     }
 
+    struct SubscriptionDTO: Codable, Sendable {
+        let id: String
+        let name: String
+        let cost: CodableMoney
+        let billingCycle: String
+        let nextRenewalDate: Date
+        let renewalDay: Int
+        let remindBeforeDays: Int?
+        let note: String
+        let isArchived: Bool
+        let createdAt: Date
+        let updatedAt: Date
+    }
+
     struct SettingsDTO: Codable, Sendable {
         let payday: Int
         let appearance: String?
@@ -365,6 +383,7 @@ extension DataBackupService {
         var savingsGoalsImported = 0
         var templatesImported = 0
         var remindersImported = 0
+        var subscriptionsImported = 0
         var skipped = 0
         var notificationWarning: String?
 
@@ -382,6 +401,7 @@ extension DataBackupService {
             if savingsGoalsImported > 0 { parts.append("储蓄目标 \(savingsGoalsImported)") }
             if templatesImported > 0 { parts.append("记账模板 \(templatesImported)") }
             if remindersImported > 0 { parts.append("提醒 \(remindersImported)") }
+            if subscriptionsImported > 0 { parts.append("订阅 \(subscriptionsImported)") }
 
             let importedStr = parts.isEmpty ? "无新数据" : "导入：" + parts.joined(separator: "、")
             let skippedStr = skipped > 0 ? "\n跳过 \(skipped) 项已有数据" : ""

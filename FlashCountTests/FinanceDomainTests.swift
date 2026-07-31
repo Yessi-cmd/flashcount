@@ -111,6 +111,7 @@ final class FinanceDomainTests: XCTestCase {
             TransactionTemplate.self,
             Reminder.self,
             RecurringOccurrence.self,
+            Subscription.self,
             configurations: configuration
         )
         return ModelContext(container)

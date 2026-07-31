@@ -1,10 +1,11 @@
 import Foundation
 import UserNotifications
 
-/// 一条待安排通知的来源：某个提醒的第几次触发，或某种周期的报表提醒。
+/// 一条待安排通知的来源：某个提醒的第几次触发、某种周期的报表提醒，或一笔订阅的续费提醒。
 enum NotificationCandidateKind: Equatable {
     case reminder(id: UUID, offsetIndex: Int)
     case report(period: ReportPeriod)
+    case subscriptionRenewal(id: UUID)
 }
 
 /// 通知的打扰级别。强提醒用 `.timeSensitive` 以穿透专注模式。
@@ -28,6 +29,7 @@ struct NotificationScheduleCandidate: Equatable {
     var sortPriority: Int {
         switch kind {
         case .reminder(_, let index): return index == 0 ? 0 : 1
+        case .subscriptionRenewal: return 1
         case .report: return 2
         }
     }
@@ -73,10 +75,12 @@ enum NotificationSchedulePlanner {
     static let maximumPendingRequests = 64
     static let reminderIdentifierPrefix = "flashcount.reminder."
     static let reportIdentifierPrefix = ReportReminderSchedulePlanner.identifierPrefix
+    static let subscriptionIdentifierPrefix = "flashcount.subscription."
 
     static func candidates(
         reminders: [ReminderItem],
         reportPreferences: ReportReminderPreferences,
+        subscriptionRenewals: [SubscriptionRenewalItem] = [],
         referenceDate: Date = Date(),
         calendar: Calendar = .current,
         payday: Int = 1,
@@ -88,6 +92,11 @@ enum NotificationSchedulePlanner {
             calendar: calendar,
             includeDetails: includeReminderDetails
         )
+            + subscriptionRenewalCandidates(
+                items: subscriptionRenewals,
+                referenceDate: referenceDate,
+                calendar: calendar
+            )
             + reportCandidates(
                 preferences: reportPreferences,
                 referenceDate: referenceDate,
@@ -99,6 +108,38 @@ enum NotificationSchedulePlanner {
     static func isManaged(identifier: String) -> Bool {
         identifier.hasPrefix(reminderIdentifierPrefix)
             || identifier.hasPrefix(reportIdentifierPrefix)
+            || identifier.hasPrefix(subscriptionIdentifierPrefix)
+    }
+
+    /// 每笔订阅在「续费日前 N 天」触发一次提醒。已过触发时间或未设提前天数的
+    /// 订阅不安排。文案只带订阅名称，绝不含金额——锁屏通知会绕过 App 内隐私锁。
+    private static func subscriptionRenewalCandidates(
+        items: [SubscriptionRenewalItem],
+        referenceDate: Date,
+        calendar: Calendar
+    ) -> [NotificationScheduleCandidate] {
+        items.compactMap { item -> NotificationScheduleCandidate? in
+            guard let remindBeforeDays = item.remindBeforeDays, remindBeforeDays > 0,
+                  let fireDate = calendar.date(
+                    byAdding: .day,
+                    value: -remindBeforeDays,
+                    to: item.nextRenewalDate
+                  ),
+                  fireDate > referenceDate else { return nil }
+            return NotificationScheduleCandidate(
+                identifier: "\(subscriptionIdentifierPrefix)\(item.id.uuidString)",
+                kind: .subscriptionRenewal(id: item.id),
+                nextTriggerDate: fireDate,
+                dateComponents: calendar.dateComponents(
+                    [.year, .month, .day, .hour, .minute],
+                    from: fireDate
+                ),
+                repeats: false,
+                title: "订阅续费提醒",
+                body: "「\(item.name)」将在 \(item.nextRenewalDate.formatted(date: .abbreviated, time: .omitted)) 续费。",
+                interruption: .active
+            )
+        }
     }
 
     private static func reminderCandidates(
@@ -183,8 +224,43 @@ struct NotificationScheduleStatus: Codable, Equatable {
     let unmanagedCount: Int
     let droppedReminderIDs: [UUID]
     let droppedReportPeriods: [ReportPeriod]
+    let droppedSubscriptionIDs: [UUID]
     let errorMessage: String?
     let updatedAt: Date
+
+    init(
+        scheduledCount: Int,
+        capacity: Int,
+        unmanagedCount: Int,
+        droppedReminderIDs: [UUID],
+        droppedReportPeriods: [ReportPeriod],
+        droppedSubscriptionIDs: [UUID] = [],
+        errorMessage: String?,
+        updatedAt: Date
+    ) {
+        self.scheduledCount = scheduledCount
+        self.capacity = capacity
+        self.unmanagedCount = unmanagedCount
+        self.droppedReminderIDs = droppedReminderIDs
+        self.droppedReportPeriods = droppedReportPeriods
+        self.droppedSubscriptionIDs = droppedSubscriptionIDs
+        self.errorMessage = errorMessage
+        self.updatedAt = updatedAt
+    }
+
+    /// 自定义解码：老版本存下的 status blob 没有 `droppedSubscriptionIDs` 等字段，
+    /// 用 `decodeIfPresent` 补默认值，保证旧数据仍能读出来。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        scheduledCount = try container.decode(Int.self, forKey: .scheduledCount)
+        capacity = try container.decode(Int.self, forKey: .capacity)
+        unmanagedCount = try container.decode(Int.self, forKey: .unmanagedCount)
+        droppedReminderIDs = try container.decodeIfPresent([UUID].self, forKey: .droppedReminderIDs) ?? []
+        droppedReportPeriods = try container.decodeIfPresent([ReportPeriod].self, forKey: .droppedReportPeriods) ?? []
+        droppedSubscriptionIDs = try container.decodeIfPresent([UUID].self, forKey: .droppedSubscriptionIDs) ?? []
+        errorMessage = try container.decodeIfPresent(String.self, forKey: .errorMessage)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+    }
 
     static let empty = NotificationScheduleStatus(
         scheduledCount: 0,
@@ -197,7 +273,7 @@ struct NotificationScheduleStatus: Codable, Equatable {
     )
 
     var hasDroppedCandidates: Bool {
-        !droppedReminderIDs.isEmpty || !droppedReportPeriods.isEmpty
+        !droppedReminderIDs.isEmpty || !droppedReportPeriods.isEmpty || !droppedSubscriptionIDs.isEmpty
     }
 
     var summary: String? {
@@ -307,6 +383,7 @@ actor NotificationScheduleCoordinator {
     private let statusStore: NotificationScheduleStatusStore
     private let reminderLoader: @Sendable () -> [ReminderItem]
     private let preferencesLoader: @Sendable () -> ReportReminderPreferences
+    private let subscriptionLoader: @Sendable () -> [SubscriptionRenewalItem]
     private let reminderDetailsLoader: @Sendable () -> Bool
     private let paydayLoader: @Sendable () -> Int
     private let now: @Sendable () -> Date
@@ -318,6 +395,9 @@ actor NotificationScheduleCoordinator {
         reminderLoader: @escaping @Sendable () -> [ReminderItem] = { [] },
         preferencesLoader: @escaping @Sendable () -> ReportReminderPreferences = {
             UserDefaultsReportReminderPreferencesStore().load()
+        },
+        subscriptionLoader: @escaping @Sendable () -> [SubscriptionRenewalItem] = {
+            SubscriptionRenewalSnapshotStore().load()
         },
         reminderDetailsLoader: @escaping @Sendable () -> Bool = {
             UserDefaults.standard.bool(forKey: "notificationShowReminderDetails")
@@ -332,6 +412,7 @@ actor NotificationScheduleCoordinator {
         self.statusStore = statusStore
         self.reminderLoader = reminderLoader
         self.preferencesLoader = preferencesLoader
+        self.subscriptionLoader = subscriptionLoader
         self.reminderDetailsLoader = reminderDetailsLoader
         self.paydayLoader = paydayLoader
         self.now = now
@@ -341,7 +422,8 @@ actor NotificationScheduleCoordinator {
     @discardableResult
     func rebuild(
         reminders providedReminders: [ReminderItem]? = nil,
-        reportPreferences providedReportPreferences: ReportReminderPreferences? = nil
+        reportPreferences providedReportPreferences: ReportReminderPreferences? = nil,
+        subscriptions providedSubscriptions: [SubscriptionRenewalItem]? = nil
     ) async throws -> NotificationScheduleStatus {
         let referenceDate = now()
         let pending = await center.pendingRequests()
@@ -357,6 +439,7 @@ actor NotificationScheduleCoordinator {
         let candidates = NotificationSchedulePlanner.candidates(
             reminders: providedReminders ?? reminderLoader(),
             reportPreferences: providedReportPreferences ?? preferencesLoader(),
+            subscriptionRenewals: providedSubscriptions ?? subscriptionLoader(),
             referenceDate: referenceDate,
             calendar: calendar,
             payday: paydayLoader(),
@@ -434,6 +517,9 @@ actor NotificationScheduleCoordinator {
         if case .report(let period) = candidate.kind {
             content.userInfo = [ReportRoute.notificationPeriodUserInfoKey: period.rawValue]
         }
+        if case .subscriptionRenewal(let id) = candidate.kind {
+            content.userInfo = [SubscriptionRoute.notificationSubscriptionIDUserInfoKey: id.uuidString]
+        }
         let trigger = UNCalendarNotificationTrigger(
             dateMatching: candidate.dateComponents,
             repeats: candidate.repeats
@@ -460,12 +546,17 @@ actor NotificationScheduleCoordinator {
             if case .report(let period) = candidate.kind { return period }
             return nil
         })
+        let subscriptionIDs = Set(selection.dropped.compactMap { candidate -> UUID? in
+            if case .subscriptionRenewal(let id) = candidate.kind { return id }
+            return nil
+        })
         return NotificationScheduleStatus(
             scheduledCount: errorMessage == nil ? selection.selected.count : (scheduledCountOnFailure ?? 0),
             capacity: selection.capacity,
             unmanagedCount: unmanagedCount,
             droppedReminderIDs: reminderIDs.sorted { $0.uuidString < $1.uuidString },
             droppedReportPeriods: periods.sorted { $0.rawValue < $1.rawValue },
+            droppedSubscriptionIDs: subscriptionIDs.sorted { $0.uuidString < $1.uuidString },
             errorMessage: errorMessage,
             updatedAt: updatedAt
         )

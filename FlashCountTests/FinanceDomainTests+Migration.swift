@@ -233,4 +233,49 @@ extension FinanceDomainTests {
         XCTAssertEqual(restored.amount, 88)
         XCTAssertEqual(try upgradedContext.fetchCount(FetchDescriptor<RecurringOccurrence>()), 0)
     }
+
+    /// V3 → V4 是纯增模型（`Subscription`）的轻量迁移：既有数据必须原样保留，
+    /// 新模型在旧库上打开时计数为 0。
+    func testVersionedSchemaV3ToV4MigrationAddsSubscriptionsWithoutDroppingTransactions() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let storeURL = directory.appendingPathComponent("FlashCount.store")
+
+        let original = Transaction(amount: 88, note: "V3 交易")
+        let originalID = original.id
+        do {
+            let configuration = ModelConfiguration(
+                "FlashCount",
+                schema: Schema(versionedSchema: FlashCountSchemaV3.self),
+                url: storeURL,
+                cloudKitDatabase: .none
+            )
+            let container = try ModelContainer(
+                for: Schema(versionedSchema: FlashCountSchemaV3.self),
+                configurations: configuration
+            )
+            let context = ModelContext(container)
+            context.insert(original)
+            try context.save()
+        }
+
+        let upgradedConfiguration = ModelConfiguration(
+            "FlashCount",
+            schema: Schema(versionedSchema: FlashCountSchemaV4.self),
+            url: storeURL,
+            cloudKitDatabase: .none
+        )
+        let upgradedContainer = try ModelContainer(
+            for: Schema(versionedSchema: FlashCountSchemaV4.self),
+            migrationPlan: FlashCountMigrationPlan.self,
+            configurations: upgradedConfiguration
+        )
+        let upgradedContext = ModelContext(upgradedContainer)
+
+        let restored = try XCTUnwrap(upgradedContext.fetch(FetchDescriptor<Transaction>()).first)
+        XCTAssertEqual(restored.id, originalID)
+        XCTAssertEqual(restored.amount, 88)
+        XCTAssertEqual(try upgradedContext.fetchCount(FetchDescriptor<Subscription>()), 0)
+    }
 }

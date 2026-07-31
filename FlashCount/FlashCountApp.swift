@@ -13,7 +13,7 @@ struct FlashCountApp: App {
         ReminderNotificationService.configure()
         do {
             modelContainer = try ModelContainer(
-                for: Schema(versionedSchema: FlashCountSchemaV3.self),
+                for: Schema(versionedSchema: FlashCountSchemaV4.self),
                 migrationPlan: FlashCountMigrationPlan.self
             )
             modelContainerError = nil
@@ -184,6 +184,7 @@ private struct AppRootView: View {
             prepareActionCenterUITestDataIfNeeded()
             prepareCashFlowForecastUITestDataIfNeeded()
             startupState = .ready
+            refreshSubscriptionSnapshot()
             rebuildNotificationSchedule()
             if recurringResult.hasRemainingDueRules {
                 Task { await continueRecurringProcessing() }
@@ -203,6 +204,13 @@ private struct AppRootView: View {
         } catch {
             backgroundTaskError = "周期交易尚未全部生成：\(error.localizedDescription)。请在“周期性规则”中重试。"
         }
+    }
+
+    /// 订阅提醒快照的启动兜底：真源是 SwiftData 模型，这里在通知重建前
+    /// 从模型重建一次 UserDefaults 镜像，防止任何漏刷新路径让排期用到旧数据。
+    private func refreshSubscriptionSnapshot() {
+        let subscriptions = (try? modelContext.fetch(FetchDescriptor<Subscription>())) ?? []
+        SubscriptionRenewalSnapshotStore.refresh(from: subscriptions)
     }
 
     private func rebuildNotificationSchedule() {

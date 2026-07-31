@@ -58,6 +58,7 @@ extension DataBackupService {
         try validateUniqueIDs(backup.installmentBills.map(\.id), label: "分期")
         try validateUniqueIDs(backup.savingsGoals.map(\.id), label: "储蓄目标")
         try validateUniqueIDs(backup.templates.map(\.id), label: "模板")
+        try validateUniqueIDs(backup.subscriptions.map(\.id), label: "订阅")
         try validateUniqueIDs(backup.reminders.map { $0.id.uuidString }, label: "提醒")
 
         guard backup.transactions.allSatisfy({ $0.amount.decimalValue > 0 }) else {
@@ -80,7 +81,8 @@ extension DataBackupService {
               backup.cashPoolItems.allSatisfy({ $0.amount.decimalValue >= 0 }),
               backup.installmentBills.allSatisfy({ $0.totalAmount.decimalValue > 0 }),
               backup.savingsGoals.allSatisfy({ $0.targetAmount.decimalValue > 0 && $0.currentAmount.decimalValue >= 0 }),
-              backup.templates.allSatisfy({ $0.amount.decimalValue > 0 }) else {
+              backup.templates.allSatisfy({ $0.amount.decimalValue > 0 }),
+              backup.subscriptions.allSatisfy({ $0.cost.decimalValue > 0 }) else {
             throw ImportError.invalidContents("存在不符合业务约束的金额")
         }
 

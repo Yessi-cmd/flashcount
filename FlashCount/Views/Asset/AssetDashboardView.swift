@@ -94,6 +94,11 @@ struct AssetDashboardView: View {
                             } label: {
                                 toolRow(icon: "target", color: DesignSystem.primaryColor, title: "储蓄目标", subtitle: "手动追踪存钱计划")
                             }
+                            NavigationLink {
+                                SubscriptionView()
+                            } label: {
+                                toolRow(icon: "repeat.circle.fill", color: DesignSystem.primaryColor, title: "订阅追踪", subtitle: "月度、季度、年度订阅的续费提醒")
+                            }
                         }
 
                         if snapshot.isEmpty {

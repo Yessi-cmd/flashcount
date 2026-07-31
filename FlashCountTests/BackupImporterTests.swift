@@ -432,11 +432,41 @@ final class BackupImporterTests: XCTestCase {
         XCTAssertEqual(try destination.fetch(FetchDescriptor<SavingsGoal>()).map(\.name), ["备份目标"])
     }
 
+    func testSubscriptionSurvivesBackupRoundTripWithExactAmount() throws {
+        let source = try makeContext()
+        let subscription = Subscription(
+            name: "iCloud",
+            cost: Decimal(string: "9.99")!,
+            billingCycle: .quarterly,
+            nextRenewalDate: Date(timeIntervalSince1970: 1_700_000_000),
+            remindBeforeDays: 3,
+            note: "家庭共享"
+        )
+        source.insert(subscription)
+        try source.save()
+        let snapshot = try DataBackupService(modelContext: source).exportJSON()
+
+        let destination = try makeContext()
+        let result = try DataBackupService(modelContext: destination)
+            .importJSON(data: snapshot, mode: .replace)
+
+        let restored = try XCTUnwrap(destination.fetch(FetchDescriptor<Subscription>()).first)
+        XCTAssertEqual(restored.name, "iCloud")
+        XCTAssertEqual(restored.cost, Decimal(string: "9.99")!, "金额字符串精确往返")
+        XCTAssertEqual(restored.billingCycle, .quarterly)
+        XCTAssertEqual(restored.remindBeforeDays, 3)
+        XCTAssertEqual(restored.nextRenewalDate, Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertEqual(result.subscriptionsImported, 1)
+
+        // 导入后通知快照必须随新数据重建，否则排期会用导入前的旧镜像。
+        XCTAssertTrue(SubscriptionRenewalSnapshotStore().load().contains { $0.id == restored.id })
+    }
+
     // MARK: - 夹具
 
     private func makeContext() throws -> ModelContext {
         let container = try ModelContainer(
-            for: Schema(versionedSchema: FlashCountSchemaV3.self),
+            for: Schema(versionedSchema: FlashCountSchemaV4.self),
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         return ModelContext(container)
