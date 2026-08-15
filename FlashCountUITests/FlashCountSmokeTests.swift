@@ -31,6 +31,9 @@ final class FlashCountSmokeTests: XCTestCase {
         openLedgerMoreItem(app, identifier: "ledger.settings")
 
         let backTapSetup = app.buttons["settings.backTapSetup"]
+        for _ in 0..<5 where backTapSetup.exists == false {
+            app.swipeUp()
+        }
         XCTAssertTrue(backTapSetup.waitForExistence(timeout: 5))
         backTapSetup.tap()
 
