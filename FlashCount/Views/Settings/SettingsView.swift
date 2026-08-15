@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 import UniformTypeIdentifiers
 
 /// 设置页面
@@ -8,6 +9,8 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var privacyLock: PrivacyLockService
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
+    @AppStorage(AccentThemePreference.storageKey) private var accentThemeRawValue = AccentThemePreference.fallback.rawValue
+    @AppStorage(AppIconPreference.storageKey) private var appIconRawValue = AppIconPreference.original.rawValue
     @AppStorage("payday") private var payday = 1
     @AppStorage(WeekendBudgetPreferences.storageKey) private var weekendBudgetMultiplierPercent = WeekendBudgetPreferences.defaultRawValue
     @AppStorage(RecurringCatchUpPreferences.storageKey) private var recurringCatchUpModeRawValue = RecurringCatchUpPreferences.defaultMode.rawValue
@@ -31,6 +34,9 @@ struct SettingsView: View {
     @State private var showImportResult = false
     @State private var pendingImportURL: URL?
     @State private var importPreview: DataBackupService.BackupPreview?
+    @State private var iconChangeError: String?
+    @State private var showIconChangeError = false
+    @State private var isChangingIcon = false
 
     private var appVersionText: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "-"
@@ -99,8 +105,39 @@ struct SettingsView: View {
                         }
                         .foregroundStyle(DesignSystem.textPrimary)
                         .accessibilityIdentifier("settings.weekendBudgetMultiplier")
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("强调色")
+                                .font(DesignSystem.Typography.controlLabel)
+                                .foregroundStyle(DesignSystem.textPrimary)
+                            HStack(spacing: 14) {
+                                ForEach(AccentThemePreference.allCases) { theme in
+                                    accentThemeButton(theme)
+                                }
+                            }
+                        }
+                        .padding(.vertical, 6)
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("App 图标")
+                                .font(DesignSystem.Typography.controlLabel)
+                                .foregroundStyle(DesignSystem.textPrimary)
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 14) {
+                                    ForEach(AppIconPreference.allCases) { preference in
+                                        appIconButton(preference)
+                                    }
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        .padding(.vertical, 6)
                     } header: {
                         Text("外观设置").foregroundStyle(DesignSystem.textSecondary)
+                    } footer: {
+                        Text("强调色会立即应用到整个 App；图标切换由 iOS 生效。")
+                            .font(.caption2)
+                            .foregroundStyle(DesignSystem.textTertiary)
                     }
                     .listRowBackground(DesignSystem.cardBackground)
 
@@ -403,6 +440,11 @@ struct SettingsView: View {
             } message: {
                 Text(importResult ?? "")
             }
+            .alert("图标切换失败", isPresented: $showIconChangeError) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(iconChangeError ?? "无法切换 App 图标")
+            }
             .onAppear {
                 weekendBudgetMultiplierPercent = WeekendBudgetPreferences.normalizedRawValue(weekendBudgetMultiplierPercent)
             }
@@ -411,6 +453,81 @@ struct SettingsView: View {
             }
             .onChange(of: notificationShowReminderDetails) { _, _ in
                 rebuildNotificationsForSettingsChange()
+            }
+        }
+    }
+
+    private func accentThemeButton(_ theme: AccentThemePreference) -> some View {
+        let isSelected = accentThemeRawValue == theme.rawValue
+        return Button {
+            accentThemeRawValue = theme.rawValue
+            HapticManager.selection()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(theme.color)
+                    .frame(width: 38, height: 38)
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .overlay {
+                Circle()
+                    .stroke(
+                        isSelected ? DesignSystem.textPrimary.opacity(0.35) : DesignSystem.borderColor,
+                        lineWidth: isSelected ? 2 : 1
+                    )
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("强调色：\(theme.title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func appIconButton(_ preference: AppIconPreference) -> some View {
+        let isSelected = appIconRawValue == preference.rawValue
+        return Button {
+            changeAppIcon(to: preference)
+        } label: {
+            VStack(spacing: 6) {
+                Image(uiImage: UIImage(named: preference.previewImageName) ?? UIImage())
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 56, height: 56)
+                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .stroke(
+                                isSelected ? DesignSystem.primaryColor : DesignSystem.borderColor,
+                                lineWidth: isSelected ? 2.5 : 1
+                            )
+                    }
+                Text(preference.title)
+                    .font(DesignSystem.Typography.compactLabel)
+                    .foregroundStyle(isSelected ? DesignSystem.primaryColor : DesignSystem.textSecondary)
+            }
+            .frame(width: 66)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("App 图标：\(preference.title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private func changeAppIcon(to preference: AppIconPreference) {
+        guard appIconRawValue != preference.rawValue, isChangingIcon == false else { return }
+        isChangingIcon = true
+        Task { @MainActor in
+            defer { isChangingIcon = false }
+            do {
+                try await AppIconService.set(preference)
+                appIconRawValue = preference.rawValue
+                HapticManager.success()
+            } catch {
+                iconChangeError = error.localizedDescription
+                showIconChangeError = true
+                HapticManager.error()
             }
         }
     }

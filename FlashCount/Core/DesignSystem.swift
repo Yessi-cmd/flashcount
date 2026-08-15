@@ -39,11 +39,14 @@ enum DesignSystem {
     // MARK: - 品牌色
 
     /// B 方向主色。保留 ShapeStyle 类型兼容现有调用，但两端同色，不再产生渐变。
-    static let primaryGradient = LinearGradient(
-        colors: [Color(hex: "#4E766A"), Color(hex: "#4E766A")],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
+    static var primaryGradient: LinearGradient {
+        let accent = AccentThemePreference.current.color
+        return LinearGradient(
+            colors: [accent, accent],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
 
     /// 收入渐变
     static let incomeGradient = LinearGradient(
@@ -75,13 +78,10 @@ enum DesignSystem {
 
     // MARK: - 单色
 
-    static let primaryColor = Color(uiColor: UIColor { traits in
-        let highContrast = traits.accessibilityContrast == .high
-        if traits.userInterfaceStyle == .dark {
-            return UIColor(red: highContrast ? 0.53 : 0.36, green: highContrast ? 0.82 : 0.56, blue: highContrast ? 0.70 : 0.48, alpha: 1)
-        }
-        return UIColor(red: highContrast ? 0.15 : 0.306, green: highContrast ? 0.34 : 0.463, blue: highContrast ? 0.28 : 0.416, alpha: 1)
-    })
+    /// 强调色统一跟随设置里的 `AccentThemePreference`。
+    /// 根视图只设置一次 `.tint`，这里返回 `Color.accentColor` 后，
+    /// 全部既有 `DesignSystem.primaryColor` 引用都会自动换色。
+    static var primaryColor: Color { .accentColor }
     static let incomeColor = Color(uiColor: UIColor { traits in
         let highContrast = traits.accessibilityContrast == .high
         if traits.userInterfaceStyle == .dark {

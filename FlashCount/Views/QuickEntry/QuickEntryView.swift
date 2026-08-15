@@ -63,6 +63,30 @@ struct QuickEntryView: View {
 
     var canSubmitAmount: Bool { amountInput.canSubmit }
 
+    /// 输入中的金额（含「+」已累加部分）。解析失败时按无草稿处理，
+    /// 预算条仍显示当前剩余，不会因为半个输入状态闪烁。
+    var currentDraftAmount: Decimal? {
+        try? amountInput.resolved().get()
+    }
+
+    /// 金额下方实时预算提示。支出且设置了当前周期总预算时才有。
+    var budgetHint: QuickEntryBudgetHint? {
+        QuickEntryBudgetHintCalculator.makeHint(
+            budgets: allBudgets,
+            transactions: recentTransactions,
+            ledger: nil,
+            referenceDate: selectedDate,
+            payday: payday,
+            weekendMultiplier: WeekendBudgetPreferences.multiplier(for: weekendBudgetMultiplierPercent),
+            draft: QuickEntryBudgetDraft(
+                amount: currentDraftAmount,
+                isExpense: isExpense,
+                category: selectedCategory,
+                dailyBudgetOverride: dailyBudgetOverride
+            )
+        )
+    }
+
     /// 日期不是今天时，保存按钮和提示条都要说清这是补录——
     /// 日期控件本身太安静，看漏了就会把今天的账记到别的日子。
     var isBackdated: Bool {

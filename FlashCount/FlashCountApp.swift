@@ -42,6 +42,7 @@ private struct AppRootView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("appearance") private var appearance = AppearancePreference.light.rawValue
+    @AppStorage(AccentThemePreference.storageKey) private var accentThemeRawValue = AccentThemePreference.fallback.rawValue
     @StateObject private var privacyLock = PrivacyLockService()
     @StateObject private var quickEntryFeedback = QuickEntryFeedbackCenter()
     @State private var startupState: StartupState = .preparing
@@ -52,6 +53,10 @@ private struct AppRootView: View {
         case preparing
         case ready
         case failed(String)
+    }
+
+    private var accentTheme: AccentThemePreference {
+        AccentThemePreference(rawValue: accentThemeRawValue) ?? .fallback
     }
 
     var body: some View {
@@ -82,7 +87,7 @@ private struct AppRootView: View {
             mainAppContent
 #endif
         }
-        .tint(DesignSystem.primaryColor)
+        .tint(accentTheme.color)
         .fontDesign(.rounded)
         .preferredColorScheme(AppearancePreference(rawValue: appearance)?.colorScheme)
         // 记账反馈在这一层注入：DEBUG 的记账页走查路径不经过 MainTabView，

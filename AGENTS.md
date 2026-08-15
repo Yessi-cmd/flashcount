@@ -61,7 +61,7 @@ DesignSystem.primaryGradient / .incomeGradient / .expenseGradient
 .glassCard()                     // View modifier for card style
 Color(hex: "#4EA8F8")            // Hex color support
 ```
-Light mode is the default; appearance preference lives in `@AppStorage("appearance")`.
+`DesignSystem.primaryColor` is `Color.accentColor`; `AppRootView` sets `.tint(AccentThemePreference.current.color)`, so accent changes propagate to every existing primary-color reference without per-view migration. Light mode is the default; appearance preference lives in `@AppStorage("appearance")`, accent in `@AppStorage(AccentThemePreference.storageKey)`.
 
 ### Privacy Lock
 `PrivacyLockService` is an `ObservableObject` injected via `.environmentObject()` at `AppRootView`. Views that display sensitive amounts (salary income, cash pool, savings goals, installment bills) must guard with `privacyLock.isUnlocked`. The lock engages when `scenePhase != .active`.
@@ -105,6 +105,9 @@ Grouped under `FlashCount/Services/`:
 | `PrivacyLockService` | Face ID / device passcode gate for sensitive amounts |
 | `TransactionMutationService` / `LedgerQueryService` | Transaction writes with undo snapshots; ledger queries |
 | `QuickEntryFeedbackCenter` | Post-save feedback channel for quick entry. Injected at `AppRootView` (not `MainTabView` — the DEBUG quick-entry review path bypasses the tab view and would crash without it). Holds the saved transaction by `PersistentIdentifier`, not by object, so undo cannot act on a stale reference; expires itself after `visibleSeconds`. |
+| `QuickEntryBudgetHintCalculator` | Real-time daily-budget projection while typing in Quick Entry. Only appears for expenses with a current cycle budget; simulated amount respects `BudgetScope` and per-transaction overrides. |
+| `TemplateUsageStore` / `TemplateDisplayOrder` | UserDefaults-backed template usage (count + last-used). The first two templates keep manual order; the rest auto-sort by recency, then frequency. |
+| `AppIconService` / `AccentThemePreference` / `AppIconPreference` | Appearance preferences: global accent tint and alternate app icons. App icon assets live alongside `AppIcon`; `ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS` must stay `YES` or the alternates are not compiled. |
 
 ## Caveats
 

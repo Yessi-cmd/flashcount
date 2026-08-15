@@ -29,6 +29,32 @@ targets:
       path: FlashCount/Info.plist
       properties:
         CFBundleDisplayName: FlashCount
+        CFBundleIcons:
+          CFBundlePrimaryIcon:
+            CFBundleIconFiles:
+              - AppIcon
+            UIPrerenderedIcon: false
+          CFBundleAlternateIcons:
+            AppIcon-Forest:
+              CFBundleIconFiles:
+                - AppIcon-Forest
+              UIPrerenderedIcon: false
+            AppIcon-Ocean:
+              CFBundleIconFiles:
+                - AppIcon-Ocean
+              UIPrerenderedIcon: false
+            AppIcon-Violet:
+              CFBundleIconFiles:
+                - AppIcon-Violet
+              UIPrerenderedIcon: false
+            AppIcon-Rose:
+              CFBundleIconFiles:
+                - AppIcon-Rose
+              UIPrerenderedIcon: false
+            AppIcon-Graphite:
+              CFBundleIconFiles:
+                - AppIcon-Graphite
+              UIPrerenderedIcon: false
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor
             CFBundleURLName: com.flashcount.app
@@ -43,6 +69,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.flashcount.app
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         SWIFT_EMIT_LOC_STRINGS: YES
         TARGETED_DEVICE_FAMILY: "1"

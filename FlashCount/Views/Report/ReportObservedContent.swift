@@ -213,6 +213,7 @@ struct ReportObservedContent: View {
             streakDays: data.streakDays
         )
         .environment(\.colorScheme, .light)
+        .tint(AccentThemePreference.current.color)
 
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3

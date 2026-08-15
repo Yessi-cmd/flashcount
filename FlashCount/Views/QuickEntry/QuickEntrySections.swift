@@ -134,6 +134,10 @@ extension QuickEntryView {
                 pendingSumChip
             }
 
+            if isExpense, let budgetHint {
+                QuickEntryBudgetHintView(hint: budgetHint)
+            }
+
             ValidationMessage(message: amountError?.errorDescription)
 
             dateControls

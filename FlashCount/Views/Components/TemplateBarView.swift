@@ -11,6 +11,16 @@ struct TemplateBarView: View {
     let onManage: () -> Void
     var onEditTemplate: ((TransactionTemplate) -> Void)?
 
+    var usageStore = TemplateUsageStore()
+
+    /// 前两个保持用户手动顺序，其余按最近使用与使用次数自动提前。
+    private var displayedTemplates: [TransactionTemplate] {
+        TemplateDisplayOrder.ordered(
+            templates,
+            usage: usageStore.load()
+        )
+    }
+
     private var currentCategories: [Category] {
         // 合并所有分类，onSelect 时根据模板的 isExpense 决定用哪一组
         expenseCategories + incomeCategories
@@ -35,12 +45,15 @@ struct TemplateBarView: View {
                 Text("记账模板")
                     .font(DesignSystem.Typography.compactLabelEmphasized)
                     .foregroundStyle(DesignSystem.textSecondary)
+                Text("常用自动提前")
+                    .font(DesignSystem.Typography.supportingLabel)
+                    .foregroundStyle(DesignSystem.textTertiary)
                 Spacer()
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
-                    ForEach(templates, id: \.id) { template in
+                    ForEach(displayedTemplates, id: \.id) { template in
                         templateButton(template)
                     }
                     // 管理按钮
@@ -84,6 +97,7 @@ struct TemplateBarView: View {
                         let otherPool = template.isExpense ? incomeCategories : expenseCategories
                         return otherPool.first { $0.name == name }
                     }
+            usageStore.record(template.id)
             onSelect(template, category)
             HapticManager.selection()
         } label: {
